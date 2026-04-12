@@ -44,7 +44,7 @@ export default function BookDetailScreen() {
           />
           <BlurView intensity={50} style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={["rgba(247,242,235,0.05)", colors.cream]}
+            colors={["rgba(13,11,10,0.05)", colors.cream]}
             locations={[0, 1]}
             style={[StyleSheet.absoluteFill, { top: "35%" }]}
           />
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   bdCircleBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(250,246,240,0.9)",
+    backgroundColor: "rgba(26,22,18,0.9)",
     alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
     elevation: 2,

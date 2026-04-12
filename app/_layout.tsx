@@ -31,7 +31,7 @@ export default function RootLayout() {
 
   // Only block on font loading — don't wait for Supabase
   if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: "#f7f2eb" }} />;
+    return <View style={{ flex: 1, backgroundColor: "#13110f" }} />;
   }
 
   return (
