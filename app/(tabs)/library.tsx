@@ -8,7 +8,6 @@ import {
   Modal,
   ScrollView,
   SafeAreaView,
-  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -17,21 +16,24 @@ import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { LIBRARY_BOOKS } from "../../src/data/mockData";
 
+// Single atmospheric background — warm library interior
+const BG = "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1200&q=80";
+
 type Status = "all" | "reading" | "read" | "want_to_read" | "abandoned";
 
 const FILTERS: { label: string; value: Status }[] = [
-  { label: "All Books",   value: "all" },
-  { label: "Reading",     value: "reading" },
-  { label: "Read",        value: "read" },
-  { label: "Want to Read",value: "want_to_read" },
-  { label: "Abandoned",   value: "abandoned" },
+  { label: "All",          value: "all" },
+  { label: "Reading",      value: "reading" },
+  { label: "Read",         value: "read" },
+  { label: "Want to Read", value: "want_to_read" },
+  { label: "Abandoned",    value: "abandoned" },
 ];
 
 const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  reading:      { label: "Reading",  bg: "rgba(201,124,90,0.15)", text: "#a85e3e" },
-  read:         { label: "Read",     bg: "rgba(122,158,126,0.15)", text: "#4a7c59" },
-  want_to_read: { label: "Want",     bg: "rgba(74,55,40,0.08)",  text: "#4a3728" },
-  abandoned:    { label: "Stopped",  bg: "rgba(74,63,58,0.08)",  text: "#7a6e6a" },
+  reading:      { label: "Reading", bg: "rgba(201,124,90,0.15)", text: "#a85e3e" },
+  read:         { label: "Read",    bg: "rgba(122,158,126,0.15)", text: "#4a7c59" },
+  want_to_read: { label: "Want",    bg: "rgba(74,55,40,0.08)",   text: "#4a3728" },
+  abandoned:    { label: "Stopped", bg: "rgba(74,63,58,0.08)",   text: "#7a6e6a" },
 };
 
 function SearchIcon() {
@@ -85,57 +87,66 @@ export default function LibraryScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.heading}>My Library</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
-            <Text style={styles.addBtnText}>+ Add</Text>
+    <View style={{ flex: 1 }}>
+      {/* Atmospheric background */}
+      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.93)" }]} />
+
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
+        <View style={styles.container}>
+
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.heading}>My Library</Text>
+            <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+              <Text style={styles.addBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search bar */}
+          <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.8}
+          >
+            <SearchIcon />
+            <Text style={styles.searchPlaceholder}>Find your favourite…</Text>
           </TouchableOpacity>
+
+          {/* Filter pills — fixed height prevents active pill stretching */}
+          <View style={styles.filterRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterContent}
+            >
+              {FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f.value}
+                  style={[styles.pill, filter === f.value && styles.pillActive]}
+                  onPress={() => setFilter(f.value)}
+                >
+                  <Text style={[styles.pillText, filter === f.value && styles.pillTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Book grid */}
+          <FlatList
+            data={gridData}
+            renderItem={renderBook}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            contentContainerStyle={styles.grid}
+            showsVerticalScrollIndicator={false}
+            columnWrapperStyle={styles.gridRow}
+          />
         </View>
 
-        {/* Search bar */}
-        <TouchableOpacity
-          style={styles.searchBar}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <SearchIcon />
-          <Text style={styles.searchPlaceholder}>Find your favourite…</Text>
-        </TouchableOpacity>
-
-        {/* Filter pills */}
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          style={styles.filterRow}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
-        >
-          {FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.value}
-              style={[styles.pill, filter === f.value && styles.pillActive]}
-              onPress={() => setFilter(f.value)}
-            >
-              <Text style={[styles.pillText, filter === f.value && styles.pillTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Book grid */}
-        <FlatList
-          data={gridData}
-          renderItem={renderBook}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={styles.grid}
-          showsVerticalScrollIndicator={false}
-          columnWrapperStyle={styles.gridRow}
-        />
-
-        {/* Add Book Modal (placeholder) */}
+        {/* Add Book Modal */}
         <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet">
           <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
             <View style={styles.modal}>
@@ -162,15 +173,16 @@ export default function LibraryScreen() {
             </View>
           </SafeAreaView>
         </Modal>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.cream },
+  container: { flex: 1 },
   header: {
-    backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    backgroundColor: "rgba(250,246,240,0.95)",
+    borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
@@ -183,22 +195,37 @@ const styles = StyleSheet.create({
 
   searchBar: {
     marginHorizontal: 20, marginTop: 12,
-    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: "rgba(250,246,240,0.95)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 10,
     flexDirection: "row", alignItems: "center", gap: 8,
   },
   searchPlaceholder: { fontSize: 13, color: colors.char3 },
 
-  filterRow: { marginTop: 10, marginBottom: 14 },
+  // Fixed-height wrapper ensures pills never stretch vertically
+  filterRow: {
+    height: 48,
+    justifyContent: "center",
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  filterContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+    alignItems: "center", // ← prevents individual pills from stretching tall
+  },
   pill: {
-    paddingVertical: 6, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.parchment,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.cream3,
+    backgroundColor: "rgba(250,246,240,0.95)",
   },
   pillActive: { backgroundColor: colors.espresso, borderColor: colors.espresso },
   pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
   pillTextActive: { color: colors.cream },
 
-  grid: { paddingHorizontal: 20, paddingBottom: 40 },
+  grid: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 },
   gridRow: { gap: 12, marginBottom: 16 },
   bgItem: { flex: 1, maxWidth: "31%" },
   bgCover: {
@@ -211,6 +238,7 @@ const styles = StyleSheet.create({
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
     borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", gap: 4,
+    backgroundColor: "rgba(250,246,240,0.6)",
   },
   addPlus: { fontSize: 22, color: colors.cream3 },
   addLabel: { fontSize: 9, color: colors.cream3 },

@@ -7,12 +7,18 @@ import {
   SafeAreaView,
   TouchableOpacity,
 } from "react-native";
+import { Image } from "expo-image";
 import { colors } from "../../src/design/tokens";
 import { STATS, MOOD_ARC, GENRE_STATS } from "../../src/data/mockData";
 
+const BG = "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=1200&q=80";
+
 export default function InsightsScreen() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1 }}>
+      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.92)" }]} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.insHdr}>
@@ -107,7 +113,8 @@ export default function InsightsScreen() {
           <View style={{ height: 24 }} />
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -121,7 +128,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.cream },
+  container: { flex: 1 },
   insHdr: {
     backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,

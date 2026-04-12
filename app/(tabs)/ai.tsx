@@ -11,10 +11,13 @@ import {
   SafeAreaView,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { CURRENT_BOOK, AI_MESSAGES, AI_RECOMMENDATIONS } from "../../src/data/mockData";
+
+const BG = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=1200&q=80";
 
 type Tab = "Chat" | "Recommend" | "Define" | "Themes";
 const TABS: Tab[] = ["Chat", "Recommend", "Define", "Themes"];
@@ -50,7 +53,10 @@ export default function AIScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1 }}>
+      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.93)" }]} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -172,7 +178,8 @@ export default function AIScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

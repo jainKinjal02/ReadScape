@@ -69,6 +69,15 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.root}>
+      {/* Full-screen background image */}
+      <Image
+        source={{ uri: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1200&q=80" }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.91)" }]} />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -228,7 +237,7 @@ function getGreeting() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.cream },
+  root: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingBottom: 20 },
 
