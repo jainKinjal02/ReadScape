@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 
@@ -69,6 +69,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: styles.tabBar,
         tabBarShowLabel: false,
+        tabBarItemStyle: styles.tabBarItem,
       }}
     >
       <Tabs.Screen
@@ -140,18 +141,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment,
     borderTopColor: colors.cream3,
     borderTopWidth: 1,
-    height: 76,
-    paddingBottom: 16,
-    paddingTop: 4,
+    // height accounts for content + bottom safe area on iOS
+    height: Platform.OS === "ios" ? 84 : 64,
+    paddingBottom: Platform.OS === "ios" ? 24 : 8,
+    paddingTop: 8,
+    // Subtle shadow so the bar lifts off content
+    shadowColor: "#2c1f14",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 8,
+    elevation: 8,
   },
-  tabIcon: { alignItems: "center", gap: 3, paddingTop: 2 },
-  label: { fontSize: 10, fontWeight: "500", color: colors.char3 },
+  tabBarItem: {
+    paddingTop: 0,
+    paddingBottom: 0,
+    // Each tab fills its slot with comfortable horizontal padding
+    paddingHorizontal: 4,
+  },
+  tabIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  label: { fontSize: 10, fontWeight: "500", color: colors.char3, lineHeight: 13 },
   labelFocused: { color: colors.terracotta, fontWeight: "600" },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.terracotta,
-    marginTop: 1,
+    marginTop: 2,
   },
 });

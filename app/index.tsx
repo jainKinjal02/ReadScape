@@ -12,8 +12,6 @@ import {
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { supabase } from "../src/lib/supabase";
-
 const { width, height } = Dimensions.get("window");
 
 // Atmospheric background images (Unsplash — free to use)
@@ -47,12 +45,6 @@ export default function LandingScreen() {
   const [bgIndex, setBgIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Check if user is already logged in
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/(tabs)/home");
-    });
-  }, []);
 
   // Cycle background images with crossfade
   useEffect(() => {
@@ -102,7 +94,7 @@ export default function LandingScreen() {
 
         <TouchableOpacity
           style={styles.ctaButton}
-          onPress={() => router.push("/onboarding")}
+          onPress={() => router.replace("/(tabs)/home")}
           activeOpacity={0.85}
         >
           <Text style={styles.ctaText}>Start your journey</Text>
@@ -110,7 +102,7 @@ export default function LandingScreen() {
 
         <TouchableOpacity
           style={styles.signInLink}
-          onPress={() => router.push("/onboarding")}
+          onPress={() => router.replace("/(tabs)/home")}
         >
           <Text style={styles.signInText}>Already have an account? Sign in</Text>
         </TouchableOpacity>

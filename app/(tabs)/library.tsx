@@ -14,6 +14,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+import { CoverImage } from "../../src/components/CoverImage";
 import { LIBRARY_BOOKS } from "../../src/data/mockData";
 
 type Status = "all" | "reading" | "read" | "want_to_read" | "abandoned";
@@ -72,7 +73,7 @@ export default function LibraryScreen() {
         activeOpacity={0.8}
       >
         <View style={styles.bgCover}>
-          <Image source={{ uri: item.cover }} style={styles.bgCoverImg} contentFit="cover" />
+          <CoverImage uri={item.cover} title={item.title} style={styles.bgCoverImg} />
         </View>
         <Text style={styles.bgTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.bgAuthor} numberOfLines={1}>{item.author}</Text>
@@ -201,11 +202,11 @@ const styles = StyleSheet.create({
   gridRow: { gap: 12, marginBottom: 16 },
   bgItem: { flex: 1, maxWidth: "31%" },
   bgCover: {
-    width: "100%", aspectRatio: 2 / 3, borderRadius: 8, overflow: "hidden", marginBottom: 6,
+    width: "100%", aspectRatio: 2 / 3, borderRadius: 8, marginBottom: 6,
     shadowColor: "#2c1f14", shadowOpacity: 0.12, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
     elevation: 3,
   },
-  bgCoverImg: { width: "100%", height: "100%" },
+  bgCoverImg: { width: "100%", height: "100%", borderRadius: 8 },
   bgCoverAdd: {
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
     borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",

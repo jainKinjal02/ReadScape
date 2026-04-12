@@ -1,6 +1,6 @@
 import "../global.css";
-import React, { useEffect, useState } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import React, { useEffect } from "react";
+import { Stack } from "expo-router";
 import {
   useFonts,
   PlayfairDisplay_400Regular,
@@ -19,29 +19,19 @@ export default function RootLayout() {
   });
 
   const setUserId = useAppStore((s) => s.setUserId);
-  const [authReady, setAuthReady] = useState(false);
-  const router = useRouter();
-  const segments = useSegments();
 
+  // Keep the auth listener so userId stays in sync when backend is wired up.
+  // Intentionally NOT blocking navigation on auth state — the UI is hardcoded.
   useEffect(() => {
-    // Listen to auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const uid = session?.user?.id ?? null;
-        setUserId(uid);
-
-        const inTabsGroup = segments[0] === "(tabs)";
-        if (!uid && inTabsGroup) {
-          router.replace("/");
-        }
-        setAuthReady(true);
-      }
-    );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (!fontsLoaded || !authReady) {
-    return <View style={{ flex: 1, backgroundColor: "#F7F4EF" }} />;
+  // Only block on font loading — don't wait for Supabase
+  if (!fontsLoaded) {
+    return <View style={{ flex: 1, backgroundColor: "#f7f2eb" }} />;
   }
 
   return (

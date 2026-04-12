@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+import { CoverImage } from "../../src/components/CoverImage";
 import {
   CURRENT_USER,
   CURRENT_BOOK,
@@ -114,10 +115,10 @@ export default function HomeScreen() {
           activeOpacity={0.88}
         >
           <View style={styles.curCoverWrap}>
-            <Image
-              source={{ uri: CURRENT_BOOK.cover }}
+            <CoverImage
+              uri={CURRENT_BOOK.cover}
+              title={CURRENT_BOOK.title}
               style={styles.curCoverImg}
-              contentFit="cover"
             />
           </View>
           <View style={styles.curInfo}>
@@ -186,7 +187,11 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <View style={styles.shelfCover}>
-                  <Image source={{ uri: item.cover }} style={styles.shelfCoverImg} contentFit="cover" />
+                  <CoverImage
+                    uri={item.cover}
+                    title={item.title}
+                    style={styles.shelfCoverImg}
+                  />
                 </View>
                 <Text style={styles.shelfTitle} numberOfLines={2}>{item.title}</Text>
               </TouchableOpacity>
@@ -259,11 +264,11 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   curCoverWrap: {
-    width: 58, height: 84, borderRadius: 6, overflow: "hidden",
+    width: 58, height: 84, borderRadius: 6,
     shadowColor: "#2c1f14", shadowOpacity: 0.18, shadowOffset: { width: 3, height: 3 }, shadowRadius: 10,
     elevation: 4,
   },
-  curCoverImg: { width: 58, height: 84 },
+  curCoverImg: { width: 58, height: 84, borderRadius: 6 },
   curInfo: { flex: 1 },
   curLabel: {
     fontSize: 10, color: colors.terracotta,
@@ -301,11 +306,11 @@ const styles = StyleSheet.create({
   shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
   shelfItem: { width: 80, marginRight: 10 },
   shelfCover: {
-    width: 80, height: 116, borderRadius: 8, overflow: "hidden", marginBottom: 6,
+    width: 80, height: 116, borderRadius: 8, marginBottom: 6,
     shadowColor: "#2c1f14", shadowOpacity: 0.14, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
     elevation: 3,
   },
-  shelfCoverImg: { width: 80, height: 116 },
+  shelfCoverImg: { width: 80, height: 116, borderRadius: 8 },
   shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
   addCard: {
     width: 80, height: 116, borderRadius: 8,

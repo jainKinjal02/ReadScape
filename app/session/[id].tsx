@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors, moodConfig } from "../../src/design/tokens";
+import { CoverImage } from "../../src/components/CoverImage";
 import { CURRENT_BOOK } from "../../src/data/mockData";
 
 type Mood = "loving_it" | "getting_into_it" | "struggling" | "taking_a_break" | "finished";
@@ -84,13 +85,7 @@ export default function ReadingSessionScreen() {
             <Text style={styles.backTxt}>Back</Text>
           </TouchableOpacity>
           <View style={styles.sessBookRow}>
-            <View style={styles.sessCover}>
-              <Image
-                source={{ uri: CURRENT_BOOK.cover }}
-                style={styles.sessCoverImg}
-                contentFit="cover"
-              />
-            </View>
+            <CoverImage uri={CURRENT_BOOK.cover} title={CURRENT_BOOK.title} style={styles.sessCover} />
             <View style={{ flex: 1 }}>
               <Text style={styles.sessTitle} numberOfLines={1}>{CURRENT_BOOK.title}</Text>
               <Text style={styles.sessAuthor}>{CURRENT_BOOK.author} · Reading session</Text>
@@ -224,8 +219,7 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
   backTxt: { fontSize: 13, color: colors.char3 },
   sessBookRow: { flexDirection: "row", gap: 12, alignItems: "center" },
-  sessCover: { width: 40, height: 58, borderRadius: 4, overflow: "hidden" },
-  sessCoverImg: { width: 40, height: 58 },
+  sessCover: { width: 40, height: 58, borderRadius: 4 },
   sessTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: colors.espresso },
   sessAuthor: { fontSize: 12, color: colors.char3, marginTop: 2 },
 

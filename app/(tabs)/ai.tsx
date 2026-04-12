@@ -11,9 +11,9 @@ import {
   SafeAreaView,
   Alert,
 } from "react-native";
-import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+import { CoverImage } from "../../src/components/CoverImage";
 import { CURRENT_BOOK, AI_MESSAGES, AI_RECOMMENDATIONS } from "../../src/data/mockData";
 
 type Tab = "Chat" | "Recommend" | "Define" | "Themes";
@@ -60,9 +60,7 @@ export default function AIScreen() {
         <View style={styles.aiHdr}>
           <Text style={styles.aiTitle}>Reading companion</Text>
           <TouchableOpacity style={styles.contextPill} activeOpacity={0.8}>
-            <View style={styles.contextCover}>
-              <Image source={{ uri: CURRENT_BOOK.cover }} style={styles.contextCoverImg} contentFit="cover" />
-            </View>
+            <CoverImage uri={CURRENT_BOOK.cover} title={CURRENT_BOOK.title} style={styles.contextCover} />
             <Text style={styles.contextTxt} numberOfLines={1}>{CURRENT_BOOK.title}</Text>
             <Text style={styles.contextChange}>Change</Text>
           </TouchableOpacity>
@@ -122,9 +120,7 @@ export default function AIScreen() {
             contentContainerStyle={{ paddingBottom: 16 }}
             renderItem={({ item }) => (
               <View style={styles.recCard}>
-                <View style={styles.recCover}>
-                  <Image source={{ uri: item.cover }} style={styles.recCoverImg} contentFit="cover" />
-                </View>
+                <CoverImage uri={item.cover} title={item.title} style={styles.recCover} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.recTitle}>{item.title}</Text>
                   <Text style={styles.recAuthor}>{item.author}</Text>
@@ -195,8 +191,7 @@ const styles = StyleSheet.create({
     borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12,
     alignSelf: "flex-start", marginTop: 8,
   },
-  contextCover: { width: 22, height: 30, borderRadius: 2, overflow: "hidden" },
-  contextCoverImg: { width: 22, height: 30 },
+  contextCover: { width: 22, height: 30, borderRadius: 2 },
   contextTxt: { fontSize: 12, color: colors.espresso2, fontWeight: "500", maxWidth: 160 },
   contextChange: { fontSize: 11, color: colors.terracotta },
 
@@ -246,8 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 10,
   },
-  recCover: { width: 46, height: 66, borderRadius: 5, overflow: "hidden" },
-  recCoverImg: { width: 46, height: 66 },
+  recCover: { width: 46, height: 66, borderRadius: 5 },
   recTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 13, color: colors.espresso, marginBottom: 2 },
   recAuthor: { fontSize: 11, color: colors.char3, marginBottom: 4 },
   recWhy: { fontSize: 11, color: colors.terracotta, lineHeight: 15 },

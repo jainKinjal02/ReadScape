@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path, Polyline, Circle, Line } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+import { CoverImage } from "../../src/components/CoverImage";
 import {
   CURRENT_BOOK,
   SAMPLE_QUOTES,
@@ -69,11 +70,7 @@ export default function BookDetailScreen() {
           {/* Floating centered cover */}
           <View style={styles.bdCoverWrap}>
             <View style={styles.bdCoverShadow}>
-              <Image
-                source={{ uri: book.cover }}
-                style={styles.bdCoverImg}
-                contentFit="cover"
-              />
+              <CoverImage uri={book.cover} title={book.title} style={styles.bdCoverImg} />
             </View>
           </View>
         </View>
