@@ -1,7 +1,7 @@
 {
-  "name": "readscape-scaffold",
+  "name": "readscape",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,10 +9,28 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@expo/cli": "^55.0.23",
+    "@supabase/supabase-js": "^2.103.0",
     "expo": "~54.0.33",
+    "expo-blur": "^55.0.14",
+    "expo-image": "^55.0.8",
+    "expo-image-picker": "^55.0.18",
+    "expo-linear-gradient": "^55.0.13",
+    "expo-router": "^55.0.12",
+    "expo-secure-store": "^55.0.13",
     "expo-status-bar": "~3.0.9",
+    "moti": "^0.30.0",
+    "nativewind": "^4.2.3",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "^2.31.1",
+    "react-native-reanimated": "^4.3.0",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-screens": "^4.24.0",
+    "react-native-svg": "^15.15.4",
+    "tailwindcss": "^4.2.2",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
