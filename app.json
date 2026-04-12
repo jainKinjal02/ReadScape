@@ -38,7 +38,9 @@
           "photosPermission": "Allow ReadScape to access your photos to add book photos.",
           "cameraPermission": "Allow ReadScape to use your camera to capture reading moments."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-asset"
     ]
   }
 }
