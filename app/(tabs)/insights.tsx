@@ -17,7 +17,6 @@ export default function InsightsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.92)" }]} />
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}

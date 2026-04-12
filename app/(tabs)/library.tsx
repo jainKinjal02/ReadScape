@@ -90,7 +90,6 @@ export default function LibraryScreen() {
     <View style={{ flex: 1 }}>
       {/* Atmospheric background */}
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.93)" }]} />
 
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
         <View style={styles.container}>
