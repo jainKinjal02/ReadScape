@@ -1,178 +1,131 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   StyleSheet,
   Modal,
-  ActivityIndicator,
-  Alert,
   ScrollView,
+  SafeAreaView,
+  Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { supabase } from "../../src/lib/supabase";
-import { useAppStore } from "../../src/store";
+import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
-import { BookCover } from "../../src/components/BookCover";
-import { Book, BookStatus, GoogleBook } from "../../src/types";
-import { searchBooks, getCoverUrl } from "../../src/lib/googleBooks";
+import { LIBRARY_BOOKS } from "../../src/data/mockData";
 
-const STATUS_TABS: { label: string; value: BookStatus | "all" }[] = [
-  { label: "All", value: "all" },
-  { label: "Reading", value: "reading" },
-  { label: "Read", value: "read" },
-  { label: "Want to Read", value: "want_to_read" },
-  { label: "Abandoned", value: "abandoned" },
+type Status = "all" | "reading" | "read" | "want_to_read" | "abandoned";
+
+const FILTERS: { label: string; value: Status }[] = [
+  { label: "All Books",   value: "all" },
+  { label: "Reading",     value: "reading" },
+  { label: "Read",        value: "read" },
+  { label: "Want to Read",value: "want_to_read" },
+  { label: "Abandoned",   value: "abandoned" },
 ];
+
+const BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  reading:      { label: "Reading",  bg: "rgba(201,124,90,0.15)", text: "#a85e3e" },
+  read:         { label: "Read",     bg: "rgba(122,158,126,0.15)", text: "#4a7c59" },
+  want_to_read: { label: "Want",     bg: "rgba(74,55,40,0.08)",  text: "#4a3728" },
+  abandoned:    { label: "Stopped",  bg: "rgba(74,63,58,0.08)",  text: "#7a6e6a" },
+};
+
+function SearchIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={8} stroke={colors.char3} strokeWidth={1.5} />
+      <Path d="M21 21l-4.35-4.35" stroke={colors.char3} strokeWidth={1.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { userId } = useAppStore();
-  const [books, setBooks] = useState<Book[]>([]);
-  const [filter, setFilter] = useState<BookStatus | "all">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  // Add book modal
+  const [filter, setFilter] = useState<Status>("all");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [googleQuery, setGoogleQuery] = useState("");
-  const [googleResults, setGoogleResults] = useState<GoogleBook[]>([]);
-  const [searching, setSearching] = useState(false);
 
-  const fetchBooks = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    let query = supabase.from("books").select("*").eq("user_id", userId);
-    if (filter !== "all") query = query.eq("status", filter);
-    const { data } = await query.order("date_added", { ascending: false });
-    setBooks(data ?? []);
-    setLoading(false);
-  }, [userId, filter]);
+  const filtered = filter === "all"
+    ? LIBRARY_BOOKS
+    : LIBRARY_BOOKS.filter((b) => b.status === filter);
 
-  useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
+  const gridData: any[] = [...filtered, { id: "__add__" }];
 
-  const searchGoogle = async () => {
-    if (!googleQuery.trim()) return;
-    setSearching(true);
-    const results = await searchBooks(googleQuery);
-    setGoogleResults(results);
-    setSearching(false);
-  };
-
-  const addBook = async (gb: GoogleBook, status: BookStatus = "want_to_read") => {
-    if (!userId) return;
-    const { error } = await supabase.from("books").insert({
-      user_id: userId,
-      title: gb.volumeInfo.title,
-      author: gb.volumeInfo.authors?.[0] ?? null,
-      cover_url: getCoverUrl(gb),
-      genre: gb.volumeInfo.categories ?? [],
-      status,
-      total_pages: gb.volumeInfo.pageCount ?? null,
-      synopsis: gb.volumeInfo.description ?? null,
-      google_books_id: gb.id,
-      date_started: status === "reading" ? new Date().toISOString() : null,
-    });
-    if (error) {
-      Alert.alert("Error", error.message);
-    } else {
-      setShowAddModal(false);
-      setGoogleQuery("");
-      setGoogleResults([]);
-      fetchBooks();
+  const renderBook = ({ item }: { item: typeof LIBRARY_BOOKS[0] & { id: string } }) => {
+    if (item.id === "__add__") {
+      return (
+        <TouchableOpacity style={styles.bgItem} onPress={() => setShowAddModal(true)} activeOpacity={0.7}>
+          <View style={styles.bgCoverAdd}>
+            <Text style={styles.addPlus}>+</Text>
+            <Text style={styles.addLabel}>Add book</Text>
+          </View>
+        </TouchableOpacity>
+      );
     }
+    const badge = BADGE[item.status] ?? BADGE.want_to_read;
+    return (
+      <TouchableOpacity
+        style={styles.bgItem}
+        onPress={() => router.push("/book/1")}
+        activeOpacity={0.8}
+      >
+        <View style={styles.bgCover}>
+          <Image source={{ uri: item.cover }} style={styles.bgCoverImg} contentFit="cover" />
+        </View>
+        <Text style={styles.bgTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.bgAuthor} numberOfLines={1}>{item.author}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+          <Text style={[styles.statusBadgeText, { color: badge.text }]}>{badge.label}</Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
-
-  const filteredBooks = books.filter(
-    (b) =>
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (b.author ?? "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const renderBook = ({ item }: { item: Book }) => (
-    <TouchableOpacity
-      style={styles.bookCard}
-      onPress={() => router.push(`/book/${item.id}`)}
-      activeOpacity={0.8}
-    >
-      <BookCover uri={item.cover_url} title={item.title} width={90} height={134} />
-      <View style={styles.statusPill}>
-        <Text style={styles.statusPillText}>{statusLabel(item.status)}</Text>
-      </View>
-      <Text style={styles.bookCardTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.bookCardAuthor} numberOfLines={1}>
-        {item.author}
-      </Text>
-    </TouchableOpacity>
-  );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.heading}>My Library</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Text style={styles.addBtnText}>+ Add Book</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search bar */}
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search your library..."
-        placeholderTextColor={colors.inkMuted}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-
-      {/* Filter tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterRow}
-        contentContainerStyle={{ paddingHorizontal: 20 }}
-      >
-        {STATUS_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.value}
-            style={[styles.filterTab, filter === tab.value && styles.filterTabActive]}
-            onPress={() => setFilter(tab.value)}
-          >
-            <Text
-              style={[
-                styles.filterTabText,
-                filter === tab.value && styles.filterTabTextActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Book grid */}
-      {loading ? (
-        <ActivityIndicator color={colors.roseAccent} style={{ marginTop: 40 }} />
-      ) : filteredBooks.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>📭</Text>
-          <Text style={styles.emptyText}>No books here yet.</Text>
-          <TouchableOpacity onPress={() => setShowAddModal(true)}>
-            <Text style={styles.emptyLink}>Add your first book →</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.heading}>My Library</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+            <Text style={styles.addBtnText}>+ Add</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+
+        {/* Search bar */}
+        <TouchableOpacity
+          style={styles.searchBar}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.8}
+        >
+          <SearchIcon />
+          <Text style={styles.searchPlaceholder}>Find your favourite…</Text>
+        </TouchableOpacity>
+
+        {/* Filter pills */}
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+        >
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f.value}
+              style={[styles.pill, filter === f.value && styles.pillActive]}
+              onPress={() => setFilter(f.value)}
+            >
+              <Text style={[styles.pillText, filter === f.value && styles.pillTextActive]}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Book grid */}
         <FlatList
-          data={filteredBooks}
+          data={gridData}
           renderItem={renderBook}
           keyExtractor={(item) => item.id}
           numColumns={3}
@@ -180,223 +133,115 @@ export default function LibraryScreen() {
           showsVerticalScrollIndicator={false}
           columnWrapperStyle={styles.gridRow}
         />
-      )}
 
-      {/* Add Book Modal */}
-      <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add a Book</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowAddModal(false);
-                setGoogleQuery("");
-                setGoogleResults([]);
-              }}
-            >
-              <Text style={styles.modalClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.googleSearchRow}>
-            <TextInput
-              style={styles.googleInput}
-              placeholder="Search by title or author..."
-              placeholderTextColor={colors.inkMuted}
-              value={googleQuery}
-              onChangeText={setGoogleQuery}
-              onSubmitEditing={searchGoogle}
-              returnKeyType="search"
-            />
-            <TouchableOpacity style={styles.searchBtn} onPress={searchGoogle}>
-              <Text style={styles.searchBtnText}>Search</Text>
-            </TouchableOpacity>
-          </View>
-
-          {searching ? (
-            <ActivityIndicator color={colors.roseAccent} style={{ marginTop: 24 }} />
-          ) : (
-            <FlatList
-              data={googleResults}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View style={styles.googleResult}>
-                  <BookCover uri={getCoverUrl(item)} title={item.volumeInfo.title} width={50} height={74} />
-                  <View style={styles.googleResultInfo}>
-                    <Text style={styles.googleResultTitle} numberOfLines={2}>
-                      {item.volumeInfo.title}
-                    </Text>
-                    <Text style={styles.googleResultAuthor} numberOfLines={1}>
-                      {item.volumeInfo.authors?.join(", ")}
-                    </Text>
-                    <Text style={styles.googleResultPages}>
-                      {item.volumeInfo.pageCount ? `${item.volumeInfo.pageCount} pages` : ""}
-                    </Text>
+        {/* Add Book Modal (placeholder) */}
+        <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet">
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+            <View style={styles.modal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add a Book</Text>
+                <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalBody}>
+                <View style={styles.searchRow}>
+                  <View style={styles.searchInput}>
+                    <SearchIcon />
+                    <Text style={styles.searchPlaceholder}>Search by title or author…</Text>
                   </View>
-                  <View style={styles.addActions}>
-                    <TouchableOpacity
-                      style={styles.addActionBtn}
-                      onPress={() => addBook(item, "reading")}
-                    >
-                      <Text style={styles.addActionText}>Reading</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.addActionBtn, styles.addActionSecondary]}
-                      onPress={() => addBook(item, "want_to_read")}
-                    >
-                      <Text style={styles.addActionTextSecondary}>Want to Read</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity style={styles.searchBtn}>
+                    <Text style={styles.searchBtnText}>Search</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            />
-          )}
-        </View>
-      </Modal>
-    </View>
+                <View style={styles.comingSoon}>
+                  <Text style={styles.comingSoonText}>Google Books search will be connected here.</Text>
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
-function statusLabel(status: BookStatus) {
-  const map: Record<BookStatus, string> = {
-    reading: "Reading",
-    read: "Read ✓",
-    want_to_read: "Want to Read",
-    abandoned: "Abandoned",
-  };
-  return map[status];
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+  container: { flex: 1, backgroundColor: colors.cream },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 12,
+    backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
-  heading: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 28,
-    color: colors.inkPrimary,
-  },
+  heading: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
   addBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: colors.espresso, borderRadius: 16,
+    paddingVertical: 6, paddingHorizontal: 14,
   },
-  addBtnText: { color: "#FFF", fontSize: 13, fontWeight: "600" },
-  searchInput: {
-    marginHorizontal: 20,
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: colors.inkPrimary,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.bgSurface,
+  addBtnText: { color: colors.cream, fontSize: 12, fontWeight: "600" },
+
+  searchBar: {
+    marginHorizontal: 20, marginTop: 12,
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 10,
+    flexDirection: "row", alignItems: "center", gap: 8,
   },
-  filterRow: { marginBottom: 16 },
-  filterTab: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: colors.bgSurface,
-    marginRight: 8,
+  searchPlaceholder: { fontSize: 13, color: colors.char3 },
+
+  filterRow: { marginTop: 10, marginBottom: 14 },
+  pill: {
+    paddingVertical: 6, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.parchment,
   },
-  filterTabActive: { backgroundColor: colors.roseSoft, borderWidth: 1.5, borderColor: colors.roseAccent },
-  filterTabText: { fontSize: 12, color: colors.inkMuted },
-  filterTabTextActive: { color: colors.roseAccent, fontWeight: "600" },
-  grid: { paddingHorizontal: 12, paddingBottom: 32 },
-  gridRow: { marginBottom: 16 },
-  bookCard: { flex: 1, margin: 4, alignItems: "center", maxWidth: "33%" },
-  statusPill: {
-    backgroundColor: colors.roseSoft,
-    borderRadius: 999,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    marginTop: 6,
+  pillActive: { backgroundColor: colors.espresso, borderColor: colors.espresso },
+  pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
+  pillTextActive: { color: colors.cream },
+
+  grid: { paddingHorizontal: 20, paddingBottom: 40 },
+  gridRow: { gap: 12, marginBottom: 16 },
+  bgItem: { flex: 1, maxWidth: "31%" },
+  bgCover: {
+    width: "100%", aspectRatio: 2 / 3, borderRadius: 8, overflow: "hidden", marginBottom: 6,
+    shadowColor: "#2c1f14", shadowOpacity: 0.12, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
+    elevation: 3,
   },
-  statusPillText: { fontSize: 9, color: colors.roseAccent, fontWeight: "600" },
-  bookCardTitle: {
-    fontSize: 11,
-    color: colors.inkPrimary,
-    textAlign: "center",
-    marginTop: 4,
-    fontWeight: "500",
+  bgCoverImg: { width: "100%", height: "100%" },
+  bgCoverAdd: {
+    width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
+    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center", gap: 4,
   },
-  bookCardAuthor: { fontSize: 10, color: colors.inkMuted, textAlign: "center" },
-  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyText: { fontSize: 16, color: colors.inkMuted, marginBottom: 12 },
-  emptyLink: { fontSize: 15, color: colors.roseAccent, fontWeight: "600" },
-  modal: { flex: 1, backgroundColor: colors.bgPrimary },
+  addPlus: { fontSize: 22, color: colors.cream3 },
+  addLabel: { fontSize: 9, color: colors.cream3 },
+  bgTitle: { fontSize: 11, color: colors.espresso, fontWeight: "500", lineHeight: 14 },
+  bgAuthor: { fontSize: 10, color: colors.char3, marginTop: 1 },
+  statusBadge: {
+    alignSelf: "flex-start", borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6, marginTop: 4,
+  },
+  statusBadgeText: { fontSize: 9, fontWeight: "600" },
+
+  // Modal
+  modal: { flex: 1 },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.bgSurface,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.cream3,
   },
-  modalTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 22,
-    color: colors.inkPrimary,
-  },
-  modalClose: { fontSize: 18, color: colors.inkMuted, padding: 4 },
-  googleSearchRow: { flexDirection: "row", padding: 16, gap: 8 },
-  googleInput: {
-    flex: 1,
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: colors.inkPrimary,
-    borderWidth: 1,
-    borderColor: colors.bgSurface,
+  modalTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: colors.espresso },
+  modalClose: { fontSize: 18, color: colors.char3, padding: 4 },
+  modalBody: { padding: 20 },
+  searchRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  searchInput: {
+    flex: 1, backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+    flexDirection: "row", alignItems: "center", gap: 8,
   },
   searchBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    justifyContent: "center",
+    backgroundColor: colors.espresso, borderRadius: 12, paddingHorizontal: 16, justifyContent: "center",
   },
-  searchBtnText: { color: "#FFF", fontWeight: "600", fontSize: 14 },
-  googleResult: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.bgSurface,
-    alignItems: "center",
-    gap: 12,
+  searchBtnText: { color: colors.cream, fontWeight: "600", fontSize: 14 },
+  comingSoon: {
+    backgroundColor: colors.cream2, borderRadius: 12, padding: 20, alignItems: "center",
   },
-  googleResultInfo: { flex: 1 },
-  googleResultTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.inkPrimary,
-    marginBottom: 2,
-  },
-  googleResultAuthor: { fontSize: 12, color: colors.inkMuted, marginBottom: 2 },
-  googleResultPages: { fontSize: 11, color: colors.inkMuted },
-  addActions: { gap: 6 },
-  addActionBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    alignItems: "center",
-  },
-  addActionText: { color: "#FFF", fontSize: 11, fontWeight: "600" },
-  addActionSecondary: { backgroundColor: colors.bgSurface },
-  addActionTextSecondary: { color: colors.inkPrimary, fontSize: 11 },
+  comingSoonText: { fontSize: 13, color: colors.char3, textAlign: "center" },
 });

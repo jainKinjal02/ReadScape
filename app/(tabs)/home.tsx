@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,279 +6,212 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  RefreshControl,
+  Animated,
+  ImageBackground,
+  Dimensions,
 } from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { supabase } from "../../src/lib/supabase";
-import { useAppStore } from "../../src/store";
-import { colors, moodConfig } from "../../src/design/tokens";
-import { BookCover } from "../../src/components/BookCover";
-import { MoodChip } from "../../src/components/MoodChip";
-import { Book, Mood } from "../../src/types";
+import Svg, { Path } from "react-native-svg";
+import { colors } from "../../src/design/tokens";
+import {
+  CURRENT_USER,
+  CURRENT_BOOK,
+  STATS,
+  WANT_TO_READ,
+} from "../../src/data/mockData";
+
+const { width: SW } = Dimensions.get("window");
+
+// Atmospheric header background images
+const HEADER_IMGS = [
+  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
+  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80",
+  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=80",
+];
+
+function FireIcon() {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill={colors.terracotta}>
+      <Path d="M12 2C8 7 4 9 4 14a8 8 0 0016 0c0-5-4-7-8-12z" />
+    </Svg>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { userId } = useAppStore();
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
-  const [wantToRead, setWantToRead] = useState<Book[]>([]);
-  const [streak, setStreak] = useState(0);
-  const [booksThisYear, setBooksThisYear] = useState(0);
-  const [lastMood, setLastMood] = useState<Mood | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [userName, setUserName] = useState("");
-
-  const fetchData = useCallback(async () => {
-    if (!userId) return;
-
-    // Fetch currently reading book
-    const { data: readingBooks } = await supabase
-      .from("books")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "reading")
-      .order("date_started", { ascending: false })
-      .limit(1);
-    setCurrentBook(readingBooks?.[0] ?? null);
-
-    // Fetch want to read
-    const { data: wtrBooks } = await supabase
-      .from("books")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "want_to_read")
-      .limit(5);
-    setWantToRead(wtrBooks ?? []);
-
-    // Books finished this year
-    const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
-    const { count } = await supabase
-      .from("books")
-      .select("id", { count: "exact" })
-      .eq("user_id", userId)
-      .eq("status", "read")
-      .gte("date_finished", yearStart);
-    setBooksThisYear(count ?? 0);
-
-    // Last mood for current book
-    if (readingBooks?.[0]) {
-      const { data: moods } = await supabase
-        .from("mood_logs")
-        .select("mood")
-        .eq("user_id", userId)
-        .eq("book_id", readingBooks[0].id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      setLastMood((moods?.[0]?.mood as Mood) ?? null);
-    }
-
-    // Calculate streak (days with at least one mood log)
-    const { data: moodDates } = await supabase
-      .from("mood_logs")
-      .select("created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(60);
-
-    if (moodDates) {
-      const uniqueDays = new Set(
-        moodDates.map((m) => m.created_at.split("T")[0])
-      );
-      let s = 0;
-      const today = new Date();
-      for (let i = 0; i < 60; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        const key = d.toISOString().split("T")[0];
-        if (uniqueDays.has(key)) s++;
-        else if (i > 0) break;
-      }
-      setStreak(s);
-    }
-
-    // User name
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("name")
-      .eq("user_id", userId)
-      .single();
-    setUserName(profile?.name ?? "");
-  }, [userId]);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const bgIndex = useRef(0);
+  const [bgSrc, setBgSrc] = React.useState(HEADER_IMGS[0]);
+  const [nextBgSrc, setNextBgSrc] = React.useState(HEADER_IMGS[1]);
+  const nextOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const interval = setInterval(() => {
+      const next = (bgIndex.current + 1) % HEADER_IMGS.length;
+      setNextBgSrc(HEADER_IMGS[next]);
+      Animated.timing(nextOpacity, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }).start(() => {
+        bgIndex.current = next;
+        setBgSrc(HEADER_IMGS[next]);
+        nextOpacity.setValue(0);
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const logMood = async (mood: Mood) => {
-    if (!currentBook || !userId) return;
-    await supabase.from("mood_logs").insert({
-      user_id: userId,
-      book_id: currentBook.id,
-      page: currentBook.current_page,
-      mood,
-    });
-    setLastMood(mood);
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-  };
-
-  const progress = currentBook?.total_pages
-    ? currentBook.current_page / currentBook.total_pages
-    : 0;
+  const greeting = getGreeting();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>
-            {getGreeting()}{userName ? `, ${userName}` : ""}
-          </Text>
-          <Text style={styles.date}>{getFormattedDate()}</Text>
-        </View>
-        <View style={styles.streakBadge}>
-          <Text style={styles.streakNumber}>{streak}</Text>
-          <Text style={styles.streakLabel}>day streak 🔥</Text>
-        </View>
-      </View>
-
-      {/* Currently Reading */}
-      {currentBook ? (
-        <View style={styles.currentBookCard}>
-          <Text style={styles.sectionTitle}>Currently Reading</Text>
-          <View style={styles.bookRow}>
-            <BookCover
-              uri={currentBook.cover_url}
-              title={currentBook.title}
-              width={80}
-              height={120}
-            />
-            <View style={styles.bookInfo}>
-              <Text style={styles.bookTitle} numberOfLines={2}>
-                {currentBook.title}
-              </Text>
-              <Text style={styles.bookAuthor} numberOfLines={1}>
-                {currentBook.author}
-              </Text>
-
-              {/* Progress bar */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]}
-                  />
-                </View>
-                <Text style={styles.progressText}>
-                  {currentBook.current_page} / {currentBook.total_pages ?? "?"} pages
-                </Text>
+    <View style={styles.root}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Atmospheric header with background image ── */}
+        <View style={styles.heroHeader}>
+          {/* Base bg */}
+          <Image source={{ uri: bgSrc }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          {/* Crossfade next */}
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: nextOpacity }]}>
+            <Image source={{ uri: nextBgSrc }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+          {/* Gradient overlay */}
+          <LinearGradient
+            colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
+            locations={[0, 0.4, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Content */}
+          <View style={styles.heroContent}>
+            <View style={styles.topRow}>
+              <View>
+                <Text style={styles.greeting}>{greeting},</Text>
+                <Text style={styles.name}>{CURRENT_USER.name}</Text>
               </View>
-
-              {lastMood && (
-                <View style={styles.lastMoodRow}>
-                  <Text style={styles.lastMoodLabel}>Last feeling: </Text>
-                  <Text style={styles.lastMoodEmoji}>
-                    {moodConfig[lastMood].emoji} {moodConfig[lastMood].label}
-                  </Text>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={styles.continueBtn}
-                onPress={() => router.push(`/session/${currentBook.id}`)}
-              >
-                <Text style={styles.continueBtnText}>Continue Reading →</Text>
-              </TouchableOpacity>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{CURRENT_USER.initials}</Text>
+              </View>
+            </View>
+            <View style={styles.streakPill}>
+              <FireIcon />
+              <Text style={styles.streakText}>
+                {CURRENT_USER.streak} day reading streak
+              </Text>
             </View>
           </View>
-
-          {/* Quick mood picker */}
-          <Text style={styles.moodQuestion}>How are you feeling about it?</Text>
-          <View style={styles.moodRow}>
-            {(["loving_it", "getting_into_it", "struggling", "taking_a_break"] as Mood[]).map(
-              (m) => (
-                <MoodChip
-                  key={m}
-                  mood={m}
-                  selected={lastMood === m}
-                  onPress={() => logMood(m)}
-                  size="sm"
-                />
-              )
-            )}
-          </View>
         </View>
-      ) : (
+
+        {/* ── Currently Reading ── */}
         <TouchableOpacity
-          style={styles.emptyCard}
-          onPress={() => router.push("/(tabs)/library")}
+          style={styles.curCard}
+          onPress={() => router.push("/book/1")}
+          activeOpacity={0.88}
         >
-          <Text style={styles.emptyEmoji}>📖</Text>
-          <Text style={styles.emptyTitle}>Start a book</Text>
-          <Text style={styles.emptySubtitle}>
-            Add a book to your library to begin tracking your reading journey
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{booksThisYear}</Text>
-          <Text style={styles.statLabel}>books this year</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{streak}</Text>
-          <Text style={styles.statLabel}>day streak</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{wantToRead.length}</Text>
-          <Text style={styles.statLabel}>want to read</Text>
-        </View>
-      </View>
-
-      {/* Want to Read shelf */}
-      {wantToRead.length > 0 && (
-        <View style={styles.shelfSection}>
-          <View style={styles.shelfHeader}>
-            <Text style={styles.sectionTitle}>Want to Read</Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/library")}>
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
+          <View style={styles.curCoverWrap}>
+            <Image
+              source={{ uri: CURRENT_BOOK.cover }}
+              style={styles.curCoverImg}
+              contentFit="cover"
+            />
           </View>
-          <FlatList
-            data={wantToRead}
-            horizontal
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.shelfBook}
-                onPress={() => router.push(`/book/${item.id}`)}
-              >
-                <BookCover
-                  uri={item.cover_url}
-                  title={item.title}
-                  width={80}
-                  height={120}
-                />
-                <Text style={styles.shelfBookTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
+          <View style={styles.curInfo}>
+            <Text style={styles.curLabel}>Continue reading</Text>
+            <Text style={styles.curTitle} numberOfLines={2}>{CURRENT_BOOK.title}</Text>
+            <Text style={styles.curAuthor}>{CURRENT_BOOK.author}</Text>
+            <View style={styles.progBg}>
+              <View style={[styles.progFill, { width: `${CURRENT_BOOK.progress}%` }]} />
+            </View>
+            <Text style={styles.progLbl}>
+              Page {CURRENT_BOOK.currentPage} of {CURRENT_BOOK.totalPages} · {CURRENT_BOOK.progress}%
+            </Text>
+            <View style={styles.moodTag}>
+              <Text style={styles.moodTagText}>
+                {CURRENT_BOOK.lastMood.symbol} {CURRENT_BOOK.lastMood.label}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* ── Stats row ── */}
+        <View style={styles.statsRow}>
+          <View style={styles.statC}>
+            <Text style={styles.statV}>{STATS.booksRead}</Text>
+            <Text style={styles.statL}>Books read</Text>
+          </View>
+          <View style={styles.statC}>
+            <Text style={styles.statV}>2,847</Text>
+            <Text style={styles.statL}>Pages this year</Text>
+          </View>
+          <View style={styles.statC}>
+            <Text style={styles.statV}>{STATS.quotesSaved}</Text>
+            <Text style={styles.statL}>Quotes saved</Text>
+          </View>
         </View>
-      )}
-    </ScrollView>
+
+        {/* ── Want to Read ── */}
+        <View style={styles.secHdrRow}>
+          <Text style={styles.secTitle}>Want to read</Text>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/library")}>
+            <Text style={styles.secAll}>See all</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={[...WANT_TO_READ, { id: "__add__", title: "", author: "", cover: "" }]}
+          horizontal
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.shelfRow}
+          renderItem={({ item }) => {
+            if (item.id === "__add__") {
+              return (
+                <TouchableOpacity
+                  style={styles.addCard}
+                  onPress={() => router.push("/(tabs)/library")}
+                >
+                  <Text style={styles.addPlus}>+</Text>
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <TouchableOpacity
+                style={styles.shelfItem}
+                onPress={() => router.push("/book/2")}
+                activeOpacity={0.8}
+              >
+                <View style={styles.shelfCover}>
+                  <Image source={{ uri: item.cover }} style={styles.shelfCoverImg} contentFit="cover" />
+                </View>
+                <Text style={styles.shelfTitle} numberOfLines={2}>{item.title}</Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+
+        {/* ── AI Companion promo ── */}
+        <TouchableOpacity
+          style={styles.aiPromo}
+          onPress={() => router.push("/(tabs)/ai")}
+          activeOpacity={0.85}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
+            <Text style={styles.aiPromoSub}>About {CURRENT_BOOK.title}</Text>
+          </View>
+          <View style={styles.aiPromoBtn}>
+            <Text style={styles.aiPromoBtnText}>Ask AI</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -289,152 +222,111 @@ function getGreeting() {
   return "Good evening";
 }
 
-function getFormattedDate() {
-  return new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 32 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 24,
+  root: { flex: 1, backgroundColor: colors.cream },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 20 },
+
+  // Hero header
+  heroHeader: { height: 190, justifyContent: "flex-end", overflow: "hidden" },
+  heroContent: { padding: 20, paddingBottom: 16 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  greeting: { fontSize: 13, color: "rgba(247,242,235,0.8)", marginBottom: 2 },
+  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: "#faf6f0" },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(247,242,235,0.2)",
+    borderWidth: 1.5, borderColor: "rgba(247,242,235,0.5)",
+    alignItems: "center", justifyContent: "center",
   },
-  greeting: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 22,
-    color: colors.inkPrimary,
+  avatarText: { fontSize: 15, fontWeight: "700", color: "#faf6f0" },
+  streakPill: {
+    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
+    backgroundColor: "rgba(247,242,235,0.18)",
+    borderWidth: 1, borderColor: "rgba(247,242,235,0.3)",
+    borderRadius: 12, paddingVertical: 5, paddingHorizontal: 11,
   },
-  date: { fontSize: 13, color: colors.inkMuted, marginTop: 2 },
-  streakBadge: {
-    backgroundColor: colors.roseSoft,
-    borderRadius: 12,
-    padding: 10,
-    alignItems: "center",
+  streakText: { fontSize: 12, color: "#faf6f0", fontWeight: "500" },
+
+  // Currently reading card
+  curCard: {
+    marginHorizontal: 16, marginTop: 16,
+    backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 16, padding: 16,
+    flexDirection: "row", gap: 14,
+    shadowColor: "#2c1f14", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12,
+    elevation: 3,
   },
-  streakNumber: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: colors.roseAccent,
+  curCoverWrap: {
+    width: 58, height: 84, borderRadius: 6, overflow: "hidden",
+    shadowColor: "#2c1f14", shadowOpacity: 0.18, shadowOffset: { width: 3, height: 3 }, shadowRadius: 10,
+    elevation: 4,
   },
-  streakLabel: { fontSize: 10, color: colors.roseAccent },
-  currentBookCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
+  curCoverImg: { width: 58, height: 84 },
+  curInfo: { flex: 1 },
+  curLabel: {
+    fontSize: 10, color: colors.terracotta,
+    textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4,
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.inkMuted,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 12,
+  curTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: colors.espresso, marginBottom: 2 },
+  curAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
+  progBg: { backgroundColor: colors.cream3, borderRadius: 4, height: 4 },
+  progFill: { backgroundColor: colors.terracotta, height: 4, borderRadius: 4 },
+  progLbl: { fontSize: 11, color: colors.char3, marginTop: 4 },
+  moodTag: {
+    alignSelf: "flex-start", marginTop: 6,
+    backgroundColor: "rgba(201,124,90,0.1)", borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9,
   },
-  bookRow: { flexDirection: "row", gap: 14 },
-  bookInfo: { flex: 1, justifyContent: "space-between" },
-  bookTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 16,
-    color: colors.inkPrimary,
-    marginBottom: 4,
+  moodTagText: { fontSize: 11, color: colors.terracotta },
+
+  // Stats
+  statsRow: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 20 },
+  statC: {
+    flex: 1, backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 12, alignItems: "center",
   },
-  bookAuthor: { fontSize: 13, color: colors.inkMuted, marginBottom: 8 },
-  progressContainer: { marginBottom: 8 },
-  progressBar: {
-    height: 4,
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    overflow: "hidden",
-    marginBottom: 4,
+  statV: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: colors.espresso },
+  statL: { fontSize: 10, color: colors.char3, marginTop: 2, textAlign: "center", lineHeight: 13 },
+
+  // Want to read
+  secHdrRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: 20, marginBottom: 12,
   },
-  progressFill: {
-    height: 4,
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
+  secTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: colors.espresso },
+  secAll: { fontSize: 12, color: colors.terracotta, fontWeight: "500" },
+  shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
+  shelfItem: { width: 80, marginRight: 10 },
+  shelfCover: {
+    width: 80, height: 116, borderRadius: 8, overflow: "hidden", marginBottom: 6,
+    shadowColor: "#2c1f14", shadowOpacity: 0.14, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
+    elevation: 3,
   },
-  progressText: { fontSize: 11, color: colors.inkMuted },
-  lastMoodRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  lastMoodLabel: { fontSize: 12, color: colors.inkMuted },
-  lastMoodEmoji: { fontSize: 12, color: colors.inkPrimary },
-  continueBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
+  shelfCoverImg: { width: 80, height: 116 },
+  shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
+  addCard: {
+    width: 80, height: 116, borderRadius: 8,
+    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center", marginRight: 10,
   },
-  continueBtnText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
-  moodQuestion: {
-    fontSize: 13,
-    color: colors.inkMuted,
-    marginTop: 16,
-    marginBottom: 8,
+  addPlus: { fontSize: 26, color: colors.cream3 },
+
+  // AI promo
+  aiPromo: {
+    marginHorizontal: 16, marginTop: 16,
+    backgroundColor: "rgba(201,124,90,0.08)",
+    borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    borderRadius: 14, padding: 14,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
-  moodRow: { flexDirection: "row", flexWrap: "wrap" },
-  emptyCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 16,
-    padding: 32,
-    alignItems: "center",
-    marginBottom: 16,
+  aiPromoTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
+  aiPromoSub: { fontSize: 11, color: colors.char3, marginTop: 2 },
+  aiPromoBtn: {
+    backgroundColor: colors.espresso, borderRadius: 20,
+    paddingVertical: 8, paddingHorizontal: 16,
   },
-  emptyEmoji: { fontSize: 40, marginBottom: 12 },
-  emptyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 18,
-    color: colors.inkPrimary,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.inkMuted,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 24,
-    color: colors.roseAccent,
-  },
-  statLabel: { fontSize: 11, color: colors.inkMuted, textAlign: "center", marginTop: 2 },
-  shelfSection: { marginBottom: 16 },
-  shelfHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  seeAll: { fontSize: 13, color: colors.roseAccent, fontWeight: "600" },
-  shelfBook: { marginRight: 12, width: 80 },
-  shelfBookTitle: {
-    fontSize: 11,
-    color: colors.inkMuted,
-    marginTop: 6,
-    textAlign: "center",
-  },
+  aiPromoBtnText: { fontSize: 12, color: colors.cream, fontWeight: "500" },
 });

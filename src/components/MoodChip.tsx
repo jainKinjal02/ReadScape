@@ -32,7 +32,7 @@ export function MoodChip({ mood, selected = false, onPress, size = "md" }: Props
       }}
     >
       <Text style={{ fontSize: isSmall ? 14 : 18, marginRight: 4 }}>
-        {config.emoji}
+        {config.symbol}
       </Text>
       <Text
         style={{

@@ -1,335 +1,185 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
+  SafeAreaView,
+  TouchableOpacity,
 } from "react-native";
-import Svg, { G, Path, Circle, Text as SvgText } from "react-native-svg";
-import { supabase } from "../../src/lib/supabase";
-import { useAppStore } from "../../src/store";
-import { colors, moodConfig } from "../../src/design/tokens";
-import { BookCover } from "../../src/components/BookCover";
-import { Book, MoodLog } from "../../src/types";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-interface GenreCount { genre: string; count: number }
+import { colors } from "../../src/design/tokens";
+import { STATS, MOOD_ARC, GENRE_STATS } from "../../src/data/mockData";
 
 export default function InsightsScreen() {
-  const { userId } = useAppStore();
-  const [readBooks, setReadBooks] = useState<Book[]>([]);
-  const [abandonedBooks, setAbandonedBooks] = useState<Book[]>([]);
-  const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
-  const [genreCounts, setGenreCounts] = useState<GenreCount[]>([]);
-  const [booksThisYear, setBooksThisYear] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
-  const fetchData = useCallback(async () => {
-    if (!userId) return;
-
-    const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
-
-    // Read books this year
-    const { data: read } = await supabase
-      .from("books")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "read")
-      .gte("date_finished", yearStart)
-      .order("date_finished", { ascending: false });
-    setReadBooks((read ?? []) as Book[]);
-    setBooksThisYear(read?.length ?? 0);
-
-    // Total pages
-    const pages = (read ?? []).reduce((sum, b) => sum + (b.total_pages ?? 0), 0);
-    setTotalPages(pages);
-
-    // Abandoned books
-    const { data: abandoned } = await supabase
-      .from("books")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "abandoned")
-      .order("date_added", { ascending: false });
-    setAbandonedBooks((abandoned ?? []) as Book[]);
-
-    // Mood logs
-    const { data: moods } = await supabase
-      .from("mood_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setMoodLogs((moods ?? []) as MoodLog[]);
-
-    // Genre breakdown
-    const allBooks = [...(read ?? []), ...(abandoned ?? [])];
-    const genreMap: Record<string, number> = {};
-    allBooks.forEach((b) => {
-      (b.genre ?? []).forEach((g: string) => {
-        genreMap[g] = (genreMap[g] ?? 0) + 1;
-      });
-    });
-    const sorted = Object.entries(genreMap)
-      .map(([genre, count]) => ({ genre, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-    setGenreCounts(sorted);
-  }, [userId]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Mood distribution
-  const moodDist: Record<string, number> = {};
-  moodLogs.forEach((m) => { moodDist[m.mood] = (moodDist[m.mood] ?? 0) + 1; });
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Insights</Text>
-      <Text style={styles.subheading}>{new Date().getFullYear()} Reading Year</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.insHdr}>
+          <Text style={styles.insTitle}>Reading insights</Text>
+          <Text style={styles.insSub}>Your {new Date().getFullYear()} journey so far</Text>
+        </View>
 
-      {/* Top stats */}
-      <View style={styles.statsRow}>
-        <StatCard value={booksThisYear} label="books read" emoji="📚" />
-        <StatCard value={totalPages.toLocaleString()} label="pages read" emoji="📄" />
-        <StatCard value={moodLogs.length} label="check-ins" emoji="🎭" />
-      </View>
+        <View style={styles.body}>
+          {/* Big stats 2×2 */}
+          <View style={styles.bigStatRow}>
+            <View style={styles.bigStat}>
+              <Text style={styles.bigStatV}>{STATS.booksRead}</Text>
+              <Text style={styles.bigStatL}>Books finished</Text>
+              <Text style={styles.bigStatS}>Goal: 20 books</Text>
+            </View>
+            <View style={styles.bigStat}>
+              <Text style={styles.bigStatV}>2,847</Text>
+              <Text style={styles.bigStatL}>Pages read</Text>
+              <Text style={styles.bigStatS}>Avg 34 min/day</Text>
+            </View>
+            <View style={styles.bigStat}>
+              <Text style={styles.bigStatV}>{STATS.streak}</Text>
+              <Text style={styles.bigStatL}>Day streak</Text>
+              <Text style={styles.bigStatS}>Best: 23 days</Text>
+            </View>
+            <View style={styles.bigStat}>
+              <Text style={styles.bigStatV}>{STATS.quotesSaved}</Text>
+              <Text style={styles.bigStatL}>Quotes saved</Text>
+              <Text style={styles.bigStatS}>Across all books</Text>
+            </View>
+          </View>
 
-      {/* Genre breakdown */}
-      {genreCounts.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Genres You've Read</Text>
-          {genreCounts.map((g, i) => (
-            <View key={g.genre} style={styles.genreRow}>
-              <Text style={styles.genreLabel}>{g.genre}</Text>
-              <View style={styles.genreBarContainer}>
+          {/* Mood arc */}
+          <View style={styles.secHdr}>
+            <Text style={styles.secTitle}>Mood arc — Midnight Library</Text>
+          </View>
+          <View style={styles.moodArcCard}>
+            <Text style={styles.arcSub}>How your feeling changed through the book</Text>
+            <View style={styles.arcBars}>
+              {MOOD_ARC.map((item, i) => (
                 <View
+                  key={i}
                   style={[
-                    styles.genreBar,
+                    styles.arcBar,
                     {
-                      width: `${(g.count / genreCounts[0].count) * 100}%`,
-                      opacity: 1 - i * 0.12,
+                      height: `${(item.score / 5) * 100}%`,
+                      backgroundColor: item.color,
                     },
                   ]}
                 />
-              </View>
-              <Text style={styles.genreCount}>{g.count}</Text>
+              ))}
             </View>
-          ))}
-        </View>
-      )}
+            <View style={styles.arcXlbls}>
+              {MOOD_ARC.map((item, i) => (
+                <Text key={i} style={styles.arcXlbl}>{item.chapter}</Text>
+              ))}
+            </View>
+            {/* Legend */}
+            <View style={styles.arcLegend}>
+              <LegendItem color="#c9bdb5" label="Slow" />
+              <LegendItem color="#7a9e7e" label="Curious" />
+              <LegendItem color="#c97c5a" label="Hooked" />
+              <LegendItem color="#a85e3e" label="Loving it" />
+            </View>
+          </View>
 
-      {/* Mood distribution */}
-      {Object.keys(moodDist).length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Your Reading Moods</Text>
-          {Object.entries(moodDist)
-            .sort((a, b) => b[1] - a[1])
-            .map(([mood, count]) => (
-              <View key={mood} style={styles.moodDistRow}>
-                <Text style={styles.moodEmoji}>{moodConfig[mood]?.emoji}</Text>
-                <Text style={styles.moodLabel}>{moodConfig[mood]?.label}</Text>
-                <View style={styles.moodBarContainer}>
-                  <View
-                    style={[
-                      styles.moodBar,
-                      {
-                        width: `${(count / moodLogs.length) * 100}%`,
-                        backgroundColor: moodConfig[mood]?.color ?? colors.roseAccent,
-                      },
-                    ]}
-                  />
+          {/* Genre breakdown */}
+          <View style={styles.secHdr}>
+            <Text style={styles.secTitle}>Genres you love</Text>
+          </View>
+          <View style={styles.genreCard}>
+            {GENRE_STATS.map((g, i) => (
+              <View key={g.name} style={[styles.genreRow, i === GENRE_STATS.length - 1 && { marginBottom: 0 }]}>
+                <Text style={styles.genreName}>{g.name}</Text>
+                <View style={styles.genreBarBg}>
+                  <View style={[styles.genreBarFill, { width: `${g.pct}%`, backgroundColor: g.color }]} />
                 </View>
-                <Text style={styles.moodCount}>{count}</Text>
+                <Text style={styles.genreCnt}>{g.count}</Text>
               </View>
             ))}
-        </View>
-      )}
+          </View>
 
-      {/* Year in Reading timeline */}
-      {readBooks.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Year in Reading</Text>
-          {readBooks.map((book) => (
-            <View key={book.id} style={styles.timelineItem}>
-              <View style={styles.timelineDot} />
-              <BookCover uri={book.cover_url} title={book.title} width={44} height={66} borderRadius={4} />
-              <View style={styles.timelineInfo}>
-                <Text style={styles.timelineTitle} numberOfLines={1}>{book.title}</Text>
-                <Text style={styles.timelineAuthor} numberOfLines={1}>{book.author}</Text>
-                {book.date_finished && (
-                  <Text style={styles.timelineDate}>
-                    Finished {formatDate(book.date_finished)}
-                  </Text>
-                )}
-              </View>
+          {/* Year wrap CTA */}
+          <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85}>
+            <Text style={styles.wrapTitle}>Your {new Date().getFullYear()} reading wrap</Text>
+            <Text style={styles.wrapSub}>{STATS.booksRead} books · your year in one page</Text>
+            <View style={styles.wrapBtn}>
+              <Text style={styles.wrapBtnText}>View wrap</Text>
             </View>
-          ))}
-        </View>
-      )}
+          </TouchableOpacity>
 
-      {/* Abandoned shelf */}
-      {abandonedBooks.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Abandoned Shelf</Text>
-          <Text style={styles.cardSubtitle}>
-            Books you put down — no judgement, just data.
-          </Text>
-          {abandonedBooks.map((book) => (
-            <View key={book.id} style={styles.abandonedItem}>
-              <BookCover uri={book.cover_url} title={book.title} width={44} height={66} borderRadius={4} />
-              <View style={styles.abandonedInfo}>
-                <Text style={styles.timelineTitle} numberOfLines={1}>{book.title}</Text>
-                <Text style={styles.timelineAuthor}>{book.author}</Text>
-                <Text style={styles.abandonedPage}>
-                  Stopped at page {book.current_page ?? "?"}
-                </Text>
-              </View>
-            </View>
-          ))}
+          <View style={{ height: 24 }} />
         </View>
-      )}
-
-      {readBooks.length === 0 && moodLogs.length === 0 && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>🌱</Text>
-          <Text style={styles.emptyTitle}>Your reading story starts here</Text>
-          <Text style={styles.emptySubtitle}>
-            Once you start reading and logging moods, your insights will appear here.
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function StatCard({ value, label, emoji }: { value: number | string; label: string; emoji: string }) {
+function LegendItem({ color, label }: { color: string; label: string }) {
   return (
-    <View style={styles.statCard}>
-      <Text style={styles.statEmoji}>{emoji}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Text style={styles.legendText}>{label}</Text>
     </View>
   );
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 60 },
-  heading: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 32,
-    color: colors.inkPrimary,
-    marginBottom: 4,
+  container: { flex: 1, backgroundColor: colors.cream },
+  insHdr: {
+    backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
   },
-  subheading: { fontSize: 15, color: colors.inkMuted, marginBottom: 24 },
-  statsRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.bgCard,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
+  insTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
+  insSub: { fontSize: 13, color: colors.char3, marginTop: 2 },
+  body: { paddingTop: 16 },
+
+  // Big stats
+  bigStatRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 20, marginBottom: 20 },
+  bigStat: {
+    width: "47%", backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3, borderRadius: 14, padding: 16,
   },
-  statEmoji: { fontSize: 22, marginBottom: 4 },
-  statValue: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 22,
-    color: colors.roseAccent,
+  bigStatV: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: colors.espresso },
+  bigStatL: { fontSize: 11, color: colors.char3, marginTop: 2 },
+  bigStatS: { fontSize: 11, color: colors.terracotta, marginTop: 4, fontWeight: "500" },
+
+  secHdr: { paddingHorizontal: 20, marginBottom: 8 },
+  secTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso },
+
+  // Mood arc
+  moodArcCard: {
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 16,
   },
-  statLabel: { fontSize: 10, color: colors.inkMuted, textAlign: "center", marginTop: 2 },
-  card: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+  arcSub: { fontSize: 11, color: colors.char3, marginBottom: 12 },
+  arcBars: { height: 64, flexDirection: "row", gap: 5, alignItems: "flex-end" },
+  arcBar: { flex: 1, borderRadius: 3 },
+  arcXlbls: { flexDirection: "row", gap: 5, marginTop: 5 },
+  arcXlbl: { flex: 1, fontSize: 9, color: colors.char3, textAlign: "center" },
+  arcLegend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 2 },
+  legendText: { fontSize: 10, color: colors.char3 },
+
+  // Genre
+  genreCard: {
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 16,
   },
-  cardTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 16,
-    color: colors.inkPrimary,
-    marginBottom: 4,
+  genreRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  genreName: { fontSize: 12, color: colors.espresso, width: 80, fontWeight: "500" },
+  genreBarBg: { flex: 1, backgroundColor: colors.cream3, borderRadius: 4, height: 6 },
+  genreBarFill: { height: 6, borderRadius: 4 },
+  genreCnt: { fontSize: 11, color: colors.char3, width: 20, textAlign: "right" },
+
+  // Year wrap
+  wrapCTA: {
+    marginHorizontal: 20, marginBottom: 20,
+    backgroundColor: "rgba(201,124,90,0.08)", borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    borderRadius: 14, padding: 16, alignItems: "center",
   },
-  cardSubtitle: { fontSize: 12, color: colors.inkMuted, marginBottom: 14 },
-  genreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    gap: 8,
+  wrapTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },
+  wrapSub: { fontSize: 12, color: colors.char3 },
+  wrapBtn: {
+    marginTop: 10, backgroundColor: colors.espresso, borderRadius: 16,
+    paddingVertical: 8, paddingHorizontal: 20,
   },
-  genreLabel: { width: 80, fontSize: 12, color: colors.inkPrimary },
-  genreBarContainer: {
-    flex: 1,
-    height: 8,
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  genreBar: { height: 8, backgroundColor: colors.roseAccent, borderRadius: 999 },
-  genreCount: { width: 24, fontSize: 12, color: colors.inkMuted, textAlign: "right" },
-  moodDistRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    gap: 8,
-  },
-  moodEmoji: { fontSize: 18, width: 24 },
-  moodLabel: { width: 90, fontSize: 12, color: colors.inkPrimary },
-  moodBarContainer: {
-    flex: 1,
-    height: 8,
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  moodBar: { height: 8, borderRadius: 999 },
-  moodCount: { width: 24, fontSize: 12, color: colors.inkMuted, textAlign: "right" },
-  timelineItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 14,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.bgSurface,
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.roseAccent,
-  },
-  timelineInfo: { flex: 1 },
-  timelineTitle: { fontSize: 13, fontWeight: "600", color: colors.inkPrimary },
-  timelineAuthor: { fontSize: 12, color: colors.inkMuted, marginTop: 2 },
-  timelineDate: { fontSize: 11, color: colors.roseAccent, marginTop: 3 },
-  abandonedItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  abandonedInfo: { flex: 1 },
-  abandonedPage: { fontSize: 11, color: colors.inkMuted, marginTop: 3 },
-  emptyState: { alignItems: "center", paddingVertical: 60 },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: colors.inkPrimary,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.inkMuted,
-    textAlign: "center",
-    lineHeight: 22,
-  },
+  wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
 });

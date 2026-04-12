@@ -15,7 +15,6 @@ import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import Svg, { Path } from "react-native-svg";
 import { colors, moodConfig } from "../../src/design/tokens";
 import { CURRENT_BOOK } from "../../src/data/mockData";
 
@@ -23,13 +22,11 @@ type Mood = "loving_it" | "getting_into_it" | "struggling" | "taking_a_break" | 
 const MOODS: Mood[] = ["loving_it", "getting_into_it", "struggling", "taking_a_break", "finished"];
 const QUICK_TAGS = ["Plot twist", "Beautiful writing", "Slow chapter", "Favourite scene", "Confusing part"];
 
-export default function ReadingSessionScreen() {
+export default function SessionTab() {
   const router = useRouter();
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [currentPage, setCurrentPage] = useState(CURRENT_BOOK.currentPage);
   const [note, setNote] = useState("");
-  const [quoteText, setQuoteText] = useState("");
-  const [showQuoteInput, setShowQuoteInput] = useState(false);
 
   const adjustPage = (delta: number) => {
     setCurrentPage((p) => Math.max(0, Math.min(CURRENT_BOOK.totalPages, p + delta)));
@@ -38,20 +35,14 @@ export default function ReadingSessionScreen() {
   const progress = Math.round((currentPage / CURRENT_BOOK.totalPages) * 100);
 
   const saveSession = () => {
-    if (!selectedMood) {
-      Alert.alert("Pick a mood", "Let us know how you're feeling about this book.");
-      return;
-    }
-    Alert.alert(
-      "Session saved!",
-      `Page ${currentPage} logged. Great reading session!`,
-      [{ text: "OK", onPress: () => router.back() }]
-    );
+    Alert.alert("Session saved!", `Page ${currentPage} logged. Great reading session!`, [
+      { text: "OK", onPress: () => { setSelectedMood(null); setNote(""); } },
+    ]);
   };
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Atmospheric blurred book cover background */}
+      {/* ── Atmospheric background — blurred book cover ── */}
       <Image
         source={{ uri: CURRENT_BOOK.cover }}
         style={[RNStyleSheet.absoluteFill, { opacity: 0.35 }]}
@@ -71,25 +62,9 @@ export default function ReadingSessionScreen() {
       >
         {/* Header */}
         <View style={styles.sessHdr}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M19 12H5M12 5l-7 7 7 7"
-                stroke={colors.char3}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-            <Text style={styles.backTxt}>Back</Text>
-          </TouchableOpacity>
           <View style={styles.sessBookRow}>
             <View style={styles.sessCover}>
-              <Image
-                source={{ uri: CURRENT_BOOK.cover }}
-                style={styles.sessCoverImg}
-                contentFit="cover"
-              />
+              <Image source={{ uri: CURRENT_BOOK.cover }} style={styles.sessCoverImg} contentFit="cover" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.sessTitle} numberOfLines={1}>{CURRENT_BOOK.title}</Text>
@@ -127,7 +102,7 @@ export default function ReadingSessionScreen() {
             <Text style={styles.progPct}>{progress}% complete</Text>
           </View>
 
-          {/* Mood grid */}
+          {/* Mood grid 3×2 */}
           <View style={styles.section}>
             <Text style={styles.sectionLbl}>How are you feeling right now?</Text>
             <View style={styles.moodGrid}>
@@ -177,37 +152,12 @@ export default function ReadingSessionScreen() {
             </View>
           </View>
 
-          {/* Quote capture */}
-          <TouchableOpacity
-            style={styles.quoteToggle}
-            onPress={() => setShowQuoteInput(!showQuoteInput)}
-          >
-            <Text style={styles.quoteToggleText}>
-              {showQuoteInput ? "▼ Hide quote capture" : "❝ Capture a quote"}
-            </Text>
-          </TouchableOpacity>
-
-          {showQuoteInput && (
-            <View style={styles.quoteSection}>
-              <TextInput
-                style={styles.quoteInput}
-                value={quoteText}
-                onChangeText={setQuoteText}
-                placeholder="Type a passage that moved you…"
-                placeholderTextColor={colors.char3}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-          )}
-
           {/* Save */}
           <TouchableOpacity style={styles.saveBtn} onPress={saveSession} activeOpacity={0.85}>
             <Text style={styles.saveBtnText}>Save check-in</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 32 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -219,10 +169,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(250,246,240,0.92)",
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingVertical: 14,
-    paddingTop: 52,
+    paddingTop: 56,
   },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
-  backTxt: { fontSize: 13, color: colors.char3 },
   sessBookRow: { flexDirection: "row", gap: 12, alignItems: "center" },
   sessCover: { width: 40, height: 58, borderRadius: 4, overflow: "hidden" },
   sessCoverImg: { width: 40, height: 58 },
@@ -236,6 +184,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10,
   },
 
+  // Page
   pageRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(250,246,240,0.9)", borderWidth: 1, borderColor: colors.cream3,
@@ -254,6 +203,7 @@ const styles = StyleSheet.create({
   progFill: { height: 4, backgroundColor: colors.terracotta, borderRadius: 4 },
   progPct: { fontSize: 11, color: colors.char3, marginTop: 4 },
 
+  // Mood
   moodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   moodOpt: {
     width: "30.5%", backgroundColor: "rgba(250,246,240,0.9)",
@@ -265,6 +215,7 @@ const styles = StyleSheet.create({
   moodName: { fontSize: 11, color: colors.char3, fontWeight: "500", textAlign: "center" },
   moodNameSel: { color: colors.terracotta },
 
+  // Note
   noteBox: {
     backgroundColor: "rgba(250,246,240,0.9)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, minHeight: 80,
@@ -276,14 +227,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3, backgroundColor: "rgba(250,246,240,0.9)",
   },
   qtagText: { fontSize: 11, color: colors.char3 },
-
-  quoteToggle: { paddingVertical: 8, marginBottom: 12 },
-  quoteToggleText: { fontSize: 13, color: colors.terracotta, fontWeight: "600" },
-  quoteSection: {
-    backgroundColor: "rgba(250,246,240,0.9)", borderRadius: 12,
-    padding: 14, marginBottom: 20, borderWidth: 1, borderColor: colors.cream3,
-  },
-  quoteInput: { fontSize: 14, color: colors.espresso, minHeight: 80 },
 
   saveBtn: {
     backgroundColor: colors.espresso, borderRadius: 24, paddingVertical: 15, alignItems: "center",

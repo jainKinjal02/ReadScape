@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,336 +8,263 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  SafeAreaView,
+  Alert,
 } from "react-native";
-import { supabase } from "../../src/lib/supabase";
-import { useAppStore } from "../../src/store";
+import { Image } from "expo-image";
+import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
-import { Book } from "../../src/types";
+import { CURRENT_BOOK, AI_MESSAGES, AI_RECOMMENDATIONS } from "../../src/data/mockData";
 
-// IMPORTANT: Replace with your actual Supabase project URL
-// This calls your Edge Function, NOT Anthropic directly.
-// The Anthropic API key lives only in the Edge Function environment.
-const EDGE_FN_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
-  ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai-companion`
-  : "";
+type Tab = "Chat" | "Recommend" | "Define" | "Themes";
+const TABS: Tab[] = ["Chat", "Recommend", "Define", "Themes"];
 
-type AiMode = "chat" | "define" | "recommend";
+interface Message { id: string; role: "user" | "assistant"; text: string }
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
+function SendIcon() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill={colors.cream}>
+      <Path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+    </Svg>
+  );
 }
 
-const MODE_PLACEHOLDERS: Record<AiMode, string> = {
-  chat: "Ask anything about your book...",
-  define: "Enter a word to look up...",
-  recommend: "Describe what you're in the mood for...",
-};
-
-const MODE_STARTERS: Record<AiMode, string[]> = {
-  chat: [
-    "What are the major themes?",
-    "Tell me about the author",
-    "Explain this character's motivation",
-  ],
-  define: ["What does 'ephemeral' mean?", "Define 'soliloquy'", "What is 'bildungsroman'?"],
-  recommend: [
-    "Something similar to this book",
-    "A cozy read for a rainy day",
-    "A challenging literary novel",
-  ],
-};
-
-export default function AICompanionScreen() {
-  const { userId } = useAppStore();
-  const [mode, setMode] = useState<AiMode>("chat");
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function AIScreen() {
+  const [activeTab, setActiveTab] = useState<Tab>("Chat");
+  const [messages, setMessages] = useState<Message[]>(AI_MESSAGES);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
-  const [lastMood, setLastMood] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (!userId) return;
-    // Fetch currently reading book for context
-    supabase
-      .from("books")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "reading")
-      .limit(1)
-      .single()
-      .then(({ data }) => setCurrentBook(data as Book ?? null));
-
-    // Fetch last mood
-    supabase
-      .from("mood_logs")
-      .select("mood")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single()
-      .then(({ data }) => setLastMood(data?.mood ?? null));
-  }, [userId]);
-
-  const sendMessage = async (text?: string) => {
-    const msg = (text ?? input).trim();
-    if (!msg || loading) return;
-    setInput("");
-
+  const sendMessage = () => {
+    const msg = input.trim();
+    if (!msg) return;
     const userMsg: Message = { id: Date.now().toString(), role: "user", text: msg };
-    setMessages((prev) => [...prev, userMsg]);
-    setLoading(true);
-
-    try {
-      // Get the session token to authenticate the Edge Function call
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch(EDGE_FN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
-        },
-        body: JSON.stringify({
-          message: msg,
-          mode,
-          bookContext: currentBook
-            ? {
-                title: currentBook.title,
-                author: currentBook.author,
-                currentPage: currentBook.current_page,
-                totalPages: currentBook.total_pages,
-                lastMood,
-              }
-            : null,
-        }),
-      });
-
-      const data = await res.json();
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        text: data.reply ?? "I couldn't get a response. Please try again.",
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          text: "Something went wrong. Make sure your Supabase Edge Function is deployed.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    }
+    const aiReply: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      text: "That's a fascinating aspect of the book! The themes of regret and possibility run very deep in this chapter. Haig uses Nora's journey through the Midnight Library to explore how our small decisions ripple through our entire lives.",
+    };
+    setMessages((prev) => [...prev, userMsg, aiReply]);
+    setInput("");
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={80}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.heading}>AI Companion</Text>
-        {/* Context pill */}
-        {currentBook && (
-          <View style={styles.contextPill}>
-            <Text style={styles.contextText} numberOfLines={1}>
-              📖 {currentBook.title}
-              {currentBook.current_page ? ` · p.${currentBook.current_page}` : ""}
-              {lastMood ? ` · ${lastMood.replace("_", " ")}` : ""}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Mode tabs */}
-      <View style={styles.modeTabs}>
-        {(["chat", "define", "recommend"] as AiMode[]).map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={[styles.modeTab, mode === m && styles.modeTabActive]}
-            onPress={() => setMode(m)}
-          >
-            <Text style={[styles.modeTabText, mode === m && styles.modeTabTextActive]}>
-              {m === "chat" ? "💬 Chat" : m === "define" ? "📖 Define" : "✨ Recommend"}
-            </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={80}
+      >
+        {/* Header */}
+        <View style={styles.aiHdr}>
+          <Text style={styles.aiTitle}>Reading companion</Text>
+          <TouchableOpacity style={styles.contextPill} activeOpacity={0.8}>
+            <View style={styles.contextCover}>
+              <Image source={{ uri: CURRENT_BOOK.cover }} style={styles.contextCoverImg} contentFit="cover" />
+            </View>
+            <Text style={styles.contextTxt} numberOfLines={1}>{CURRENT_BOOK.title}</Text>
+            <Text style={styles.contextChange}>Change</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messageList}
-        ListEmptyComponent={
-          <View style={styles.startersContainer}>
-            <Text style={styles.startersLabel}>Try asking:</Text>
-            {MODE_STARTERS[mode].map((s) => (
+        {/* Tabs */}
+        <View style={styles.tabsRow}>
+          {TABS.map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Chat tab */}
+        {activeTab === "Chat" && (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.msgList}
+            renderItem={({ item }) =>
+              item.role === "assistant" ? (
+                <View style={styles.msgAI}>
+                  <View style={styles.aiAv}>
+                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                      <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={colors.cream} strokeWidth={1.5} />
+                    </Svg>
+                  </View>
+                  <View style={styles.bubbleAI}>
+                    <Text style={styles.bubbleAIText}>{item.text}</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.bubbleUser}>
+                  <Text style={styles.bubbleUserText}>{item.text}</Text>
+                </View>
+              )
+            }
+          />
+        )}
+
+        {/* Recommend tab */}
+        {activeTab === "Recommend" && (
+          <FlatList
+            data={AI_RECOMMENDATIONS}
+            keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
+            ListHeaderComponent={
+              <Text style={styles.recHeader}>Based on your library and mood logs:</Text>
+            }
+            contentContainerStyle={{ paddingBottom: 16 }}
+            renderItem={({ item }) => (
+              <View style={styles.recCard}>
+                <View style={styles.recCover}>
+                  <Image source={{ uri: item.cover }} style={styles.recCoverImg} contentFit="cover" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recTitle}>{item.title}</Text>
+                  <Text style={styles.recAuthor}>{item.author}</Text>
+                  <Text style={styles.recWhy}>{item.reason}</Text>
+                </View>
+              </View>
+            )}
+          />
+        )}
+
+        {/* Define / Themes tabs — starter prompts */}
+        {(activeTab === "Define" || activeTab === "Themes") && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.msgList}>
+            <Text style={styles.starterLbl}>Try asking:</Text>
+            {(activeTab === "Define"
+              ? ["What does 'ephemeral' mean?", "Define 'soliloquy'", "What is 'bildungsroman'?"]
+              : ["What symbols appear in this book?", "How does setting affect the story?", "What is the central conflict?"]
+            ).map((s) => (
               <TouchableOpacity
                 key={s}
                 style={styles.starterChip}
-                onPress={() => sendMessage(s)}
+                onPress={() => { setActiveTab("Chat"); setInput(s); }}
               >
                 <Text style={styles.starterText}>{s}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.messageBubble,
-              item.role === "user" ? styles.userBubble : styles.aiBubble,
-            ]}
-          >
-            {item.role === "assistant" && (
-              <Text style={styles.aiLabel}>✨ ReadScape AI</Text>
-            )}
-            <Text style={styles.messageText}>{item.text}</Text>
+          </ScrollView>
+        )}
+
+        {/* Input bar (only on chat/define/themes) */}
+        {activeTab !== "Recommend" && (
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.inputField}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Ask anything about your book…"
+              placeholderTextColor={colors.char3}
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, !input.trim() && { opacity: 0.4 }]}
+              onPress={sendMessage}
+              disabled={!input.trim()}
+            >
+              <SendIcon />
+            </TouchableOpacity>
           </View>
         )}
-      />
-
-      {/* Loading indicator */}
-      {loading && (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={colors.roseAccent} />
-          <Text style={styles.loadingText}>Thinking...</Text>
-        </View>
-      )}
-
-      {/* Input bar */}
-      <View style={styles.inputBar}>
-        <TextInput
-          style={styles.textInput}
-          value={input}
-          onChangeText={setInput}
-          placeholder={MODE_PLACEHOLDERS[mode]}
-          placeholderTextColor={colors.inkMuted}
-          multiline
-          onSubmitEditing={() => sendMessage()}
-          returnKeyType="send"
-        />
-        <TouchableOpacity
-          style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
-          onPress={() => sendMessage()}
-          disabled={!input.trim() || loading}
-        >
-          <Text style={styles.sendBtnText}>→</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
+// Need ScrollView for the starter prompts
+import { ScrollView } from "react-native";
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 12 },
-  heading: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 28,
-    color: colors.inkPrimary,
-    marginBottom: 8,
+  aiHdr: {
+    backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
   },
+  aiTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
   contextPill: {
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    alignSelf: "flex-start",
+    flexDirection: "row", alignItems: "center", gap: 7,
+    backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12,
+    alignSelf: "flex-start", marginTop: 8,
   },
-  contextText: { fontSize: 12, color: colors.inkMuted },
-  modeTabs: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 8,
+  contextCover: { width: 22, height: 30, borderRadius: 2, overflow: "hidden" },
+  contextCoverImg: { width: 22, height: 30 },
+  contextTxt: { fontSize: 12, color: colors.espresso2, fontWeight: "500", maxWidth: 160 },
+  contextChange: { fontSize: 11, color: colors.terracotta },
+
+  tabsRow: {
+    flexDirection: "row", gap: 6,
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: colors.cream3,
   },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: colors.bgCard,
-    alignItems: "center",
+  tab: {
+    paddingVertical: 6, paddingHorizontal: 14,
+    borderRadius: 16, borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.parchment,
   },
-  modeTabActive: { backgroundColor: colors.roseSoft, borderWidth: 1.5, borderColor: colors.roseAccent },
-  modeTabText: { fontSize: 12, color: colors.inkMuted, fontWeight: "500" },
-  modeTabTextActive: { color: colors.roseAccent, fontWeight: "700" },
-  messageList: { paddingHorizontal: 16, paddingBottom: 16, flexGrow: 1 },
-  startersContainer: { padding: 16 },
-  startersLabel: { fontSize: 13, color: colors.inkMuted, marginBottom: 12 },
+  tabActive: { backgroundColor: colors.espresso, borderColor: colors.espresso },
+  tabText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
+  tabTextActive: { color: colors.cream },
+
+  msgList: { padding: 14, flexGrow: 1 },
+  starterLbl: { fontSize: 12, color: colors.char3, marginBottom: 10 },
   starterChip: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 12, marginBottom: 8,
   },
-  starterText: { fontSize: 14, color: colors.inkPrimary },
-  messageBubble: {
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
-    maxWidth: "85%",
+  starterText: { fontSize: 13, color: colors.espresso },
+
+  msgAI: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginBottom: 12 },
+  aiAv: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: colors.espresso,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  userBubble: {
-    backgroundColor: colors.roseAccent,
-    alignSelf: "flex-end",
-    borderBottomRightRadius: 4,
+  bubbleAI: {
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 4, borderTopLeftRadius: 0, borderTopRightRadius: 14,
+    borderBottomRightRadius: 14, borderBottomLeftRadius: 14,
+    padding: 10, maxWidth: "78%",
   },
-  aiBubble: {
-    backgroundColor: colors.bgCard,
-    alignSelf: "flex-start",
-    borderBottomLeftRadius: 4,
+  bubbleAIText: { fontSize: 13, color: colors.espresso, lineHeight: 19 },
+  bubbleUser: {
+    backgroundColor: colors.espresso, borderRadius: 14, borderTopRightRadius: 4,
+    padding: 10, maxWidth: "78%", alignSelf: "flex-end", marginBottom: 12,
   },
-  aiLabel: { fontSize: 10, color: colors.roseAccent, fontWeight: "700", marginBottom: 4 },
-  messageText: { fontSize: 14, color: colors.inkPrimary, lineHeight: 20 },
-  loadingRow: {
-    flexDirection: "row",
+  bubbleUserText: { fontSize: 13, color: colors.cream, lineHeight: 19 },
+
+  // Recommend
+  recHeader: { fontSize: 12, color: colors.char3, padding: 14, paddingBottom: 4 },
+  recCard: {
+    flexDirection: "row", gap: 12,
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 10,
+  },
+  recCover: { width: 46, height: 66, borderRadius: 5, overflow: "hidden" },
+  recCoverImg: { width: 46, height: 66 },
+  recTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 13, color: colors.espresso, marginBottom: 2 },
+  recAuthor: { fontSize: 11, color: colors.char3, marginBottom: 4 },
+  recWhy: { fontSize: 11, color: colors.terracotta, lineHeight: 15 },
+
+  inputRow: {
+    flexDirection: "row", gap: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: colors.cream3,
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    gap: 8,
   },
-  loadingText: { fontSize: 13, color: colors.inkMuted },
-  inputBar: {
-    flexDirection: "row",
-    padding: 12,
-    backgroundColor: colors.bgCard,
-    borderTopWidth: 1,
-    borderTopColor: colors.bgSurface,
-    gap: 8,
-    alignItems: "flex-end",
-  },
-  textInput: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.inkPrimary,
-    maxHeight: 100,
+  inputField: {
+    flex: 1, backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9,
+    fontSize: 13, color: colors.espresso,
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.roseAccent,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.espresso,
+    alignItems: "center", justifyContent: "center",
   },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendBtnText: { color: "#FFF", fontSize: 18, fontWeight: "700" },
 });

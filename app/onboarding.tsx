@@ -39,6 +39,9 @@ export default function OnboardingScreen() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
+  // Store the user ID from signUp — Supabase won't have an active session
+  // until email is confirmed, so we can't call getUser() in handleFinish.
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const handleAuth = async () => {
     if (!email || !password) return;
@@ -49,8 +52,10 @@ export default function OnboardingScreen() {
         if (error) throw error;
         router.replace("/(tabs)/home");
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        // data.user is populated even before email confirmation
+        setPendingUserId(data.user?.id ?? null);
         setStep("profile");
       }
     } catch (e: any) {
@@ -61,17 +66,31 @@ export default function OnboardingScreen() {
   };
 
   const handleFinish = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setLoading(true);
+    try {
+      // Try active session first (sign-in path), fall back to pendingUserId (sign-up path)
+      const { data: { user: sessionUser } } = await supabase.auth.getUser();
+      const uid = sessionUser?.id ?? pendingUserId;
 
-    await supabase.from("user_profiles").upsert({
-      user_id: user.id,
-      name: name || email.split("@")[0],
-      reading_goal: goal,
-      favorite_genres: selectedGenres,
-    });
+      if (!uid) {
+        Alert.alert("Error", "Could not identify user. Please try signing in.");
+        return;
+      }
 
-    router.replace("/(tabs)/home");
+      const { error } = await supabase.from("user_profiles").upsert({
+        user_id: uid,
+        name: name || email.split("@")[0],
+        reading_goal: goal,
+        favorite_genres: selectedGenres,
+      });
+
+      if (error) throw error;
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleGenre = (genre: string) => {
@@ -207,8 +226,14 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleFinish}>
-          <Text style={styles.primaryBtnText}>Enter ReadScape →</Text>
+        <TouchableOpacity
+          style={[styles.primaryBtn, loading && styles.btnDisabled]}
+          onPress={handleFinish}
+          disabled={loading}
+        >
+          <Text style={styles.primaryBtnText}>
+            {loading ? "Setting up your library..." : "Enter ReadScape →"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

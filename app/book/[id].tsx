@@ -1,631 +1,480 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
-  TextInput,
-  Alert,
-  Modal,
   Dimensions,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import Svg, { Polyline, Circle, Line } from "react-native-svg";
-import { supabase } from "../../src/lib/supabase";
-import { useAppStore } from "../../src/store";
-import { colors, moodConfig } from "../../src/design/tokens";
-import { BookCover } from "../../src/components/BookCover";
-import { Book, Quote, Note, MoodLog } from "../../src/types";
+import { useRouter } from "expo-router";
+import Svg, { Path, Polyline, Circle, Line } from "react-native-svg";
+import { colors } from "../../src/design/tokens";
+import {
+  CURRENT_BOOK,
+  SAMPLE_QUOTES,
+  SAMPLE_NOTES,
+  MOOD_ARC,
+} from "../../src/data/mockData";
 
-type Tab = "overview" | "notes" | "quotes" | "mood_arc";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+type Tab = "quotes" | "notes" | "reading_log";
+const { width: W } = Dimensions.get("window");
 
 export default function BookDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { userId } = useAppStore();
+  const [activeTab, setActiveTab] = useState<Tab>("quotes");
+  const [rating, setRating] = useState(CURRENT_BOOK.rating);
 
-  const [book, setBook] = useState<Book | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
-  const [newNote, setNewNote] = useState("");
-  const [showNoteInput, setShowNoteInput] = useState(false);
-
-  const fetchBook = useCallback(async () => {
-    if (!id) return;
-    const { data } = await supabase.from("books").select("*").eq("id", id).single();
-    if (data) setBook(data as Book);
-  }, [id]);
-
-  const fetchTabData = useCallback(async () => {
-    if (!id || !userId) return;
-    if (activeTab === "quotes") {
-      const { data } = await supabase
-        .from("quotes")
-        .select("*")
-        .eq("book_id", id)
-        .order("created_at", { ascending: false });
-      setQuotes((data ?? []) as Quote[]);
-    } else if (activeTab === "notes") {
-      const { data } = await supabase
-        .from("notes")
-        .select("*")
-        .eq("book_id", id)
-        .order("created_at", { ascending: false });
-      setNotes((data ?? []) as Note[]);
-    } else if (activeTab === "mood_arc") {
-      const { data } = await supabase
-        .from("mood_logs")
-        .select("*")
-        .eq("book_id", id)
-        .order("created_at", { ascending: true });
-      setMoodLogs((data ?? []) as MoodLog[]);
-    }
-  }, [id, userId, activeTab]);
-
-  useEffect(() => { fetchBook(); }, [fetchBook]);
-  useEffect(() => { fetchTabData(); }, [fetchTabData]);
-
-  const addNote = async () => {
-    if (!newNote.trim() || !userId || !id) return;
-    await supabase.from("notes").insert({
-      user_id: userId,
-      book_id: id,
-      text: newNote.trim(),
-    });
-    setNewNote("");
-    setShowNoteInput(false);
-    fetchTabData();
-  };
-
-  const updateStatus = async (status: Book["status"]) => {
-    if (!id) return;
-    await supabase.from("books").update({ status }).eq("id", id);
-    fetchBook();
-  };
-
-  const updateRating = async (rating: number) => {
-    if (!id) return;
-    await supabase.from("books").update({ rating }).eq("id", id);
-    fetchBook();
-  };
-
-  if (!book) return <View style={styles.loading} />;
-
-  const progress = book.total_pages
-    ? Math.round((book.current_page / book.total_pages) * 100)
-    : 0;
+  const book = CURRENT_BOOK;
 
   return (
-    <View style={styles.container}>
-      {/* Hero header */}
-      <View style={styles.hero}>
-        {book.cover_url && (
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[2]}>
+        {/* ── Hero blurred background ── */}
+        <View style={styles.bdHero}>
           <Image
-            source={{ uri: book.cover_url }}
-            style={StyleSheet.absoluteFill}
+            source={{ uri: book.cover }}
+            style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]}
             contentFit="cover"
           />
-        )}
-        <LinearGradient
-          colors={["rgba(0,0,0,0.2)", "rgba(247,244,239,1)"]}
-          style={StyleSheet.absoluteFill}
-        />
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backBtnText}>← Back</Text>
-        </TouchableOpacity>
-        <View style={styles.heroContent}>
-          <BookCover uri={book.cover_url} title={book.title} width={90} height={134} borderRadius={10} />
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle} numberOfLines={3}>{book.title}</Text>
-            <Text style={styles.heroAuthor}>{book.author}</Text>
-            {/* Star rating */}
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => updateRating(s)}>
-                  <Text style={styles.star}>
-                    {s <= (book.rating ?? 0) ? "★" : "☆"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          <BlurView intensity={50} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={["rgba(247,242,235,0.05)", colors.cream]}
+            locations={[0, 1]}
+            style={[StyleSheet.absoluteFill, { top: "35%" }]}
+          />
+
+          {/* Back button */}
+          <View style={styles.bdTopRow}>
+            <TouchableOpacity style={styles.bdCircleBtn} onPress={() => router.back()}>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M19 12H5M12 5l-7 7 7 7"
+                  stroke={colors.espresso}
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bdCircleBtn}>
+              <Text style={{ fontSize: 16, color: colors.terracotta }}>♡</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Floating centered cover */}
+          <View style={styles.bdCoverWrap}>
+            <View style={styles.bdCoverShadow}>
+              <Image
+                source={{ uri: book.cover }}
+                style={styles.bdCoverImg}
+                contentFit="cover"
+              />
             </View>
+          </View>
+        </View>
+
+        {/* ── Book info ── */}
+        <View style={styles.bdInfo}>
+          <Text style={styles.bdTitle}>{book.title}</Text>
+          <Text style={styles.bdAuthor}>by {book.author}</Text>
+
+          {/* Tags */}
+          <View style={styles.bdTags}>
+            {book.genre.map((g) => (
+              <View key={g} style={styles.bdTag}>
+                <Text style={styles.bdTagText}>{g}</Text>
+              </View>
+            ))}
+            <View style={[styles.bdTag, styles.bdTagStatus]}>
+              <Text style={[styles.bdTagText, { color: "#a85e3e" }]}>Reading</Text>
+            </View>
+            <View style={styles.bdTag}>
+              <Text style={styles.bdTagText}>{book.totalPages} pages</Text>
+            </View>
+          </View>
+
+          {/* Star rating */}
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <TouchableOpacity key={s} onPress={() => setRating(s)}>
+                <Text style={[styles.star, s <= rating && styles.starFilled]}>★</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Synopsis */}
+          <Text style={styles.synopsis} numberOfLines={3}>{book.synopsis}</Text>
+        </View>
+
+        {/* ── Progress section ── */}
+        <View style={styles.bdProgSection}>
+          <View style={styles.bdProgRow}>
+            <Text style={styles.bdProgLabel}>Reading progress</Text>
+            <Text style={styles.bdProgPct}>{book.progress}%</Text>
+          </View>
+          <View style={styles.progBg}>
+            <View style={[styles.progFill, { width: `${book.progress}%` }]} />
+          </View>
+          <View style={styles.bdStatsMini}>
+            <View style={styles.bdStatMini}>
+              <Text style={styles.bdStatV}>{book.currentPage}</Text>
+              <Text style={styles.bdStatL}>Current page</Text>
+            </View>
+            <View style={[styles.bdStatMini, styles.bdStatMiniMid]}>
+              <Text style={styles.bdStatV}>{book.totalPages}</Text>
+              <Text style={styles.bdStatL}>Total pages</Text>
+            </View>
+            <View style={styles.bdStatMini}>
+              <Text style={styles.bdStatV}>{book.progress}%</Text>
+              <Text style={styles.bdStatL}>Complete</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Tabs header (sticky) ── */}
+        <View style={styles.tabRow}>
+          {(["quotes", "notes", "reading_log"] as Tab[]).map((tab) => (
             <TouchableOpacity
-              style={styles.readNowBtn}
-              onPress={() => router.push(`/session/${book.id}`)}
+              key={tab}
+              style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Text style={styles.readNowText}>Read Now →</Text>
+              <Text style={[styles.tabItemText, activeTab === tab && styles.tabItemTextActive]}>
+                {tab === "quotes" ? "Quotes" : tab === "notes" ? "Notes" : "Mood arc"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Tab content ── */}
+        {activeTab === "quotes" && <QuotesTab />}
+        {activeTab === "notes" && <NotesTab />}
+        {activeTab === "reading_log" && <MoodArcTab />}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* ── Bottom action bar ── */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={styles.bottomBtnSecondary}
+          onPress={() => router.push("/(tabs)/session")}
+        >
+          <Text style={styles.bottomBtnSecondaryText}>Log session</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bottomBtnPrimary}
+          onPress={() => router.push("/(tabs)/ai")}
+        >
+          <Text style={styles.bottomBtnPrimaryText}>Ask AI</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function QuotesTab() {
+  const [showAdd, setShowAdd] = useState(false);
+  return (
+    <View style={styles.tabContent}>
+      {SAMPLE_QUOTES.map((q, i) => (
+        <View
+          key={q.id}
+          style={[styles.quoteCard, i === 1 && { borderLeftColor: colors.sage }, i === 2 && { borderLeftColor: "#8b6a4a" }]}
+        >
+          <Text style={styles.quoteText}>"{q.text}"</Text>
+          <Text style={styles.quotePage}>{q.chapter} · Page {q.page}</Text>
+        </View>
+      ))}
+      {showAdd ? (
+        <View style={styles.addCard}>
+          <Text style={styles.addCardPlaceholder}>Type a passage that moved you…</Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+            <TouchableOpacity
+              style={styles.addSaveBtn}
+              onPress={() => { Alert.alert("Quote saved!"); setShowAdd(false); }}
+            >
+              <Text style={styles.addSaveBtnText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addCancelBtn} onPress={() => setShowAdd(false)}>
+              <Text style={styles.addCancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabBar}>
-        {(["overview", "notes", "quotes", "mood_arc"] as Tab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text
-              style={[
-                styles.tabBtnText,
-                activeTab === tab && styles.tabBtnTextActive,
-              ]}
-            >
-              {tabLabel(tab)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Tab content */}
-      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-        {activeTab === "overview" && (
-          <OverviewTab book={book} progress={progress} onStatusChange={updateStatus} />
-        )}
-        {activeTab === "notes" && (
-          <NotesTab
-            notes={notes}
-            newNote={newNote}
-            setNewNote={setNewNote}
-            showInput={showNoteInput}
-            setShowInput={setShowNoteInput}
-            onAdd={addNote}
-          />
-        )}
-        {activeTab === "quotes" && <QuotesTab quotes={quotes} />}
-        {activeTab === "mood_arc" && <MoodArcTab moodLogs={moodLogs} />}
-      </ScrollView>
-    </View>
-  );
-}
-
-function OverviewTab({
-  book,
-  progress,
-  onStatusChange,
-}: {
-  book: Book;
-  progress: number;
-  onStatusChange: (s: Book["status"]) => void;
-}) {
-  const statuses: Book["status"][] = ["reading", "read", "want_to_read", "abandoned"];
-  return (
-    <View style={styles.tabSection}>
-      {/* Progress */}
-      <View style={styles.progressCard}>
-        <View style={styles.progressBarBig}>
-          <View style={[styles.progressFillBig, { width: `${progress}%` }]} />
-        </View>
-        <Text style={styles.progressTextBig}>
-          {book.current_page} of {book.total_pages ?? "?"} pages ({progress}%)
-        </Text>
-      </View>
-
-      {/* Status */}
-      <Text style={styles.overviewLabel}>Status</Text>
-      <View style={styles.statusRow}>
-        {statuses.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[
-              styles.statusChip,
-              book.status === s && styles.statusChipActive,
-            ]}
-            onPress={() => onStatusChange(s)}
-          >
-            <Text
-              style={[
-                styles.statusChipText,
-                book.status === s && styles.statusChipTextActive,
-              ]}
-            >
-              {s.replace("_", " ")}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Synopsis */}
-      {book.synopsis && (
-        <>
-          <Text style={styles.overviewLabel}>About this book</Text>
-          <Text style={styles.synopsisText}>{book.synopsis}</Text>
-        </>
-      )}
-
-      {/* Genres */}
-      {book.genre?.length > 0 && (
-        <View style={styles.genreRow}>
-          {book.genre.map((g) => (
-            <View key={g} style={styles.genreTag}>
-              <Text style={styles.genreTagText}>{g}</Text>
-            </View>
-          ))}
-        </View>
+      ) : (
+        <TouchableOpacity style={styles.addDashedBtn} onPress={() => setShowAdd(true)}>
+          <Text style={styles.addDashedText}>+ Add quote</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function NotesTab({
-  notes,
-  newNote,
-  setNewNote,
-  showInput,
-  setShowInput,
-  onAdd,
-}: {
-  notes: Note[];
-  newNote: string;
-  setNewNote: (t: string) => void;
-  showInput: boolean;
-  setShowInput: (b: boolean) => void;
-  onAdd: () => void;
-}) {
+function NotesTab() {
+  const [showAdd, setShowAdd] = useState(false);
   return (
-    <View style={styles.tabSection}>
-      <TouchableOpacity
-        style={styles.addItemBtn}
-        onPress={() => setShowInput(!showInput)}
-      >
-        <Text style={styles.addItemBtnText}>+ Add Note</Text>
-      </TouchableOpacity>
-      {showInput && (
-        <View style={styles.addItemCard}>
-          <TextInput
-            style={styles.noteTextInput}
-            value={newNote}
-            onChangeText={setNewNote}
-            placeholder="Write your thought..."
-            placeholderTextColor={colors.inkMuted}
-            multiline
-            textAlignVertical="top"
-          />
-          <TouchableOpacity style={styles.saveItemBtn} onPress={onAdd}>
-            <Text style={styles.saveItemBtnText}>Save Note</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {notes.map((note) => (
-        <View key={note.id} style={styles.noteCard}>
-          <Text style={styles.noteText}>{note.text}</Text>
-          <Text style={styles.noteDate}>{formatDate(note.created_at)}</Text>
+    <View style={styles.tabContent}>
+      {SAMPLE_NOTES.map((n) => (
+        <View key={n.id} style={styles.noteCard}>
+          <Text style={styles.noteCardText}>{n.text}</Text>
+          <Text style={styles.noteCardDate}>Apr {n.id === "n1" ? "8" : "10"}</Text>
         </View>
       ))}
-      {notes.length === 0 && !showInput && (
-        <Text style={styles.emptyTabText}>No notes yet. Add your first thought.</Text>
-      )}
-    </View>
-  );
-}
-
-function QuotesTab({ quotes }: { quotes: Quote[] }) {
-  return (
-    <View style={styles.tabSection}>
-      {quotes.map((q) => (
-        <View key={q.id} style={styles.quoteCard}>
-          <Text style={styles.quoteOpenQuote}>❝</Text>
-          <Text style={styles.quoteText}>{q.text}</Text>
-          {q.page && <Text style={styles.quotePage}>— p. {q.page}</Text>}
+      {showAdd ? (
+        <View style={styles.addCard}>
+          <Text style={styles.addCardPlaceholder}>Write your thought…</Text>
+          <TouchableOpacity
+            style={[styles.addSaveBtn, { marginTop: 12 }]}
+            onPress={() => { Alert.alert("Note saved!"); setShowAdd(false); }}
+          >
+            <Text style={styles.addSaveBtnText}>Save Note</Text>
+          </TouchableOpacity>
         </View>
-      ))}
-      {quotes.length === 0 && (
-        <Text style={styles.emptyTabText}>
-          No quotes saved yet. Capture a quote during your next reading session.
-        </Text>
+      ) : (
+        <TouchableOpacity style={styles.addDashedBtn} onPress={() => setShowAdd(true)}>
+          <Text style={styles.addDashedText}>+ Add note</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function MoodArcTab({ moodLogs }: { moodLogs: MoodLog[] }) {
-  const W = SCREEN_WIDTH - 64;
-  const H = 160;
-  const PADDING = 20;
+function MoodArcTab() {
+  const chartW = W - 64;
+  const chartH = 140;
+  const PAD = 16;
 
-  if (moodLogs.length === 0) {
-    return (
-      <View style={styles.tabSection}>
-        <Text style={styles.emptyTabText}>
-          Your Mood Arc will appear here once you start logging your feelings during reading sessions.
-        </Text>
-      </View>
-    );
-  }
+  const pts = MOOD_ARC.map((item, i) => ({
+    x: PAD + (i / (MOOD_ARC.length - 1)) * (chartW - PAD * 2),
+    y: chartH - PAD - ((item.score - 1) / 4) * (chartH - PAD * 2),
+    color: item.color,
+  }));
 
-  const scores = moodLogs.map((m) => moodConfig[m.mood]?.score ?? 3);
-  const maxScore = 5;
-  const points = scores.map((score, i) => {
-    const x = PADDING + (i / Math.max(scores.length - 1, 1)) * (W - PADDING * 2);
-    const y = H - PADDING - ((score - 1) / (maxScore - 1)) * (H - PADDING * 2);
-    return { x, y, mood: moodLogs[i].mood, page: moodLogs[i].page };
-  });
-
-  const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(" ");
+  const MOOD_LABELS = [
+    { symbol: "○", label: "Slow read", chapter: "Ch 1–2", color: "#c9bdb5" },
+    { symbol: "✦", label: "Getting curious", chapter: "Ch 3–6", color: "#7a9e7e" },
+    { symbol: "✦", label: "Hooked", chapter: "Ch 7–10", color: "#c97c5a" },
+    { symbol: "◈", label: "Loving it", chapter: "Ch 11–Now", color: "#a85e3e" },
+  ];
 
   return (
-    <View style={styles.tabSection}>
-      <Text style={styles.moodArcTitle}>Your Mood Arc</Text>
-      <Text style={styles.moodArcSubtitle}>
-        How your feelings about this book changed over time
-      </Text>
-      <View style={styles.chartContainer}>
-        <Svg width={W} height={H}>
+    <View style={styles.tabContent}>
+      <Text style={styles.arcSub}>How your feeling changed through the book</Text>
+      <View style={styles.chartCard}>
+        <Svg width={chartW} height={chartH}>
           {/* Grid lines */}
-          {[1, 2, 3, 4, 5].map((score) => {
-            const y = H - PADDING - ((score - 1) / 4) * (H - PADDING * 2);
-            return (
-              <Line
-                key={score}
-                x1={PADDING}
-                y1={y}
-                x2={W - PADDING}
-                y2={y}
-                stroke={colors.bgSurface}
-                strokeWidth={1}
-              />
-            );
+          {[1, 2, 3, 4, 5].map((s) => {
+            const y = chartH - PAD - ((s - 1) / 4) * (chartH - PAD * 2);
+            return <Line key={s} x1={PAD} y1={y} x2={chartW - PAD} y2={y} stroke={colors.cream3} strokeWidth={1} />;
           })}
           {/* Line */}
           <Polyline
-            points={polylinePoints}
+            points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
             fill="none"
-            stroke={colors.roseAccent}
+            stroke={colors.terracotta}
             strokeWidth={2.5}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-          {/* Data points */}
-          {points.map((p, i) => (
+          {/* Dots */}
+          {pts.map((p, i) => (
             <Circle
               key={i}
               cx={p.x}
               cy={p.y}
               r={5}
-              fill={colors.roseAccent}
-              stroke={colors.bgCard}
+              fill={p.color}
+              stroke={colors.parchment}
               strokeWidth={2}
             />
           ))}
         </Svg>
+        {/* Chapter labels */}
+        <View style={styles.arcXlbls}>
+          {MOOD_ARC.map((item, i) => (
+            <Text key={i} style={styles.arcXlbl}>{item.chapter}</Text>
+          ))}
+        </View>
       </View>
 
-      {/* Legend */}
-      <View style={styles.arcLegend}>
-        {moodLogs.map((log, i) => (
-          <View key={log.id} style={styles.arcLegendItem}>
-            <Text style={styles.arcLegendEmoji}>{moodConfig[log.mood]?.emoji}</Text>
-            <Text style={styles.arcLegendLabel}>{moodConfig[log.mood]?.label}</Text>
-            {log.page && (
-              <Text style={styles.arcLegendPage}>p. {log.page}</Text>
-            )}
-          </View>
-        ))}
-      </View>
+      {/* Mood log rows */}
+      {MOOD_LABELS.map((m, i) => (
+        <View key={i} style={styles.logRow}>
+          <View style={[styles.logDot, { backgroundColor: m.color }]} />
+          <Text style={styles.logLabel}>{m.label}</Text>
+          <Text style={styles.logChapter}>{m.chapter}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
-function tabLabel(tab: Tab) {
-  const map: Record<Tab, string> = {
-    overview: "Overview",
-    notes: "Notes",
-    quotes: "Quotes",
-    mood_arc: "Mood Arc ✨",
-  };
-  return map[tab];
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  loading: { flex: 1, backgroundColor: colors.bgPrimary },
-  hero: {
-    height: 260,
-    justifyContent: "flex-end",
-    overflow: "hidden",
+  // Hero
+  bdHero: { height: 300, overflow: "hidden", position: "relative", paddingTop: 56 },
+  bdTopRow: {
+    flexDirection: "row", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingTop: 8,
   },
-  backBtn: {
-    position: "absolute",
-    top: 56,
-    left: 20,
-    zIndex: 10,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  bdCircleBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "rgba(250,246,240,0.9)",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
+    elevation: 2,
   },
-  backBtnText: { fontSize: 13, color: colors.inkPrimary, fontWeight: "600" },
-  heroContent: {
-    flexDirection: "row",
-    padding: 20,
-    gap: 14,
-    alignItems: "flex-end",
+  bdCoverWrap: { position: "absolute", bottom: -30, left: 0, right: 0, alignItems: "center" },
+  bdCoverShadow: {
+    borderRadius: 10, overflow: "hidden",
+    shadowColor: "#2c1f14", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 10 }, shadowRadius: 24,
+    elevation: 10,
   },
-  heroInfo: { flex: 1 },
-  heroTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 18,
-    color: colors.inkPrimary,
-    marginBottom: 4,
+  bdCoverImg: { width: 110, height: 160, borderRadius: 10 },
+
+  // Info
+  bdInfo: { paddingTop: 44, paddingHorizontal: 20, alignItems: "center", paddingBottom: 16 },
+  bdTitle: {
+    fontFamily: "PlayfairDisplay_700Bold", fontSize: 22,
+    color: colors.espresso, textAlign: "center", marginBottom: 4,
   },
-  heroAuthor: { fontSize: 13, color: colors.inkMuted, marginBottom: 8 },
-  starsRow: { flexDirection: "row", marginBottom: 10 },
-  star: { fontSize: 20, color: colors.roseAccent, marginRight: 2 },
-  readNowBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
+  bdAuthor: { fontSize: 13, color: colors.char3, marginBottom: 12 },
+  bdTags: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 },
+  bdTag: {
+    paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.cream2,
   },
-  readNowText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: colors.bgCard,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.bgSurface,
+  bdTagStatus: {
+    backgroundColor: "rgba(201,124,90,0.1)", borderColor: "rgba(201,124,90,0.3)",
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+  bdTagText: { fontSize: 11, color: colors.espresso2, fontWeight: "500" },
+  starsRow: { flexDirection: "row", gap: 3, marginBottom: 12 },
+  star: { fontSize: 18, color: colors.cream3 },
+  starFilled: { color: colors.terracotta },
+  synopsis: { fontSize: 12, color: colors.char3, lineHeight: 18, textAlign: "center" },
+
+  // Progress
+  bdProgSection: {
+    marginHorizontal: 20, marginBottom: 8,
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, padding: 14,
   },
-  tabBtnActive: { borderBottomColor: colors.roseAccent },
-  tabBtnText: { fontSize: 11, color: colors.inkMuted, fontWeight: "500" },
-  tabBtnTextActive: { color: colors.roseAccent, fontWeight: "700" },
-  tabContent: { flex: 1 },
-  tabSection: { padding: 20, paddingBottom: 60 },
-  progressCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+  bdProgRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  bdProgLabel: { fontSize: 12, fontWeight: "500", color: colors.espresso },
+  bdProgPct: { fontSize: 12, color: colors.terracotta, fontWeight: "600" },
+  progBg: { height: 4, backgroundColor: colors.cream3, borderRadius: 4 },
+  progFill: { height: 4, backgroundColor: colors.terracotta, borderRadius: 4 },
+  bdStatsMini: {
+    flexDirection: "row", marginTop: 12,
+    borderRadius: 8, overflow: "hidden",
+    borderWidth: 1, borderColor: colors.cream3,
   },
-  progressBarBig: {
-    height: 8,
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    overflow: "hidden",
-    marginBottom: 8,
+  bdStatMini: { flex: 1, backgroundColor: colors.parchment, padding: 8, alignItems: "center" },
+  bdStatMiniMid: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.cream3 },
+  bdStatV: { fontSize: 13, fontWeight: "600", color: colors.espresso },
+  bdStatL: { fontSize: 9, color: colors.char3, marginTop: 1 },
+
+  // Tabs
+  tabRow: {
+    flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    backgroundColor: colors.cream, paddingHorizontal: 20,
   },
-  progressFillBig: {
-    height: 8,
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-  },
-  progressTextBig: { fontSize: 13, color: colors.inkMuted },
-  overviewLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.inkMuted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 10,
-    marginTop: 8,
-  },
-  statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
-  statusChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: colors.bgSurface,
-  },
-  statusChipActive: { backgroundColor: colors.roseSoft, borderWidth: 1.5, borderColor: colors.roseAccent },
-  statusChipText: { fontSize: 12, color: colors.inkMuted },
-  statusChipTextActive: { color: colors.roseAccent, fontWeight: "600" },
-  synopsisText: { fontSize: 14, color: colors.inkPrimary, lineHeight: 22, marginBottom: 16 },
-  genreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  genreTag: {
-    backgroundColor: colors.bgSurface,
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  genreTagText: { fontSize: 11, color: colors.inkMuted },
-  addItemBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignSelf: "flex-start",
-    marginBottom: 16,
-  },
-  addItemBtnText: { color: "#FFF", fontWeight: "600", fontSize: 13 },
-  addItemCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.bgSurface,
-  },
-  noteTextInput: {
-    fontSize: 14,
-    color: colors.inkPrimary,
-    minHeight: 80,
-    marginBottom: 10,
-  },
-  saveItemBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 8,
-    paddingVertical: 8,
+  tabItem: {
+    flex: 1, paddingVertical: 11,
+    borderBottomWidth: 2, borderBottomColor: "transparent",
     alignItems: "center",
   },
-  saveItemBtnText: { color: "#FFF", fontWeight: "600", fontSize: 13 },
-  noteCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
-  noteText: { fontSize: 14, color: colors.inkPrimary, lineHeight: 20, marginBottom: 6 },
-  noteDate: { fontSize: 11, color: colors.inkMuted },
+  tabItemActive: { borderBottomColor: colors.terracotta },
+  tabItemText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
+  tabItemTextActive: { color: colors.terracotta },
+
+  // Tab content
+  tabContent: { paddingHorizontal: 20, paddingTop: 14 },
+
+  // Quotes
   quoteCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  quoteOpenQuote: {
-    fontSize: 32,
-    color: colors.roseSoft,
-    lineHeight: 36,
-    marginBottom: 4,
+    borderLeftWidth: 3, borderLeftColor: colors.terracotta,
+    borderTopWidth: 1, borderTopColor: colors.cream3,
+    borderRightWidth: 1, borderRightColor: colors.cream3,
+    borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    borderTopRightRadius: 10, borderBottomRightRadius: 10,
+    backgroundColor: colors.parchment, padding: 12, marginBottom: 12,
   },
   quoteText: {
     fontFamily: "PlayfairDisplay_400Regular_Italic",
-    fontSize: 15,
-    color: colors.inkPrimary,
-    lineHeight: 24,
-    marginBottom: 8,
+    fontSize: 13, color: colors.espresso, lineHeight: 20, marginBottom: 6,
   },
-  quotePage: { fontSize: 12, color: colors.inkMuted },
-  emptyTabText: { fontSize: 14, color: colors.inkMuted, lineHeight: 22 },
-  moodArcTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: colors.inkPrimary,
-    marginBottom: 6,
+  quotePage: { fontSize: 11, color: colors.char3 },
+
+  // Notes
+  noteCard: {
+    backgroundColor: colors.parchment, borderRadius: 12,
+    padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.cream3,
   },
-  moodArcSubtitle: { fontSize: 13, color: colors.inkMuted, marginBottom: 20, lineHeight: 18 },
-  chartContainer: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+  noteCardText: { fontSize: 13, color: colors.espresso, lineHeight: 19 },
+  noteCardDate: { fontSize: 10, color: colors.char3, marginTop: 6 },
+
+  // Add
+  addDashedBtn: {
+    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    borderRadius: 10, padding: 12, alignItems: "center", marginBottom: 12,
   },
-  arcLegend: { gap: 8 },
-  arcLegendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.bgCard,
-    borderRadius: 8,
-    padding: 10,
+  addDashedText: { fontSize: 13, color: colors.char3 },
+  addCard: {
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 14, marginBottom: 12,
   },
-  arcLegendEmoji: { fontSize: 20 },
-  arcLegendLabel: { flex: 1, fontSize: 13, color: colors.inkPrimary },
-  arcLegendPage: { fontSize: 11, color: colors.inkMuted },
+  addCardPlaceholder: { fontSize: 13, color: colors.cream3, minHeight: 60 },
+  addSaveBtn: {
+    backgroundColor: colors.espresso, borderRadius: 8,
+    paddingVertical: 8, paddingHorizontal: 16, alignSelf: "flex-start",
+  },
+  addSaveBtnText: { color: colors.cream, fontSize: 13, fontWeight: "600" },
+  addCancelBtn: {
+    backgroundColor: colors.cream2, borderRadius: 8,
+    paddingVertical: 8, paddingHorizontal: 16, alignSelf: "flex-start",
+    borderWidth: 1, borderColor: colors.cream3,
+  },
+  addCancelBtnText: { color: colors.char3, fontSize: 13 },
+
+  // Mood arc
+  arcSub: { fontSize: 11, color: colors.char3, marginBottom: 12 },
+  chartCard: {
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, padding: 10, marginBottom: 14,
+  },
+  arcXlbls: { flexDirection: "row", marginTop: 6, paddingHorizontal: 8 },
+  arcXlbl: { flex: 1, fontSize: 9, color: colors.char3, textAlign: "center" },
+  logRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.cream3,
+  },
+  logDot: { width: 10, height: 10, borderRadius: 5 },
+  logLabel: { flex: 1, fontSize: 13, color: colors.espresso },
+  logChapter: { fontSize: 11, color: colors.char3 },
+
+  // Bottom bar
+  bottomBar: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    flexDirection: "row", gap: 10,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28,
+    backgroundColor: colors.cream,
+    borderTopWidth: 1, borderTopColor: colors.cream3,
+  },
+  bottomBtnSecondary: {
+    flex: 1, backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 20, paddingVertical: 13, alignItems: "center",
+  },
+  bottomBtnSecondaryText: { fontSize: 13, fontWeight: "500", color: colors.espresso },
+  bottomBtnPrimary: {
+    flex: 1, backgroundColor: colors.espresso,
+    borderRadius: 20, paddingVertical: 13, alignItems: "center",
+  },
+  bottomBtnPrimaryText: { fontSize: 13, fontWeight: "600", color: colors.cream },
 });
