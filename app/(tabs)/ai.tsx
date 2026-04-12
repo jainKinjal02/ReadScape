@@ -55,6 +55,7 @@ export default function AIScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(247,242,235,0.93)" }]} />
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
