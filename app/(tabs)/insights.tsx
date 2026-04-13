@@ -11,13 +11,13 @@ import { Image } from "expo-image";
 import { colors } from "../../src/design/tokens";
 import { STATS, MOOD_ARC, GENRE_STATS } from "../../src/data/mockData";
 
-const BG = "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=1200&q=80";
+const BG = "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200&q=80";
 
 export default function InsightsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.72)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.65)" }]} />
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}

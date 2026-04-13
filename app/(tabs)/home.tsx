@@ -27,9 +27,9 @@ const { width: SW } = Dimensions.get("window");
 
 // Atmospheric header background images
 const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
-  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80",
-  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=80",
+  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80",
+  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=800&q=80",
+  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80",
 ];
 
 function FireIcon() {
@@ -71,12 +71,12 @@ export default function HomeScreen() {
     <View style={styles.root}>
       {/* Full-screen background image */}
       <Image
-        source={{ uri: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1200&q=80" }}
+        source={{ uri: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80" }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         cachePolicy="memory-disk"
       />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.72)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.68)" }]} />
 
       <ScrollView
         style={styles.scroll}

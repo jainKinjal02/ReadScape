@@ -17,7 +17,7 @@ import { CoverImage } from "../../src/components/CoverImage";
 import { LIBRARY_BOOKS } from "../../src/data/mockData";
 
 // Single atmospheric background — warm library interior
-const BG = "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1200&q=80";
+const BG = "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=1200&q=80";
 
 type Status = "all" | "reading" | "read" | "want_to_read" | "abandoned";
 
@@ -90,7 +90,7 @@ export default function LibraryScreen() {
     <View style={{ flex: 1 }}>
       {/* Atmospheric background */}
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.72)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.65)" }]} />
 
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
         <View style={styles.container}>
