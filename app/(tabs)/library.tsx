@@ -17,7 +17,7 @@ import { CoverImage } from "../../src/components/CoverImage";
 import { LIBRARY_BOOKS } from "../../src/data/mockData";
 
 // Single atmospheric background — warm library interior
-const BG = "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=1200&q=80";
+const BG = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80";
 
 type Status = "all" | "reading" | "read" | "want_to_read" | "abandoned";
 
@@ -30,10 +30,10 @@ const FILTERS: { label: string; value: Status }[] = [
 ];
 
 const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  reading:      { label: "Reading", bg: "rgba(212,132,90,0.2)",  text: "#d4845a" },
-  read:         { label: "Read",    bg: "rgba(122,170,128,0.2)", text: "#7aaa80" },
-  want_to_read: { label: "Want",    bg: "rgba(196,176,154,0.12)",text: "#c4b09a" },
-  abandoned:    { label: "Stopped", bg: "rgba(138,122,110,0.12)",text: "#9a8a78" },
+  reading:      { label: "Reading", bg: "rgba(127,119,221,0.2)",  text: "#9b95e8" },
+  read:         { label: "Read",    bg: "rgba(91,191,170,0.2)",   text: "#5bbfaa" },
+  want_to_read: { label: "Want",    bg: "rgba(184,180,212,0.12)", text: "#b8b4d4" },
+  abandoned:    { label: "Stopped", bg: "rgba(122,122,154,0.12)", text: "#7a7a9a" },
 };
 
 function SearchIcon() {
@@ -90,7 +90,7 @@ export default function LibraryScreen() {
     <View style={{ flex: 1 }}>
       {/* Atmospheric background */}
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.65)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
 
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
         <View style={styles.container}>
@@ -181,7 +181,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    backgroundColor: "rgba(26,22,18,0.95)",
+    backgroundColor: "rgba(22,32,48,0.95)",
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
 
   searchBar: {
     marginHorizontal: 20, marginTop: 12,
-    backgroundColor: "rgba(26,22,18,0.95)", borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: "rgba(22,32,48,0.95)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 10,
     flexDirection: "row", alignItems: "center", gap: 8,
   },
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.cream3,
-    backgroundColor: "rgba(26,22,18,0.95)",
+    backgroundColor: "rgba(22,32,48,0.95)",
   },
   pillActive: { backgroundColor: colors.espresso, borderColor: colors.espresso },
   pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
     borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: "rgba(26,22,18,0.6)",
+    backgroundColor: "rgba(22,32,48,0.6)",
   },
   addPlus: { fontSize: 22, color: colors.cream3 },
   addLabel: { fontSize: 9, color: colors.cream3 },

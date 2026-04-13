@@ -44,7 +44,7 @@ export default function BookDetailScreen() {
           />
           <BlurView intensity={50} style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={["rgba(13,11,10,0.05)", colors.cream]}
+            colors={["rgba(15,25,35,0.05)", colors.cream]}
             locations={[0, 1]}
             style={[StyleSheet.absoluteFill, { top: "35%" }]}
           />
@@ -88,7 +88,7 @@ export default function BookDetailScreen() {
               </View>
             ))}
             <View style={[styles.bdTag, styles.bdTagStatus]}>
-              <Text style={[styles.bdTagText, { color: "#a85e3e" }]}>Reading</Text>
+              <Text style={[styles.bdTagText, { color: "#9b95e8" }]}>Reading</Text>
             </View>
             <View style={styles.bdTag}>
               <Text style={styles.bdTagText}>{book.totalPages} pages</Text>
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   bdCircleBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(26,22,18,0.9)",
+    backgroundColor: "rgba(22,32,48,0.9)",
     alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
     elevation: 2,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.cream2,
   },
   bdTagStatus: {
-    backgroundColor: "rgba(201,124,90,0.1)", borderColor: "rgba(201,124,90,0.3)",
+    backgroundColor: "rgba(127,119,221,0.12)", borderColor: "rgba(127,119,221,0.3)",
   },
   bdTagText: { fontSize: 11, color: colors.espresso2, fontWeight: "500" },
   starsRow: { flexDirection: "row", gap: 3, marginBottom: 12 },

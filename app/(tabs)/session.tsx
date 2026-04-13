@@ -51,7 +51,7 @@ export default function SessionTab() {
       />
       <BlurView intensity={60} style={RNStyleSheet.absoluteFill} />
       <LinearGradient
-        colors={["rgba(13,11,10,0.55)", colors.cream]}
+        colors={["rgba(15,25,35,0.55)", colors.cream]}
         locations={[0, 0.55]}
         style={RNStyleSheet.absoluteFill}
       />
@@ -165,7 +165,7 @@ export default function SessionTab() {
 
 const styles = StyleSheet.create({
   sessHdr: {
-    backgroundColor: "rgba(26,22,18,0.92)",
+    backgroundColor: "rgba(22,32,48,0.92)",
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingVertical: 14,
     paddingTop: 56,
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   // Page
   pageRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(26,22,18,0.9)", borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: "rgba(22,32,48,0.9)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, gap: 12,
   },
   pageNum: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 32, color: colors.espresso },
@@ -204,25 +204,25 @@ const styles = StyleSheet.create({
   // Mood
   moodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   moodOpt: {
-    width: "30.5%", backgroundColor: "rgba(26,22,18,0.9)",
+    width: "30.5%", backgroundColor: "rgba(22,32,48,0.9)",
     borderWidth: 1.5, borderColor: colors.cream3,
     borderRadius: 12, paddingVertical: 12, paddingHorizontal: 6, alignItems: "center",
   },
-  moodOptSel: { backgroundColor: "rgba(201,124,90,0.1)", borderColor: colors.terracotta },
+  moodOptSel: { backgroundColor: "rgba(127,119,221,0.15)", borderColor: colors.terracotta },
   moodEmoji: { fontSize: 20, marginBottom: 4 },
   moodName: { fontSize: 11, color: colors.char3, fontWeight: "500", textAlign: "center" },
   moodNameSel: { color: colors.terracotta },
 
   // Note
   noteBox: {
-    backgroundColor: "rgba(26,22,18,0.9)", borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: "rgba(22,32,48,0.9)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, minHeight: 80,
   },
   noteInput: { fontSize: 13, color: colors.espresso, minHeight: 60 },
   quickTags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   qtag: {
     paddingVertical: 5, paddingHorizontal: 11, borderRadius: 14,
-    borderWidth: 1, borderColor: colors.cream3, backgroundColor: "rgba(26,22,18,0.9)",
+    borderWidth: 1, borderColor: colors.cream3, backgroundColor: "rgba(22,32,48,0.9)",
   },
   qtagText: { fontSize: 11, color: colors.char3 },
 

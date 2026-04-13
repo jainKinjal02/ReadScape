@@ -17,7 +17,7 @@ import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { CURRENT_BOOK, AI_MESSAGES, AI_RECOMMENDATIONS } from "../../src/data/mockData";
 
-const BG = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=1200&q=80";
+const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
 
 type Tab = "Chat" | "Recommend" | "Define" | "Themes";
 const TABS: Tab[] = ["Chat", "Recommend", "Define", "Themes"];
@@ -55,7 +55,7 @@ export default function AIScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.65)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}

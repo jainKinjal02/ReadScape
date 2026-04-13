@@ -27,9 +27,9 @@ const { width: SW } = Dimensions.get("window");
 
 // Atmospheric header background images
 const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80",
-  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=800&q=80",
-  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80",
+  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=800&q=80",
+  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800&q=80",
+  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800&q=80",
 ];
 
 function FireIcon() {
@@ -70,12 +70,12 @@ export default function HomeScreen() {
     <View style={styles.root}>
       {/* Full-screen background image */}
       <Image
-        source={{ uri: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80" }}
+        source={{ uri: "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80" }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         cachePolicy="memory-disk"
       />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.68)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.72)" }]} />
 
       <ScrollView
         style={styles.scroll}
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   progLbl: { fontSize: 11, color: colors.char3, marginTop: 4 },
   moodTag: {
     alignSelf: "flex-start", marginTop: 6,
-    backgroundColor: "rgba(201,124,90,0.1)", borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    backgroundColor: "rgba(127,119,221,0.12)", borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
     borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9,
   },
   moodTagText: { fontSize: 11, color: colors.terracotta },
@@ -330,8 +330,8 @@ const styles = StyleSheet.create({
   // AI promo
   aiPromo: {
     marginHorizontal: 16, marginTop: 16,
-    backgroundColor: "rgba(201,124,90,0.08)",
-    borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    backgroundColor: "rgba(127,119,221,0.1)",
+    borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
     borderRadius: 14, padding: 14,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },

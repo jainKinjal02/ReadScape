@@ -11,13 +11,13 @@ import { Image } from "expo-image";
 import { colors } from "../../src/design/tokens";
 import { STATS, MOOD_ARC, GENRE_STATS } from "../../src/data/mockData";
 
-const BG = "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200&q=80";
+const BG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80";
 
 export default function InsightsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(13,11,10,0.65)" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   // Year wrap
   wrapCTA: {
     marginHorizontal: 20, marginBottom: 20,
-    backgroundColor: "rgba(201,124,90,0.08)", borderWidth: 1, borderColor: "rgba(201,124,90,0.2)",
+    backgroundColor: "rgba(127,119,221,0.1)", borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
     borderRadius: 14, padding: 16, alignItems: "center",
   },
   wrapTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },

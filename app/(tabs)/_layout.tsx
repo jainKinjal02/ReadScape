@@ -8,10 +8,10 @@ import { colors } from "../../src/design/tokens";
 // Prefetch every background used across tabs so images are in memory
 // before the user first visits each screen — eliminates the load flash.
 const BG_URLS = [
-  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80",
-  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=1200&q=80",
-  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200&q=80",
-  "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=1200&q=80",
+  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80",
+  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80",
+  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80",
+  "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80",
 ];
 
 const C = { active: colors.terracotta, inactive: colors.char3 };
