@@ -42,24 +42,23 @@ function FireIcon() {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const bgIndex = useRef(0);
-  const [bgSrc, setBgSrc] = React.useState(HEADER_IMGS[0]);
-  const [nextBgSrc, setNextBgSrc] = React.useState(HEADER_IMGS[1]);
-  const nextOpacity = useRef(new Animated.Value(0)).current;
+
+  // One animated opacity per image — no source-swapping, no flash.
+  // All images stay mounted; we simply cross-fade their opacity.
+  const opacities = useRef(
+    HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))
+  ).current;
+  const currentIdx = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const next = (bgIndex.current + 1) % HEADER_IMGS.length;
-      setNextBgSrc(HEADER_IMGS[next]);
-      Animated.timing(nextOpacity, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      }).start(() => {
-        bgIndex.current = next;
-        setBgSrc(HEADER_IMGS[next]);
-        nextOpacity.setValue(0);
+      const cur = currentIdx.current;
+      const nxt = (cur + 1) % HEADER_IMGS.length;
+      Animated.parallel([
+        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
+        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
+      ]).start(() => {
+        currentIdx.current = nxt;
       });
     }, 5000);
     return () => clearInterval(interval);
@@ -85,12 +84,12 @@ export default function HomeScreen() {
       >
         {/* ── Atmospheric header with background image ── */}
         <View style={styles.heroHeader}>
-          {/* Base bg */}
-          <Image source={{ uri: bgSrc }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          {/* Crossfade next */}
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: nextOpacity }]}>
-            <Image source={{ uri: nextBgSrc }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </Animated.View>
+          {/* All images pre-rendered; only opacity animates — no source swap flash */}
+          {HEADER_IMGS.map((src, i) => (
+            <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
+              <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            </Animated.View>
+          ))}
           {/* Gradient overlay */}
           <LinearGradient
             colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}

@@ -1,8 +1,18 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet, Platform } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+
+// Prefetch every background used across tabs so images are in memory
+// before the user first visits each screen — eliminates the load flash.
+const BG_URLS = [
+  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80",
+  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=1200&q=80",
+  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200&q=80",
+  "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=1200&q=80",
+];
 
 const C = { active: colors.terracotta, inactive: colors.char3 };
 
@@ -65,12 +75,20 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  // Kick off prefetch as early as possible; fire-and-forget is fine here.
+  useEffect(() => {
+    BG_URLS.forEach((url) => Image.prefetch(url));
+  }, []);
+
   return (
     <Tabs
+      // Pre-render every tab screen immediately so background images are
+      // already mounted when the user switches — no load flash on navigation.
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
         tabBarShowLabel: false,
+        lazy: false,
       }}
     >
       <Tabs.Screen
