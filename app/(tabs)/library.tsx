@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
   bgCoverImg: { width: "100%", height: "100%", borderRadius: 8 },
   bgCoverAdd: {
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
-    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: "rgba(22,32,48,0.6)",
+    backgroundColor: "rgba(127,119,221,0.08)",
   },
-  addPlus: { fontSize: 22, color: colors.cream3 },
-  addLabel: { fontSize: 9, color: colors.cream3 },
+  addPlus: { fontSize: 22, color: colors.terra2 },
+  addLabel: { fontSize: 9, color: colors.terra2 },
   bgTitle: { fontSize: 11, color: colors.espresso, fontWeight: "500", lineHeight: 14 },
   bgAuthor: { fontSize: 10, color: colors.char3, marginTop: 1 },
   statusBadge: {

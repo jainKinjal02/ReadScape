@@ -322,10 +322,11 @@ const styles = StyleSheet.create({
   shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
   addCard: {
     width: 80, height: 116, borderRadius: 8,
-    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", marginRight: 10,
+    backgroundColor: "rgba(127,119,221,0.08)",
   },
-  addPlus: { fontSize: 26, color: colors.cream3 },
+  addPlus: { fontSize: 26, color: colors.terra2 },
 
   // AI promo
   aiPromo: {

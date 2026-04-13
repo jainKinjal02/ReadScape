@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 
 const BG_IMAGES = [
   "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=800",
-  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800",
+  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800",
   "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800",
   "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800",
 ];
@@ -26,23 +26,21 @@ const FEATURES = [
 
 export default function LandingScreen() {
   const router = useRouter();
-  const [bgIndex, setBgIndex] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // One opacity per image — cross-fade without any source swapping
+  const opacities = useRef(
+    BG_IMAGES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))
+  ).current;
+  const currentIdx = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }).start(() => {
-        setBgIndex((prev) => (prev + 1) % BG_IMAGES.length);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
-      });
+      const cur = currentIdx.current;
+      const nxt = (cur + 1) % BG_IMAGES.length;
+      Animated.parallel([
+        Animated.timing(opacities[cur], { toValue: 0, duration: 1000, useNativeDriver: true }),
+        Animated.timing(opacities[nxt], { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ]).start(() => { currentIdx.current = nxt; });
     }, 4500);
     return () => clearInterval(interval);
   }, []);
@@ -51,14 +49,12 @@ export default function LandingScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Crossfading background */}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
-        <Image
-          source={{ uri: BG_IMAGES[bgIndex] }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-        />
-      </Animated.View>
+      {/* All images pre-rendered as layers — only opacity animates, no source swap */}
+      {BG_IMAGES.map((uri, i) => (
+        <Animated.View key={uri} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
+          <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        </Animated.View>
+      ))}
 
       {/* Gradient overlay — darker at bottom so text is legible */}
       <LinearGradient
