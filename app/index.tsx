@@ -12,10 +12,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
 const BG_IMAGES = [
-  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800",
-  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800",
-  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800",
-  "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800",
+  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=800",
+  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800",
+  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800",
+  "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800",
 ];
 
 const FEATURES = [
@@ -72,7 +72,10 @@ export default function LandingScreen() {
         {/* App name block */}
         <View style={styles.titleBlock}>
           <Text style={styles.tagline}>Your reading life,</Text>
-          <Text style={styles.appName}>ReadScape</Text>
+          <Text style={styles.appName}>
+            <Text style={{ color: "#f0eef8" }}>Read</Text>
+            <Text style={{ color: "#7F77DD" }}>Scape</Text>
+          </Text>
           <Text style={styles.subtitle}>
             Track your journey. Capture your mood.{"\n"}Discover your next read.
           </Text>
@@ -152,9 +155,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(127,119,221,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: "rgba(127,119,221,0.35)",
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -169,7 +172,7 @@ const styles = StyleSheet.create({
 
   ctaBlock: { gap: 12, alignItems: "center" },
   ctaButton: {
-    backgroundColor: "#c97c5a",
+    backgroundColor: "#7F77DD",
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 999,

@@ -78,10 +78,10 @@ export default function InsightsScreen() {
             </View>
             {/* Legend */}
             <View style={styles.arcLegend}>
-              <LegendItem color="#c9bdb5" label="Slow" />
-              <LegendItem color="#7a9e7e" label="Curious" />
-              <LegendItem color="#c97c5a" label="Hooked" />
-              <LegendItem color="#a85e3e" label="Loving it" />
+              <LegendItem color="#7a7a9a" label="Slow" />
+              <LegendItem color="#b8b4d4" label="Curious" />
+              <LegendItem color="#9b95e8" label="Hooked" />
+              <LegendItem color="#7F77DD" label="Loving it" />
             </View>
           </View>
 

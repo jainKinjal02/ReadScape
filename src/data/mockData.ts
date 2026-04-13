@@ -21,7 +21,7 @@ export const CURRENT_BOOK = {
   rating: 4,
   synopsis:
     "Between life and death there is a library, and within that library, the shelves go on forever. Every book provides a chance to try another life you could have lived. To see how things would be if you had made other choices. Would you have done anything different, if you had the chance to undo your regrets?",
-  lastMood: { symbol: "✦", label: "Curious", color: "#a85e3e" },
+  lastMood: { symbol: "✦", label: "Curious", color: "#9b95e8" },
   note: "A beautifully written exploration of regret and possibility. Nora's journey feels deeply personal.",
 };
 
@@ -153,21 +153,21 @@ export const SAMPLE_NOTES = [
 ];
 
 export const MOOD_ARC = [
-  { chapter: "Ch1", score: 2, color: "#c9bdb5" },
-  { chapter: "Ch3", score: 3, color: "#7a9e7e" },
-  { chapter: "Ch5", score: 4, color: "#7a9e7e" },
-  { chapter: "Ch7", score: 3, color: "#c97c5a" },
-  { chapter: "Ch9", score: 4, color: "#c97c5a" },
-  { chapter: "Ch11", score: 5, color: "#a85e3e" },
-  { chapter: "Ch13", score: 5, color: "#a85e3e" },
-  { chapter: "Now", score: 4, color: "#c97c5a" },
+  { chapter: "Ch1",  score: 2, color: "#7a7a9a" },
+  { chapter: "Ch3",  score: 3, color: "#b8b4d4" },
+  { chapter: "Ch5",  score: 4, color: "#9b95e8" },
+  { chapter: "Ch7",  score: 3, color: "#b8b4d4" },
+  { chapter: "Ch9",  score: 4, color: "#9b95e8" },
+  { chapter: "Ch11", score: 5, color: "#7F77DD" },
+  { chapter: "Ch13", score: 5, color: "#7F77DD" },
+  { chapter: "Now",  score: 4, color: "#9b95e8" },
 ];
 
 export const GENRE_STATS = [
-  { name: "Fiction",   pct: 75, count: 6, color: "#c97c5a" },
-  { name: "Self-help", pct: 38, count: 3, color: "#7a9e7e" },
-  { name: "Fantasy",   pct: 25, count: 2, color: "#8b6a4a" },
-  { name: "Dystopian", pct: 12, count: 1, color: "#4a3728" },
+  { name: "Fiction",   pct: 75, count: 6, color: "#7F77DD" },
+  { name: "Self-help", pct: 38, count: 3, color: "#5bbfaa" },
+  { name: "Fantasy",   pct: 25, count: 2, color: "#9b95e8" },
+  { name: "Dystopian", pct: 12, count: 1, color: "#b8b4d4" },
 ];
 
 export const AI_MESSAGES = [

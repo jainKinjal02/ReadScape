@@ -250,13 +250,14 @@ const styles = StyleSheet.create({
 
   moodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   moodOpt: {
-    width: "30.5%", backgroundColor: "rgba(22,32,48,0.9)",
-    borderWidth: 1.5, borderColor: colors.cream3,
+    width: "30.5%",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.3)",
     borderRadius: 12, paddingVertical: 12, paddingHorizontal: 6, alignItems: "center",
   },
-  moodOptSel: { backgroundColor: "rgba(127,119,221,0.15)", borderColor: colors.terracotta },
-  moodEmoji: { fontSize: 20, marginBottom: 4 },
-  moodName: { fontSize: 11, color: colors.char3, fontWeight: "500", textAlign: "center" },
+  moodOptSel: { backgroundColor: "rgba(127,119,221,0.22)", borderColor: colors.terracotta },
+  moodEmoji: { fontSize: 20, marginBottom: 4, color: colors.espresso2 },
+  moodName: { fontSize: 11, color: colors.espresso2, fontWeight: "500", textAlign: "center" },
   moodNameSel: { color: colors.terracotta },
 
   noteBox: {

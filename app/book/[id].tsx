@@ -253,10 +253,10 @@ function MoodArcTab() {
   }));
 
   const MOOD_LABELS = [
-    { symbol: "○", label: "Slow read", chapter: "Ch 1–2", color: "#c9bdb5" },
-    { symbol: "✦", label: "Getting curious", chapter: "Ch 3–6", color: "#7a9e7e" },
-    { symbol: "✦", label: "Hooked", chapter: "Ch 7–10", color: "#c97c5a" },
-    { symbol: "◈", label: "Loving it", chapter: "Ch 11–Now", color: "#a85e3e" },
+    { symbol: "○", label: "Slow read",       chapter: "Ch 1–2",   color: "#7a7a9a" },
+    { symbol: "✦", label: "Getting curious", chapter: "Ch 3–6",   color: "#b8b4d4" },
+    { symbol: "✦", label: "Hooked",          chapter: "Ch 7–10",  color: "#9b95e8" },
+    { symbol: "◈", label: "Loving it",       chapter: "Ch 11–Now",color: "#7F77DD" },
   ];
 
   return (
