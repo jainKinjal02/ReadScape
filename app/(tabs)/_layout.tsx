@@ -9,23 +9,21 @@ import { colors } from "../../src/design/tokens";
 // before the user first visits each screen — eliminates the load flash.
 const BG_URLS = [
   "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80",
-  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80",
+  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80",
   "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80",
   "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80",
 ];
 
-const C = { active: colors.terracotta, inactive: colors.char3 };
-
 function HomeIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
     </Svg>
   );
 }
 function LibraryIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
       <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={color} strokeWidth={1.5} />
     </Svg>
@@ -33,85 +31,88 @@ function LibraryIcon({ color }: { color: string }) {
 }
 function InsightsIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M18 20V10M12 20V4M6 20v-6" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
     </Svg>
   );
 }
 function AIIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
     </Svg>
   );
 }
 
-function TabIcon({
-  icon,
-  label,
-  focused,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  focused: boolean;
-}) {
+// Icon wrapper — just the SVG + optional focused dot.
+// Label is rendered by tabBarLabel (full tab width, never clipped).
+function TabIcon({ icon, focused }: { icon: React.ReactNode; focused: boolean }) {
   return (
-    <View style={styles.tabIcon}>
+    <View style={styles.iconWrap}>
       {icon}
-      <Text style={[styles.label, focused && styles.labelFocused]} numberOfLines={1}>
-        {label}
-      </Text>
       {focused && <View style={styles.dot} />}
     </View>
   );
 }
 
+// Label rendered in its own full-width slot — can never be cut off.
+function TabLabel({ label, color }: { label: string; color: string }) {
+  return (
+    <Text style={[styles.label, { color }]} numberOfLines={1}>
+      {label}
+    </Text>
+  );
+}
+
 export default function TabsLayout() {
-  // Kick off prefetch as early as possible; fire-and-forget is fine here.
   useEffect(() => {
     BG_URLS.forEach((url) => Image.prefetch(url));
   }, []);
 
   return (
     <Tabs
-      // Pre-render every tab screen immediately so background images are
-      // already mounted when the user switches — no load flash on navigation.
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: colors.terracotta,
+        tabBarInactiveTintColor: colors.char3,
         lazy: false,
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<HomeIcon color={focused ? C.active : C.inactive} />} label="Home" focused={focused} />
+          tabBarLabel: ({ color }) => <TabLabel label="Home" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<HomeIcon color={color} />} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="library"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<LibraryIcon color={focused ? C.active : C.inactive} />} label="Library" focused={focused} />
+          tabBarLabel: ({ color }) => <TabLabel label="Library" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<LibraryIcon color={color} />} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="insights"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<InsightsIcon color={focused ? C.active : C.inactive} />} label="Insights" focused={focused} />
+          tabBarLabel: ({ color }) => <TabLabel label="Insights" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<InsightsIcon color={color} />} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="ai"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<AIIcon color={focused ? C.active : C.inactive} />} label="Ask" focused={focused} />
+          tabBarLabel: ({ color }) => <TabLabel label="Ask" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<AIIcon color={color} />} focused={focused} />
           ),
         }}
       />
@@ -127,32 +128,27 @@ const styles = StyleSheet.create({
     height: Platform.OS === "ios" ? 82 : 62,
     paddingBottom: Platform.OS === "ios" ? 22 : 6,
     paddingTop: 6,
-    shadowColor: "#2c1f14",
+    shadowColor: "#000",
     shadowOpacity: 0.07,
     shadowOffset: { width: 0, height: -2 },
     shadowRadius: 8,
     elevation: 8,
   },
-  // No tabBarItem override — let React Navigation share width evenly
-  tabIcon: {
+  iconWrap: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    // No horizontal padding — let the container give us the full tab width
   },
-  label: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: colors.char3,
-    lineHeight: 14,
-    textAlign: "center",
-  },
-  labelFocused: { color: colors.terracotta, fontWeight: "600" },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.terracotta,
+    marginTop: 3,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "500",
+    textAlign: "center",
     marginTop: 2,
   },
 });
