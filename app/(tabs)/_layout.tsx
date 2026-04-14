@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Image } from "expo-image";
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 
 // Prefetch every background used across tabs so images are in memory
@@ -28,14 +28,6 @@ function LibraryIcon({ color }: { color: string }) {
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
       <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={color} strokeWidth={1.5} />
-    </Svg>
-  );
-}
-function SessionIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={1.5} />
-      <Path d="M12 7v5l3 3" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -104,14 +96,6 @@ export default function TabsLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon icon={<LibraryIcon color={focused ? C.active : C.inactive} />} label="Library" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="session"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<SessionIcon color={focused ? C.active : C.inactive} />} label="Session" focused={focused} />
           ),
         }}
       />

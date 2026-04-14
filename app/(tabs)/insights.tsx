@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { colors } from "../../src/design/tokens";
-import { STATS, MOOD_ARC, GENRE_STATS } from "../../src/data/mockData";
+import { STATS, GENRE_STATS } from "../../src/data/mockData";
 
 const BG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80";
 
@@ -51,40 +51,6 @@ export default function InsightsScreen() {
             </View>
           </View>
 
-          {/* Mood arc */}
-          <View style={styles.secHdr}>
-            <Text style={styles.secTitle}>Mood arc — Midnight Library</Text>
-          </View>
-          <View style={styles.moodArcCard}>
-            <Text style={styles.arcSub}>How your feeling changed through the book</Text>
-            <View style={styles.arcBars}>
-              {MOOD_ARC.map((item, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.arcBar,
-                    {
-                      height: `${(item.score / 5) * 100}%`,
-                      backgroundColor: item.color,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-            <View style={styles.arcXlbls}>
-              {MOOD_ARC.map((item, i) => (
-                <Text key={i} style={styles.arcXlbl}>{item.chapter}</Text>
-              ))}
-            </View>
-            {/* Legend */}
-            <View style={styles.arcLegend}>
-              <LegendItem color="#7a7a9a" label="Slow" />
-              <LegendItem color="#b8b4d4" label="Curious" />
-              <LegendItem color="#9b95e8" label="Hooked" />
-              <LegendItem color="#7F77DD" label="Loving it" />
-            </View>
-          </View>
-
           {/* Genre breakdown */}
           <View style={styles.secHdr}>
             <Text style={styles.secTitle}>Genres you love</Text>
@@ -118,15 +84,6 @@ export default function InsightsScreen() {
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   insHdr: {
@@ -149,21 +106,6 @@ const styles = StyleSheet.create({
 
   secHdr: { paddingHorizontal: 20, marginBottom: 8 },
   secTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso },
-
-  // Mood arc
-  moodArcCard: {
-    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 16,
-  },
-  arcSub: { fontSize: 11, color: colors.char3, marginBottom: 12 },
-  arcBars: { height: 64, flexDirection: "row", gap: 5, alignItems: "flex-end" },
-  arcBar: { flex: 1, borderRadius: 3 },
-  arcXlbls: { flexDirection: "row", gap: 5, marginTop: 5 },
-  arcXlbl: { flex: 1, fontSize: 9, color: colors.char3, textAlign: "center" },
-  arcLegend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  legendDot: { width: 8, height: 8, borderRadius: 2 },
-  legendText: { fontSize: 10, color: colors.char3 },
 
   // Genre
   genreCard: {

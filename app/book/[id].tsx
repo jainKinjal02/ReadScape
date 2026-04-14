@@ -5,25 +5,22 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import Svg, { Path, Polyline, Circle, Line } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import {
   CURRENT_BOOK,
   SAMPLE_QUOTES,
   SAMPLE_NOTES,
-  MOOD_ARC,
 } from "../../src/data/mockData";
 
-type Tab = "quotes" | "notes" | "reading_log";
-const { width: W } = Dimensions.get("window");
+type Tab = "quotes" | "notes";
 
 export default function BookDetailScreen() {
   const router = useRouter();
@@ -135,14 +132,14 @@ export default function BookDetailScreen() {
 
         {/* ── Tabs header (sticky) ── */}
         <View style={styles.tabRow}>
-          {(["quotes", "notes", "reading_log"] as Tab[]).map((tab) => (
+          {(["quotes", "notes"] as Tab[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabItemText, activeTab === tab && styles.tabItemTextActive]}>
-                {tab === "quotes" ? "Quotes" : tab === "notes" ? "Notes" : "Mood arc"}
+                {tab === "quotes" ? "Quotes" : "Notes"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -151,7 +148,6 @@ export default function BookDetailScreen() {
         {/* ── Tab content ── */}
         {activeTab === "quotes" && <QuotesTab />}
         {activeTab === "notes" && <NotesTab />}
-        {activeTab === "reading_log" && <MoodArcTab />}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -159,16 +155,10 @@ export default function BookDetailScreen() {
       {/* ── Bottom action bar ── */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={styles.bottomBtnSecondary}
-          onPress={() => router.push("/(tabs)/session")}
-        >
-          <Text style={styles.bottomBtnSecondaryText}>Log session</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.bottomBtnPrimary}
+          style={[styles.bottomBtnPrimary, { flex: 1 }]}
           onPress={() => router.push("/(tabs)/ai")}
         >
-          <Text style={styles.bottomBtnPrimaryText}>Ask AI</Text>
+          <Text style={styles.bottomBtnPrimaryText}>Ask your reading companion</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -241,75 +231,6 @@ function NotesTab() {
   );
 }
 
-function MoodArcTab() {
-  const chartW = W - 64;
-  const chartH = 140;
-  const PAD = 16;
-
-  const pts = MOOD_ARC.map((item, i) => ({
-    x: PAD + (i / (MOOD_ARC.length - 1)) * (chartW - PAD * 2),
-    y: chartH - PAD - ((item.score - 1) / 4) * (chartH - PAD * 2),
-    color: item.color,
-  }));
-
-  const MOOD_LABELS = [
-    { symbol: "○", label: "Slow read",       chapter: "Ch 1–2",   color: "#7a7a9a" },
-    { symbol: "✦", label: "Getting curious", chapter: "Ch 3–6",   color: "#b8b4d4" },
-    { symbol: "✦", label: "Hooked",          chapter: "Ch 7–10",  color: "#9b95e8" },
-    { symbol: "◈", label: "Loving it",       chapter: "Ch 11–Now",color: "#7F77DD" },
-  ];
-
-  return (
-    <View style={styles.tabContent}>
-      <Text style={styles.arcSub}>How your feeling changed through the book</Text>
-      <View style={styles.chartCard}>
-        <Svg width={chartW} height={chartH}>
-          {/* Grid lines */}
-          {[1, 2, 3, 4, 5].map((s) => {
-            const y = chartH - PAD - ((s - 1) / 4) * (chartH - PAD * 2);
-            return <Line key={s} x1={PAD} y1={y} x2={chartW - PAD} y2={y} stroke={colors.cream3} strokeWidth={1} />;
-          })}
-          {/* Line */}
-          <Polyline
-            points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill="none"
-            stroke={colors.terracotta}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          {/* Dots */}
-          {pts.map((p, i) => (
-            <Circle
-              key={i}
-              cx={p.x}
-              cy={p.y}
-              r={5}
-              fill={p.color}
-              stroke={colors.parchment}
-              strokeWidth={2}
-            />
-          ))}
-        </Svg>
-        {/* Chapter labels */}
-        <View style={styles.arcXlbls}>
-          {MOOD_ARC.map((item, i) => (
-            <Text key={i} style={styles.arcXlbl}>{item.chapter}</Text>
-          ))}
-        </View>
-      </View>
-
-      {/* Mood log rows */}
-      {MOOD_LABELS.map((m, i) => (
-        <View key={i} style={styles.logRow}>
-          <View style={[styles.logDot, { backgroundColor: m.color }]} />
-          <Text style={styles.logLabel}>{m.label}</Text>
-          <Text style={styles.logChapter}>{m.chapter}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   // Hero
@@ -439,22 +360,6 @@ const styles = StyleSheet.create({
   },
   addCancelBtnText: { color: colors.char3, fontSize: 13 },
 
-  // Mood arc
-  arcSub: { fontSize: 11, color: colors.char3, marginBottom: 12 },
-  chartCard: {
-    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 12, padding: 10, marginBottom: 14,
-  },
-  arcXlbls: { flexDirection: "row", marginTop: 6, paddingHorizontal: 8 },
-  arcXlbl: { flex: 1, fontSize: 9, color: colors.char3, textAlign: "center" },
-  logRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.cream3,
-  },
-  logDot: { width: 10, height: 10, borderRadius: 5 },
-  logLabel: { flex: 1, fontSize: 13, color: colors.espresso },
-  logChapter: { fontSize: 11, color: colors.char3 },
-
   // Bottom bar
   bottomBar: {
     position: "absolute", bottom: 0, left: 0, right: 0,
@@ -463,13 +368,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     borderTopWidth: 1, borderTopColor: colors.cream3,
   },
-  bottomBtnSecondary: {
-    flex: 1, backgroundColor: colors.cream2,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 20, paddingVertical: 13, alignItems: "center",
-  },
-  bottomBtnSecondaryText: { fontSize: 13, fontWeight: "500", color: colors.espresso },
-  bottomBtnPrimary: {
+bottomBtnPrimary: {
     flex: 1, backgroundColor: colors.espresso,
     borderRadius: 20, paddingVertical: 13, alignItems: "center",
   },
