@@ -44,6 +44,10 @@ export default function RootLayout() {
         options={{ presentation: "card", animation: "slide_from_right" }}
       />
       <Stack.Screen
+        name="genre/[name]"
+        options={{ presentation: "card", animation: "slide_from_right" }}
+      />
+      <Stack.Screen
         name="session/[id]"
         options={{ presentation: "modal", animation: "slide_from_bottom" }}
       />

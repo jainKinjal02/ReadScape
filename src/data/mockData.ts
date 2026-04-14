@@ -66,6 +66,7 @@ export const LIBRARY_BOOKS = [
     author: "Matt Haig",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1602190252i/52578297.jpg",
     status: "reading",
+    genre: "Fiction",
   },
   {
     id: "6",
@@ -73,6 +74,7 @@ export const LIBRARY_BOOKS = [
     author: "George Orwell",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348990566i/5470.jpg",
     status: "read",
+    genre: "Dystopian",
   },
   {
     id: "7",
@@ -80,6 +82,7 @@ export const LIBRARY_BOOKS = [
     author: "Jane Austen",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1320399351i/1885.jpg",
     status: "read",
+    genre: "Romance",
   },
   {
     id: "2",
@@ -87,6 +90,7 @@ export const LIBRARY_BOOKS = [
     author: "James Clear",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1655988385i/40121378.jpg",
     status: "want_to_read",
+    genre: "Self-Help",
   },
   {
     id: "8",
@@ -94,6 +98,7 @@ export const LIBRARY_BOOKS = [
     author: "J.R.R. Tolkien",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1546071216i/5907.jpg",
     status: "read",
+    genre: "Fantasy",
   },
   {
     id: "9",
@@ -101,6 +106,7 @@ export const LIBRARY_BOOKS = [
     author: "Amish Tripathi",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1388186168i/7913305.jpg",
     status: "read",
+    genre: "Fiction",
   },
   {
     id: "10",
@@ -108,6 +114,7 @@ export const LIBRARY_BOOKS = [
     author: "Haruki Murakami",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1292401605i/11297.jpg",
     status: "read",
+    genre: "Fiction",
   },
   {
     id: "4",
@@ -115,6 +122,7 @@ export const LIBRARY_BOOKS = [
     author: "Yuval Noah Harari",
     cover: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1562784585i/23692271.jpg",
     status: "want_to_read",
+    genre: "History",
   },
 ];
 
