@@ -111,7 +111,7 @@ export default function TabsLayout() {
         name="ai"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={<AIIcon color={focused ? C.active : C.inactive} />} label="AI Chat" focused={focused} />
+            <TabIcon icon={<AIIcon color={focused ? C.active : C.inactive} />} label="Ask" focused={focused} />
           ),
         }}
       />
@@ -141,10 +141,10 @@ const styles = StyleSheet.create({
     // No horizontal padding — let the container give us the full tab width
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
     color: colors.char3,
-    lineHeight: 13,
+    lineHeight: 14,
     textAlign: "center",
   },
   labelFocused: { color: colors.terracotta, fontWeight: "600" },
