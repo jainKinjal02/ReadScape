@@ -30,16 +30,16 @@ const GENRES: {
   gradient: readonly [string, string];
   image: any;
 }[] = [
-  { name: "Fiction",    emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: null },
+  { name: "Fiction",    emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: require("../../assets/genres/fiction.png") },
   { name: "Fantasy",    emoji: "🌟", gradient: ["#5bbfaa", "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
-  { name: "Sci-Fi",     emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: null },
-  { name: "Thriller",   emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: null },
-  { name: "Self-Help",  emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: null },
-  { name: "Romance",    emoji: "🌸", gradient: ["#c06080", "#8a2850"], image: null },
-  { name: "History",    emoji: "🏛️", gradient: ["#7a6a40", "#4a3a18"], image: null },
-  { name: "Biography",  emoji: "🖊️", gradient: ["#4a7090", "#254060"], image: null },
-  { name: "Horror",     emoji: "🌙", gradient: ["#6a2a7a", "#2a0a3a"], image: null },
-  { name: "Dystopian",  emoji: "🔮", gradient: ["#4a5078", "#222440"], image: null },
+  { name: "Sci-Fi",     emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: require("../../assets/genres/scifi.png") },
+  { name: "Thriller",   emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: require("../../assets/genres/thriller.png") },
+  { name: "Self-Help",  emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: require("../../assets/genres/selfhelp.png") },
+  { name: "Romance",    emoji: "🌸", gradient: ["#c06080", "#8a2850"], image: require("../../assets/genres/romance.png") },
+  { name: "History",    emoji: "🏛️", gradient: ["#7a6a40", "#4a3a18"], image: require("../../assets/genres/history.png") },
+  { name: "Biography",  emoji: "🖊️", gradient: ["#4a7090", "#254060"], image: require("../../assets/genres/biography.png") },
+  { name: "Horror",     emoji: "🌙", gradient: ["#6a2a7a", "#2a0a3a"], image: require("../../assets/genres/horror.png") },
+  { name: "Dystopian",  emoji: "🔮", gradient: ["#4a5078", "#222440"], image: require("../../assets/genres/dystopian.png") },
 ];
 
 function bookCountForGenre(genre: string) {
