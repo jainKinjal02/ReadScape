@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,32 +15,187 @@ import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
 
+const { width: SW } = Dimensions.get("window");
+// Card is 47% of (screen - 40px padding - 12px gap)
+const CARD_W = (SW - 40 - 12) / 2;
+
 const BG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80";
 
-const GENRES = [
-  { name: "Fiction",   emoji: "📚", gradient: ["#7F77DD", "#4a40a8"] as const },
-  { name: "Fantasy",   emoji: "🌟", gradient: ["#5bbfaa", "#2d8a78"] as const },
-  { name: "Sci-Fi",    emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"] as const },
-  { name: "Thriller",  emoji: "⚡", gradient: ["#8b3535", "#5a1010"] as const },
-  { name: "Self-Help", emoji: "🌱", gradient: ["#c47a4a", "#8a4020"] as const },
-  { name: "Romance",   emoji: "🌸", gradient: ["#c06080", "#8a2850"] as const },
-  { name: "History",   emoji: "🏛️", gradient: ["#7a6a40", "#4a3a18"] as const },
-  { name: "Biography", emoji: "🖊️", gradient: ["#4a7090", "#254060"] as const },
-  { name: "Horror",    emoji: "🌙", gradient: ["#6a2a7a", "#2a0a3a"] as const },
-  { name: "Dystopian", emoji: "🔮", gradient: ["#4a5078", "#222440"] as const },
+// ─── Genre configuration ─────────────────────────────────────────────────────
+// Add a local `image` require() for each genre as you generate the images.
+// Leave as `null` to fall back to the gradient.
+const GENRES: {
+  name: string;
+  emoji: string;
+  gradient: readonly [string, string];
+  image: any;
+}[] = [
+  { name: "Fiction",    emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: null },
+  { name: "Fantasy",    emoji: "🌟", gradient: ["#5bbfaa", "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
+  { name: "Sci-Fi",     emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: null },
+  { name: "Thriller",   emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: null },
+  { name: "Self-Help",  emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: null },
+  { name: "Romance",    emoji: "🌸", gradient: ["#c06080", "#8a2850"], image: null },
+  { name: "History",    emoji: "🏛️", gradient: ["#7a6a40", "#4a3a18"], image: null },
+  { name: "Biography",  emoji: "🖊️", gradient: ["#4a7090", "#254060"], image: null },
+  { name: "Horror",     emoji: "🌙", gradient: ["#6a2a7a", "#2a0a3a"], image: null },
+  { name: "Dystopian",  emoji: "🔮", gradient: ["#4a5078", "#222440"], image: null },
 ];
 
 function bookCountForGenre(genre: string) {
   return LIBRARY_BOOKS.filter((b) => b.genre === genre).length;
 }
 
+// ─── Animated genre card ──────────────────────────────────────────────────────
+function GenreCard({
+  genre,
+  index,
+  onPress,
+}: {
+  genre: typeof GENRES[number];
+  index: number;
+  onPress: () => void;
+}) {
+  const count = bookCountForGenre(genre.name);
+
+  // 1. Staggered entrance — fades + slides up
+  const entranceOpacity = useRef(new Animated.Value(0)).current;
+  const entranceY = useRef(new Animated.Value(24)).current;
+
+  // 2. Press spring scale
+  const scale = useRef(new Animated.Value(1)).current;
+
+  // 3. Shimmer sweep across the card
+  const shimmerX = useRef(new Animated.Value(-CARD_W * 0.6)).current;
+
+  useEffect(() => {
+    // Staggered entrance
+    Animated.parallel([
+      Animated.timing(entranceOpacity, {
+        toValue: 1,
+        duration: 480,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(entranceY, {
+        toValue: 0,
+        duration: 420,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Shimmer loop — offset each card so they don't all flash at once
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2800 + index * 350),
+        Animated.timing(shimmerX, {
+          toValue: CARD_W * 1.4,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        // Reset instantly
+        Animated.timing(shimmerX, {
+          toValue: -CARD_W * 0.6,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const onPressIn = () =>
+    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
+
+  return (
+    <Animated.View
+      style={[
+        styles.cardWrapper,
+        {
+          opacity: entranceOpacity,
+          transform: [{ translateY: entranceY }, { scale }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.cardTouchable}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
+      >
+        {/* Background: local image if available, else solid gradient */}
+        {genre.image ? (
+          <Image
+            source={genre.image}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
+        ) : (
+          <LinearGradient
+            colors={genre.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+
+        {/* Dark gradient overlay at bottom — keeps text legible over photos */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.72)"]}
+          locations={[0.3, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Shimmer beam — a narrow translucent band that sweeps left→right */}
+        <Animated.View
+          style={[styles.shimmerBeam, { transform: [{ translateX: shimmerX }] }]}
+          pointerEvents="none"
+        >
+          <LinearGradient
+            colors={[
+              "transparent",
+              "rgba(255,255,255,0.18)",
+              "rgba(255,255,255,0.08)",
+              "transparent",
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
+
+        {/* Card content */}
+        <View style={styles.cardContent}>
+          <Text style={styles.genreEmoji}>{genre.emoji}</Text>
+          <Text style={styles.genreName}>{genre.name}</Text>
+          <Text style={styles.genreCount}>
+            {count > 0 ? `${count} book${count !== 1 ? "s" : ""}` : "Explore"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
 
   return (
     <View style={{ flex: 1 }}>
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <Image
+        source={{ uri: BG }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
+
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -73,37 +230,22 @@ export default function InsightsScreen() {
               </View>
             </View>
 
-            {/* Genre cards */}
+            {/* Genre section header */}
             <View style={styles.secHdr}>
               <Text style={styles.secTitle}>Explore by genre</Text>
               <Text style={styles.secSub}>Tap a genre to see your books</Text>
             </View>
 
+            {/* Genre grid */}
             <View style={styles.genreGrid}>
-              {GENRES.map((g) => {
-                const count = bookCountForGenre(g.name);
-                return (
-                  <TouchableOpacity
-                    key={g.name}
-                    style={styles.genreCard}
-                    onPress={() => router.push(`/genre/${g.name}`)}
-                    activeOpacity={0.82}
-                  >
-                    <LinearGradient
-                      colors={g.gradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.genreCardInner}
-                    >
-                      <Text style={styles.genreEmoji}>{g.emoji}</Text>
-                      <Text style={styles.genreName}>{g.name}</Text>
-                      <Text style={styles.genreCount}>
-                        {count > 0 ? `${count} book${count !== 1 ? "s" : ""}` : "Explore"}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                );
-              })}
+              {GENRES.map((g, i) => (
+                <GenreCard
+                  key={g.name}
+                  genre={g}
+                  index={i}
+                  onPress={() => router.push(`/genre/${g.name}`)}
+                />
+              ))}
             </View>
 
             {/* Year wrap CTA */}
@@ -127,8 +269,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   insHdr: {
-    backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
+    backgroundColor: colors.parchment,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cream3,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   insTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
   insSub: { fontSize: 13, color: colors.char3, marginTop: 2 },
@@ -138,8 +284,12 @@ const styles = StyleSheet.create({
   // Stats
   bigStatRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 20, marginBottom: 24 },
   bigStat: {
-    width: "47%", backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3, borderRadius: 14, padding: 16,
+    width: "47%",
+    backgroundColor: colors.parchment,
+    borderWidth: 1,
+    borderColor: colors.cream3,
+    borderRadius: 14,
+    padding: 16,
   },
   bigStatV: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: colors.espresso },
   bigStatL: { fontSize: 11, color: colors.char3, marginTop: 2 },
@@ -157,50 +307,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
-  genreCard: {
-    width: "47%",
-    aspectRatio: 0.95,
+
+  // Card
+  cardWrapper: {
+    width: CARD_W,
+    aspectRatio: 0.92,
     borderRadius: 18,
     overflow: "hidden",
-    // Shadow
     shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 14,
+    elevation: 8,
   },
-  genreCardInner: {
+  cardTouchable: {
     flex: 1,
-    padding: 18,
-    justifyContent: "flex-end",
   },
-  genreEmoji: {
-    fontSize: 36,
-    marginBottom: 10,
+  shimmerBeam: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: CARD_W * 0.55,   // beam is ~55% of card width
+    left: 0,
   },
+  cardContent: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+  },
+  genreEmoji: { fontSize: 34, marginBottom: 8 },
   genreName: {
     fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 17,
+    fontSize: 16,
     color: "#ffffff",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   genreCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: "rgba(255,255,255,0.72)",
     fontWeight: "500",
   },
 
   // Year wrap
   wrapCTA: {
-    marginHorizontal: 20, marginBottom: 20,
-    backgroundColor: "rgba(127,119,221,0.1)", borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
-    borderRadius: 14, padding: 16, alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: "rgba(127,119,221,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(127,119,221,0.25)",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
   },
   wrapTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },
   wrapSub: { fontSize: 12, color: colors.char3 },
   wrapBtn: {
-    marginTop: 10, backgroundColor: colors.espresso, borderRadius: 16,
-    paddingVertical: 8, paddingHorizontal: 20,
+    marginTop: 10,
+    backgroundColor: colors.espresso,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
   },
   wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
 });
