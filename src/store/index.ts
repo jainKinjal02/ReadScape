@@ -6,6 +6,9 @@ interface AppState {
   userId: string | null;
   setUserId: (id: string | null) => void;
 
+  userName: string;
+  setUserName: (name: string) => void;
+
   // Books
   books: Book[];
   setBooks: (books: Book[]) => void;
@@ -27,6 +30,9 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   userId: null,
   setUserId: (id) => set({ userId: id }),
+
+  userName: "",
+  setUserName: (name) => set({ userName: name }),
 
   books: [],
   setBooks: (books) => set({ books }),

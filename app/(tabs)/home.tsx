@@ -17,11 +17,11 @@ import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import {
-  CURRENT_USER,
   CURRENT_BOOK,
   STATS,
   WANT_TO_READ,
 } from "../../src/data/mockData";
+import { useAppStore } from "../../src/store";
 
 const { width: SW } = Dimensions.get("window");
 
@@ -42,6 +42,13 @@ function FireIcon() {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const userName = useAppStore((s) => s.userName);
+  const streak = useAppStore((s) => s.streak);
+
+  // Derive initials from the real user name (first letter of each word, max 2)
+  const initials = userName
+    ? userName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "?";
 
   // One animated opacity per image — no source-swapping, no flash.
   // All images stay mounted; we simply cross-fade their opacity.
@@ -101,16 +108,16 @@ export default function HomeScreen() {
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.greeting}>{greeting},</Text>
-                <Text style={styles.name}>{CURRENT_USER.name}</Text>
+                <Text style={styles.name}>{userName || "Reader"}</Text>
               </View>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{CURRENT_USER.initials}</Text>
+                <Text style={styles.avatarText}>{initials}</Text>
               </View>
             </View>
             <View style={styles.streakPill}>
               <FireIcon />
               <Text style={styles.streakText}>
-                {CURRENT_USER.streak} day reading streak
+                {streak} day reading streak
               </Text>
             </View>
           </View>

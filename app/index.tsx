@@ -91,15 +91,15 @@ export default function LandingScreen() {
         <View style={styles.ctaBlock}>
           <TouchableOpacity
             style={styles.ctaButton}
-            onPress={() => router.replace("/(tabs)/home")}
+            onPress={() => router.push("/auth")}
             activeOpacity={0.85}
           >
-            <Text style={styles.ctaText}>Start your journey</Text>
+            <Text style={styles.ctaText}>Create Account</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.signInLink}
-            onPress={() => router.replace("/(tabs)/home")}
+            onPress={() => router.push("/auth")}
           >
             <Text style={styles.signInText}>Already have an account? Sign in</Text>
           </TouchableOpacity>
