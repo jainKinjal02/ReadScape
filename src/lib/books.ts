@@ -56,18 +56,42 @@ export async function updateBookStatus(
   if (error) throw error;
 }
 
-// ─── Google Books API ─────────────────────────────────────────────────────────
+// ─── Open Library API (replaces Google Books — no key, always free) ──────────
+// Docs: https://openlibrary.org/dev/docs/api
 
-export async function searchGoogleBooks(query: string): Promise<GoogleBook[]> {
+export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
-    query
-  )}&maxResults=15&langRestrict=en`;
+  const url =
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
+    `&limit=20&fields=key,title,author_name,cover_i,number_of_pages_median,subject`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Google Books request failed");
+  if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
   const json = await res.json();
-  return (json.items ?? []) as GoogleBook[];
+  return (json.docs ?? []).map(mapOpenLibraryDoc).filter((b: GoogleBook) => b.volumeInfo.title);
 }
+
+function mapOpenLibraryDoc(doc: any): GoogleBook {
+  const coverId = doc.cover_i;
+  return {
+    id: doc.key ?? String(Math.random()),
+    volumeInfo: {
+      title: doc.title ?? "Unknown title",
+      authors: doc.author_name ?? [],
+      pageCount: doc.number_of_pages_median ?? null,
+      categories: doc.subject?.slice(0, 8) ?? [],
+      description: null,
+      imageLinks: coverId
+        ? {
+            thumbnail: `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,
+            smallThumbnail: `https://covers.openlibrary.org/b/id/${coverId}-S.jpg`,
+          }
+        : undefined,
+    },
+  };
+}
+
+// Keep old name as alias so nothing else breaks if referenced elsewhere
+export const searchGoogleBooks = searchBooks;
 
 // ─── Genre mapping ────────────────────────────────────────────────────────────
 

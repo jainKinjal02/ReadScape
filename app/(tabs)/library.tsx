@@ -22,7 +22,7 @@ import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
-import { searchGoogleBooks, addBookToLibrary } from "../../src/lib/books";
+import { searchBooks, addBookToLibrary } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
 const BG = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80";
@@ -72,6 +72,7 @@ export default function LibraryScreen() {
   const [results, setResults] = useState<GoogleBook[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filtered =
     filter === "all" ? books : books.filter((b) => b.status === filter);
@@ -81,19 +82,26 @@ export default function LibraryScreen() {
     { id: "__add__" },
   ];
 
-  // ── Google Books search ──────────────────────────────────────────────────
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  // ── Real-time debounced search ───────────────────────────────────────────
+  const runSearch = async (text: string) => {
+    if (!text.trim()) { setResults([]); return; }
     setSearching(true);
-    setResults([]);
     try {
-      const hits = await searchGoogleBooks(query);
+      const hits = await searchBooks(text);
       setResults(hits);
-    } catch {
-      Alert.alert("Search failed", "Could not reach Google Books. Try again.");
+    } catch (e: any) {
+      // Only show alert if the modal is still open with this query
+      Alert.alert("Search failed", "Could not reach book database. Check your connection and try again.");
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleQueryChange = (text: string) => {
+    setQuery(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.trim().length < 2) { setResults([]); return; }
+    debounceRef.current = setTimeout(() => runSearch(text), 400);
   };
 
   // ── Add book to Supabase ─────────────────────────────────────────────────
@@ -297,30 +305,31 @@ export default function LibraryScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Search row */}
+            {/* Search input — results appear as you type */}
             <View style={styles.searchRow}>
-              <TextInput
-                ref={inputRef}
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Title, author, or ISBN…"
-                placeholderTextColor={colors.char3}
-                returnKeyType="search"
-                onSubmitEditing={handleSearch}
-                autoFocus
-              />
-              <TouchableOpacity
-                style={[styles.searchBtn, searching && { opacity: 0.6 }]}
-                onPress={handleSearch}
-                disabled={searching}
-              >
-                {searching ? (
-                  <ActivityIndicator color={colors.cream} size="small" />
-                ) : (
-                  <Text style={styles.searchBtnText}>Search</Text>
+              <View style={styles.searchInputWrap}>
+                <SearchIcon />
+                <TextInput
+                  ref={inputRef}
+                  style={styles.searchInput}
+                  value={query}
+                  onChangeText={handleQueryChange}
+                  placeholder="Title or author…"
+                  placeholderTextColor={colors.char3}
+                  returnKeyType="search"
+                  onSubmitEditing={() => runSearch(query)}
+                  autoFocus
+                  autoCorrect={false}
+                />
+                {searching && (
+                  <ActivityIndicator color={colors.terracotta} size="small" style={{ marginRight: 4 }} />
                 )}
-              </TouchableOpacity>
+                {query.length > 0 && !searching && (
+                  <TouchableOpacity onPress={() => { setQuery(""); setResults([]); }}>
+                    <Text style={styles.clearBtn}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Results */}
@@ -333,17 +342,17 @@ export default function LibraryScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               />
-            ) : !searching && query.trim() !== "" ? (
+            ) : !searching && query.trim().length >= 2 ? (
               <View style={styles.noResults}>
-                <Text style={styles.noResultsText}>No results. Try a different title or author.</Text>
+                <Text style={styles.noResultsText}>No results for "{query}". Try a different title or author.</Text>
               </View>
             ) : !searching ? (
               <View style={styles.searchHint}>
                 <Text style={styles.searchHintText}>
-                  Search by title, author, or ISBN to find a book.{"\n"}
-                  Then tap <Text style={{ color: colors.terracotta }}>Want</Text>,{" "}
+                  Start typing to search millions of books.{"\n"}Tap{" "}
+                  <Text style={{ color: colors.terracotta }}>Want</Text>,{" "}
                   <Text style={{ color: colors.terracotta }}>Reading</Text>, or{" "}
-                  <Text style={{ color: colors.terracotta }}>Read</Text> to add it.
+                  <Text style={{ color: colors.terracotta }}>Read</Text> to add instantly.
                 </Text>
               </View>
             ) : null}
@@ -444,22 +453,19 @@ const styles = StyleSheet.create({
   },
 
   searchRow: {
-    flexDirection: "row", gap: 10,
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
   },
-  searchInput: {
-    flex: 1, backgroundColor: colors.cream2,
+  searchInputWrap: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: colors.cream2,
     borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
-    fontSize: 14, color: colors.espresso,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
   },
-  searchBtn: {
-    backgroundColor: colors.terracotta, borderRadius: 12,
-    paddingHorizontal: 18, justifyContent: "center", alignItems: "center",
-    minWidth: 72,
+  searchInput: {
+    flex: 1, fontSize: 15, color: colors.espresso,
   },
-  searchBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  clearBtn: { fontSize: 13, color: colors.char3, paddingHorizontal: 4 },
 
   resultsList: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
   resultRow: {
