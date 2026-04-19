@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -8,7 +9,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
+  
   Alert,
 } from "react-native";
 import { Image } from "expo-image";

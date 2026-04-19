@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -10,7 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
+  
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";

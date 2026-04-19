@@ -1,5 +1,5 @@
 import "../global.css";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import {
   useFonts,
@@ -22,17 +22,19 @@ export default function RootLayout() {
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
 
+  // Store whether the user already has a session — navigate only after
+  // fontsLoaded is true so the Stack navigator is mounted first.
+  const [shouldRedirectHome, setShouldRedirectHome] = useState(false);
+
   useEffect(() => {
-    // Check for an existing session on app launch — skip landing if already signed in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata?.name ?? "Reader");
-        router.replace("/(tabs)/home");
+        setShouldRedirectHome(true);
       }
     });
 
-    // Keep store in sync with ongoing auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
       if (session) {
@@ -42,7 +44,13 @@ export default function RootLayout() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Only block on font loading — don't wait for Supabase
+  // Only navigate once the Stack is rendered (fontsLoaded = true)
+  useEffect(() => {
+    if (fontsLoaded && shouldRedirectHome) {
+      router.replace("/(tabs)/home");
+    }
+  }, [fontsLoaded, shouldRedirectHome]);
+
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: "#0f1923" }} />;
   }

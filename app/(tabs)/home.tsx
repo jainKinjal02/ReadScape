@@ -323,7 +323,7 @@ export default function HomeScreen() {
           {/* Stats strip */}
           <View style={styles.panelStats}>
             <View style={styles.panelStat}>
-              <Text style={styles.panelStatV}>{STATS.booksRead}</Text>
+              <Text style={styles.panelStatV}>{readCount}</Text>
               <Text style={styles.panelStatL}>Books read</Text>
             </View>
             <View style={styles.panelStatDivider} />
@@ -333,8 +333,8 @@ export default function HomeScreen() {
             </View>
             <View style={styles.panelStatDivider} />
             <View style={styles.panelStat}>
-              <Text style={styles.panelStatV}>{STATS.quotesSaved}</Text>
-              <Text style={styles.panelStatL}>Quotes</Text>
+              <Text style={styles.panelStatV}>{books.length}</Text>
+              <Text style={styles.panelStatL}>In library</Text>
             </View>
           </View>
 

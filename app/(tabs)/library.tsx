@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -7,7 +8,7 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  SafeAreaView,
+  
   TextInput,
   ActivityIndicator,
   Alert,
