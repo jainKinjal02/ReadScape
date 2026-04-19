@@ -17,12 +17,9 @@ import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
-import {
-  CURRENT_BOOK,
-  STATS,
-  WANT_TO_READ,
-} from "../../src/data/mockData";
 import { useAppStore } from "../../src/store";
+import { useBooks } from "../../src/hooks/useBooks";
+import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
 
 const { width: SW } = Dimensions.get("window");
@@ -49,6 +46,16 @@ export default function HomeScreen() {
   const streak = useAppStore((s) => s.streak);
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
+  const { books } = useBooks();
+
+  // Derive real data from Supabase books
+  const currentBook = books.find((b) => b.status === "reading") ?? null;
+  const wantToRead = books.filter((b) => b.status === "want_to_read").slice(0, 5);
+  const readCount = books.filter((b) => b.status === "read").length;
+  const progress =
+    currentBook && currentBook.total_pages && currentBook.total_pages > 0
+      ? Math.min(100, Math.round((currentBook.current_page / currentBook.total_pages) * 100))
+      : 0;
 
   // Derive initials from the real user name (first letter of each word, max 2)
   const initials = userName
@@ -155,45 +162,57 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Currently Reading ── */}
-        <TouchableOpacity
-          style={styles.curCard}
-          onPress={() => router.push("/book/1")}
-          activeOpacity={0.88}
-        >
-          <View style={styles.curCoverWrap}>
-            <CoverImage uri={CURRENT_BOOK.cover} title={CURRENT_BOOK.title} style={styles.curCoverImg} />
-          </View>
-          <View style={styles.curInfo}>
-            <Text style={styles.curLabel}>Continue reading</Text>
-            <Text style={styles.curTitle} numberOfLines={2}>{CURRENT_BOOK.title}</Text>
-            <Text style={styles.curAuthor}>{CURRENT_BOOK.author}</Text>
-            <View style={styles.progBg}>
-              <View style={[styles.progFill, { width: `${CURRENT_BOOK.progress}%` }]} />
+        {currentBook ? (
+          <TouchableOpacity
+            style={styles.curCard}
+            onPress={() => router.push(`/book/${currentBook.id}`)}
+            activeOpacity={0.88}
+          >
+            <View style={styles.curCoverWrap}>
+              <CoverImage uri={currentBook.cover_url ?? ""} title={currentBook.title} style={styles.curCoverImg} />
             </View>
-            <Text style={styles.progLbl}>
-              Page {CURRENT_BOOK.currentPage} of {CURRENT_BOOK.totalPages} · {CURRENT_BOOK.progress}%
-            </Text>
-            <View style={styles.moodTag}>
-              <Text style={styles.moodTagText}>
-                {CURRENT_BOOK.lastMood.symbol} {CURRENT_BOOK.lastMood.label}
+            <View style={styles.curInfo}>
+              <Text style={styles.curLabel}>Continue reading</Text>
+              <Text style={styles.curTitle} numberOfLines={2}>{currentBook.title}</Text>
+              <Text style={styles.curAuthor}>{currentBook.author ?? ""}</Text>
+              <View style={styles.progBg}>
+                <View style={[styles.progFill, { width: `${progress}%` }]} />
+              </View>
+              <Text style={styles.progLbl}>
+                Page {currentBook.current_page} of {currentBook.total_pages ?? "?"} · {progress}%
               </Text>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.curCard}
+            onPress={() => router.push("/(tabs)/library")}
+            activeOpacity={0.88}
+          >
+            <View style={styles.emptyBook}>
+              <Text style={styles.emptyBookIcon}>📖</Text>
+              <View style={styles.emptyBookText}>
+                <Text style={styles.curLabel}>Currently reading</Text>
+                <Text style={styles.curTitle}>Nothing yet</Text>
+                <Text style={styles.curAuthor}>Add a book and mark it as Reading to track your progress.</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* ── Stats row ── */}
         <View style={styles.statsRow}>
           <View style={styles.statC}>
-            <Text style={styles.statV}>{STATS.booksRead}</Text>
+            <Text style={styles.statV}>{readCount}</Text>
             <Text style={styles.statL}>Books read</Text>
           </View>
           <View style={styles.statC}>
-            <Text style={styles.statV}>2,847</Text>
-            <Text style={styles.statL}>Pages this year</Text>
+            <Text style={styles.statV}>{books.length}</Text>
+            <Text style={styles.statL}>In library</Text>
           </View>
           <View style={styles.statC}>
-            <Text style={styles.statV}>{STATS.quotesSaved}</Text>
-            <Text style={styles.statL}>Quotes saved</Text>
+            <Text style={styles.statV}>{wantToRead.length}</Text>
+            <Text style={styles.statL}>Want to read</Text>
           </View>
         </View>
 
@@ -206,11 +225,16 @@ export default function HomeScreen() {
         </View>
 
         <FlatList
-          data={[...WANT_TO_READ, { id: "__add__", title: "", author: "", cover: "" }]}
+          data={[...wantToRead, { id: "__add__" } as Book]}
           horizontal
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.shelfRow}
+          ListEmptyComponent={
+            <TouchableOpacity style={styles.addCard} onPress={() => router.push("/(tabs)/library")}>
+              <Text style={styles.addPlus}>+</Text>
+            </TouchableOpacity>
+          }
           renderItem={({ item }) => {
             if (item.id === "__add__") {
               return (
@@ -225,11 +249,11 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity
                 style={styles.shelfItem}
-                onPress={() => router.push("/book/2")}
+                onPress={() => router.push(`/book/${item.id}`)}
                 activeOpacity={0.8}
               >
                 <View style={styles.shelfCover}>
-                  <CoverImage uri={item.cover} title={item.title} style={styles.shelfCoverImg} />
+                  <CoverImage uri={item.cover_url ?? ""} title={item.title} style={styles.shelfCoverImg} />
                 </View>
                 <Text style={styles.shelfTitle} numberOfLines={2}>{item.title}</Text>
               </TouchableOpacity>
@@ -245,7 +269,9 @@ export default function HomeScreen() {
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
-            <Text style={styles.aiPromoSub}>About {CURRENT_BOOK.title}</Text>
+            <Text style={styles.aiPromoSub}>
+              {currentBook ? `About ${currentBook.title}` : "Get recommendations & more"}
+            </Text>
           </View>
           <View style={styles.aiPromoBtn}>
             <Text style={styles.aiPromoBtnText}>Ask AI</Text>
@@ -463,6 +489,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(127,119,221,0.08)",
   },
   addPlus: { fontSize: 26, color: colors.terra2 },
+
+  // Empty currently reading
+  emptyBook: { flexDirection: "row", gap: 14, alignItems: "center" },
+  emptyBookIcon: { fontSize: 40 },
+  emptyBookText: { flex: 1 },
 
   // AI promo
   aiPromo: {

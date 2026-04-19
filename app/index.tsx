@@ -99,7 +99,7 @@ export default function LandingScreen() {
 
           <TouchableOpacity
             style={styles.signInLink}
-            onPress={() => router.push("/auth")}
+            onPress={() => router.push("/auth?mode=signin")}
           >
             <Text style={styles.signInText}>Already have an account? Sign in</Text>
           </TouchableOpacity>

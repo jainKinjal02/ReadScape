@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
-import { LIBRARY_BOOKS } from "../../src/data/mockData";
+import { useBooks } from "../../src/hooks/useBooks";
 
 const GENRE_META: Record<string, { emoji: string; gradient: readonly [string, string]; image: any }> = {
   Fiction:    { emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: require("../../assets/genres/fiction.png") },
@@ -40,9 +40,11 @@ const BADGE: Record<string, { label: string; bg: string; text: string }> = {
 export default function GenreScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const router = useRouter();
+  const { books: allBooks } = useBooks();
 
   const meta = GENRE_META[name] ?? DEFAULT_META;
-  const books = LIBRARY_BOOKS.filter((b) => b.genre === name);
+  // genre is string[] in the real type — check if this genre is in the array
+  const books = allBooks.filter((b) => Array.isArray(b.genre) ? b.genre.includes(name) : b.genre === name);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -107,11 +109,11 @@ export default function GenreScreen() {
             return (
               <TouchableOpacity
                 style={styles.bookRow}
-                onPress={() => router.push("/book/1")}
+                onPress={() => router.push(`/book/${item.id}`)}
                 activeOpacity={0.8}
               >
                 <View style={styles.coverShadow}>
-                  <CoverImage uri={item.cover} title={item.title} style={styles.cover} />
+                  <CoverImage uri={item.cover_url ?? ""} title={item.title} style={styles.cover} />
                 </View>
                 <View style={styles.bookInfo}>
                   <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
