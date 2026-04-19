@@ -180,7 +180,7 @@ export default function LibraryScreen() {
         <View style={styles.resultInfo}>
           <Text style={styles.resultTitle} numberOfLines={2}>{info.title}</Text>
           <Text style={styles.resultAuthor} numberOfLines={1}>{author}</Text>
-          {info.pageCount && (
+          {!!info.pageCount && (
             <Text style={styles.resultPages}>{info.pageCount} pages</Text>
           )}
           <View style={styles.addChips}>
