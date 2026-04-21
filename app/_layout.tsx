@@ -23,6 +23,7 @@ export default function RootLayout() {
   const setUserName = useAppStore((s) => s.setUserName);
   const setReadingGoal = useAppStore((s) => s.setReadingGoal);
   const setUserBio = useAppStore((s) => s.setUserBio);
+  const setStreak = useAppStore((s) => s.setStreak);
 
   // Store whether the user already has a session — navigate only after
   // fontsLoaded is true so the Stack navigator is mounted first.
@@ -35,6 +36,7 @@ export default function RootLayout() {
         setUserId(session.user.id);
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
+        setStreak(Number(meta.reading_streak) || 0);
         setUserBio(meta.bio ?? "");
         setShouldRedirectHome(true);
       }
@@ -46,6 +48,7 @@ export default function RootLayout() {
         const meta = session.user.user_metadata ?? {};
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
+        setStreak(Number(meta.reading_streak) || 0);
         setUserBio(meta.bio ?? "");
       }
     });
