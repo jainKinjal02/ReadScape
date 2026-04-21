@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   appName: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 42,
     letterSpacing: 0.5,
     marginBottom: 8,

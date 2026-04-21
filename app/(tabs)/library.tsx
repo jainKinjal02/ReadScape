@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  
   TextInput,
   ActivityIndicator,
   Alert,
@@ -120,6 +119,8 @@ export default function LibraryScreen() {
     }
   };
 
+  const openModal = () => setShowAddModal(true);
+
   const closeModal = () => {
     setShowAddModal(false);
     setQuery("");
@@ -132,7 +133,7 @@ export default function LibraryScreen() {
       return (
         <TouchableOpacity
           style={styles.gridItem}
-          onPress={() => setShowAddModal(true)}
+          onPress={() => openModal()}
           activeOpacity={0.7}
         >
           <View style={styles.coverAdd}>
@@ -220,20 +221,10 @@ export default function LibraryScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.heading}>My Library</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
               <Text style={styles.addBtnText}>+ Add</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Search bar */}
-          <TouchableOpacity
-            style={styles.searchBar}
-            onPress={() => setShowAddModal(true)}
-            activeOpacity={0.8}
-          >
-            <SearchIcon />
-            <Text style={styles.searchPlaceholder}>Search & add books…</Text>
-          </TouchableOpacity>
 
           {/* Filter pills */}
           <View style={styles.filterRow}>
@@ -268,7 +259,7 @@ export default function LibraryScreen() {
               <Text style={styles.emptyIcon}>📚</Text>
               <Text style={styles.emptyTitle}>Your library is empty</Text>
               <Text style={styles.emptySub}>Tap "+ Add" to find your first book.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowAddModal(true)}>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => openModal()}>
                 <Text style={styles.emptyBtnText}>Add a book</Text>
               </TouchableOpacity>
             </View>
@@ -288,24 +279,29 @@ export default function LibraryScreen() {
         </View>
       </SafeAreaView>
 
-      {/* ── Add Book Modal ─────────────────────────────────────────────────── */}
-      <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }}>
+      {/* ── Add Book Full-Screen Modal ──────────────────────────────────────── */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        onRequestClose={closeModal}
+        statusBarTranslucent
+      >
+        <SafeAreaView style={styles.modalScreen}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            {/* Modal header */}
+            {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add a Book</Text>
               <TouchableOpacity onPress={closeModal} style={styles.modalCloseBtn}>
-                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                  <Path d="M18 6L6 18M6 6l12 12" stroke={colors.char3} strokeWidth={2} strokeLinecap="round" />
+                <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                  <Path d="M18 6L6 18M6 6l12 12" stroke={colors.espresso2} strokeWidth={2} strokeLinecap="round" />
                 </Svg>
               </TouchableOpacity>
             </View>
 
-            {/* Search input — results appear as you type */}
+            {/* Search input */}
             <View style={styles.searchRow}>
               <View style={styles.searchInputWrap}>
                 <SearchIcon />
@@ -318,7 +314,6 @@ export default function LibraryScreen() {
                   placeholderTextColor={colors.char3}
                   returnKeyType="search"
                   onSubmitEditing={() => runSearch(query)}
-                  autoFocus
                   autoCorrect={false}
                 />
                 {searching && (
@@ -332,7 +327,7 @@ export default function LibraryScreen() {
               </View>
             </View>
 
-            {/* Results */}
+            {/* Results / empty states */}
             {results.length > 0 ? (
               <FlatList
                 data={results}
@@ -372,22 +367,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
-  heading: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
+  heading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
   addBtn: {
     backgroundColor: colors.terracotta, borderRadius: 16,
     paddingVertical: 6, paddingHorizontal: 14,
   },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
 
-  searchBar: {
-    marginHorizontal: 20, marginTop: 12,
-    backgroundColor: "rgba(22,32,48,0.95)", borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 12, padding: 10,
-    flexDirection: "row", alignItems: "center", gap: 8,
-  },
-  searchPlaceholder: { fontSize: 13, color: colors.char3 },
-
-  filterRow: { height: 48, justifyContent: "center", marginTop: 10, marginBottom: 6 },
+  filterRow: { height: 48, justifyContent: "center", marginTop: 6, marginBottom: 4 },
   filterContent: { paddingHorizontal: 20, gap: 8, alignItems: "center" },
   pill: {
     paddingVertical: 7, paddingHorizontal: 14,
@@ -430,7 +417,7 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
   emptyIcon: { fontSize: 52, marginBottom: 16 },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold", fontSize: 20,
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
     color: colors.espresso, textAlign: "center", marginBottom: 8,
   },
   emptySub: { fontSize: 14, color: colors.char3, textAlign: "center", lineHeight: 20, marginBottom: 24 },
@@ -440,16 +427,27 @@ const styles = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 
-  // Modal
+  // Full-screen modal
+  modalScreen: {
+    flex: 1,
+    backgroundColor: colors.cream,
+  },
   modalHeader: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14,
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
+    backgroundColor: colors.parchment,
   },
-  modalTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: colors.espresso },
+  modalTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 22,
+    color: colors.espresso,
+  },
   modalCloseBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.cream2, alignItems: "center", justifyContent: "center",
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
+    alignItems: "center", justifyContent: "center",
   },
 
   searchRow: {
@@ -476,7 +474,7 @@ const styles = StyleSheet.create({
   resultCover: { width: 52, height: 76, borderRadius: 6, backgroundColor: colors.cream3 },
   resultInfo: { flex: 1 },
   resultTitle: {
-    fontFamily: "PlayfairDisplay_700Bold", fontSize: 14,
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 14,
     color: colors.espresso, marginBottom: 3,
   },
   resultAuthor: { fontSize: 12, color: colors.char3, marginBottom: 2 },
@@ -497,4 +495,5 @@ const styles = StyleSheet.create({
     fontSize: 13, color: colors.char3,
     textAlign: "center", lineHeight: 20,
   },
+
 });

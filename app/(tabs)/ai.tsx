@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment, borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
   },
-  aiTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
+  aiTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
   contextPill: {
     flexDirection: "row", alignItems: "center", gap: 7,
     backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 10,
   },
   recCover: { width: 46, height: 66, borderRadius: 5 },
-  recTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 13, color: colors.espresso, marginBottom: 2 },
+  recTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 13, color: colors.espresso, marginBottom: 2 },
   recAuthor: { fontSize: 11, color: colors.char3, marginBottom: 4 },
   recWhy: { fontSize: 11, color: colors.terracotta, lineHeight: 15 },
 

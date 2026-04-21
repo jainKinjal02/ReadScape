@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   appName: {
     color: "#FFFFFF",
     fontSize: 54,
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     letterSpacing: 0.5,
     lineHeight: 60,
     marginBottom: 14,

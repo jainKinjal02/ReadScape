@@ -9,6 +9,12 @@ interface AppState {
   userName: string;
   setUserName: (name: string) => void;
 
+  readingGoal: number;
+  setReadingGoal: (goal: number) => void;
+
+  userBio: string;
+  setUserBio: (bio: string) => void;
+
   // Books
   books: Book[];
   setBooks: (books: Book[]) => void;
@@ -33,6 +39,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   userName: "",
   setUserName: (name) => set({ userName: name }),
+
+  readingGoal: 0,
+  setReadingGoal: (goal) => set({ readingGoal: goal }),
+
+  userBio: "",
+  setUserBio: (bio) => set({ userBio: bio }),
 
   books: [],
   setBooks: (books) => set({ books }),

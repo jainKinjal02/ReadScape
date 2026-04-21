@@ -20,9 +20,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        playfair: ["PlayfairDisplay_400Regular"],
-        "playfair-bold": ["PlayfairDisplay_700Bold"],
-        "playfair-italic": ["PlayfairDisplay_400Regular_Italic"],
+        cormorant: ["CormorantGaramond_400Regular"],
+        "cormorant-bold": ["CormorantGaramond_700Bold"],
+        "cormorant-italic": ["CormorantGaramond_400Regular_Italic"],
       },
     },
   },

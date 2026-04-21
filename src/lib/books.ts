@@ -61,13 +61,37 @@ export async function updateBookStatus(
 
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
-  const url =
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
-    `&limit=20&fields=key,title,author_name,cover_i,number_of_pages_median,subject`;
-  const res = await fetch(url);
+  const fields = "key,title,author_name,cover_i,number_of_pages_median,subject";
+
+  // Title-specific search gives the most accurate results for book names
+  const titleUrl =
+    `https://openlibrary.org/search.json?title=${encodeURIComponent(query)}` +
+    `&fields=${fields}&limit=20`;
+
+  const res = await fetch(titleUrl);
   if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
   const json = await res.json();
-  return (json.docs ?? []).map(mapOpenLibraryDoc).filter((b: GoogleBook) => b.volumeInfo.title);
+  let docs: any[] = json.docs ?? [];
+
+  // If title search gives fewer than 4 hits the user might be searching by author —
+  // run a general search and merge in any new results.
+  if (docs.length < 4) {
+    try {
+      const generalRes = await fetch(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=15`
+      );
+      if (generalRes.ok) {
+        const generalJson = await generalRes.json();
+        const existing = new Set(docs.map((d: any) => d.key));
+        const extra = (generalJson.docs ?? []).filter((d: any) => !existing.has(d.key));
+        docs = [...docs, ...extra];
+      }
+    } catch {
+      // General search is best-effort — ignore failures
+    }
+  }
+
+  return docs.map(mapOpenLibraryDoc).filter((b: GoogleBook) => b.volumeInfo.title);
 }
 
 function mapOpenLibraryDoc(doc: any): GoogleBook {

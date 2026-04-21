@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   heroContent: { paddingHorizontal: 24, paddingTop: 8 },
   heroEmoji: { fontSize: 44, marginBottom: 10 },
   heroTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 34, color: "#ffffff",
     marginBottom: 6,
   },
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   cover: { width: 64, height: 94, borderRadius: 8 },
   bookInfo: { flex: 1, justifyContent: "center" },
   bookTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 15, color: colors.espresso, marginBottom: 4,
   },
   bookAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   emptyEmoji: { fontSize: 52, marginBottom: 16 },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 20, color: colors.espresso,
     textAlign: "center", marginBottom: 8,
   },

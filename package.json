@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/cormorant-garamond": "^0.4.1",
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/cli": "^55.0.23",
     "@supabase/supabase-js": "^2.103.0",

@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   backTxt: { fontSize: 13, color: colors.char3 },
   sessBookRow: { flexDirection: "row", gap: 12, alignItems: "center" },
   sessCover: { width: 40, height: 58, borderRadius: 4 },
-  sessTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: colors.espresso },
+  sessTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso },
   sessAuthor: { fontSize: 12, color: colors.char3, marginTop: 2 },
 
   body: { padding: 20 },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(22,32,48,0.9)", borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, gap: 12,
   },
-  pageNum: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 32, color: colors.espresso },
+  pageNum: { fontFamily: "CormorantGaramond_700Bold", fontSize: 32, color: colors.espresso },
   pageOf: { fontSize: 12, color: colors.char3 },
   pageBtns: { flexDirection: "column", gap: 6 },
   pageBtn: {

@@ -3,24 +3,26 @@ import React, { useEffect, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import {
   useFonts,
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_400Regular_Italic,
-} from "@expo-google-fonts/playfair-display";
+  CormorantGaramond_400Regular,
+  CormorantGaramond_700Bold,
+  CormorantGaramond_400Regular_Italic,
+} from "@expo-google-fonts/cormorant-garamond";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
 import { View } from "react-native";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_400Regular_Italic,
+    CormorantGaramond_400Regular,
+    CormorantGaramond_700Bold,
+    CormorantGaramond_400Regular_Italic,
   });
 
   const router = useRouter();
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
+  const setReadingGoal = useAppStore((s) => s.setReadingGoal);
+  const setUserBio = useAppStore((s) => s.setUserBio);
 
   // Store whether the user already has a session — navigate only after
   // fontsLoaded is true so the Stack navigator is mounted first.
@@ -29,8 +31,11 @@ export default function RootLayout() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        const meta = session.user.user_metadata ?? {};
         setUserId(session.user.id);
-        setUserName(session.user.user_metadata?.name ?? "Reader");
+        setUserName(meta.name ?? "Reader");
+        setReadingGoal(Number(meta.reading_goal) || 0);
+        setUserBio(meta.bio ?? "");
         setShouldRedirectHome(true);
       }
     });
@@ -38,7 +43,10 @@ export default function RootLayout() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
       if (session) {
-        setUserName(session.user.user_metadata?.name ?? "Reader");
+        const meta = session.user.user_metadata ?? {};
+        setUserName(meta.name ?? "Reader");
+        setReadingGoal(Number(meta.reading_goal) || 0);
+        setUserBio(meta.bio ?? "");
       }
     });
     return () => listener.subscription.unsubscribe();

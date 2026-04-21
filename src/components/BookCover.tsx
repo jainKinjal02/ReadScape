@@ -36,7 +36,7 @@ export function BookCover({
             color: colors.inkMuted,
             fontSize: 11,
             textAlign: "center",
-            fontFamily: "PlayfairDisplay_400Regular_Italic",
+            fontFamily: "CormorantGaramond_400Regular_Italic",
           }}
           numberOfLines={4}
         >

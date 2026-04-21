@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
+import { useAppStore } from "../../src/store";
 
 const { width: SW } = Dimensions.get("window");
 // Card is 47% of (screen - 40px padding - 12px gap)
@@ -186,6 +187,7 @@ function GenreCard({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
+  const readingGoal = useAppStore((s) => s.readingGoal);
 
   return (
     <View style={{ flex: 1 }}>
@@ -212,7 +214,9 @@ export default function InsightsScreen() {
               <View style={styles.bigStat}>
                 <Text style={styles.bigStatV}>{STATS.booksRead}</Text>
                 <Text style={styles.bigStatL}>Books finished</Text>
-                <Text style={styles.bigStatS}>Goal: 20 books</Text>
+                <Text style={styles.bigStatS}>
+                  {readingGoal > 0 ? `Goal: ${readingGoal} books` : "Set a goal"}
+                </Text>
               </View>
               <View style={styles.bigStat}>
                 <Text style={styles.bigStatV}>2,847</Text>
@@ -277,7 +281,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 14,
   },
-  insTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: colors.espresso },
+  insTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
   insSub: { fontSize: 13, color: colors.char3, marginTop: 2 },
 
   body: { paddingTop: 16 },
@@ -292,12 +296,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
   },
-  bigStatV: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: colors.espresso },
+  bigStatV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: colors.espresso },
   bigStatL: { fontSize: 11, color: colors.char3, marginTop: 2 },
   bigStatS: { fontSize: 11, color: colors.terracotta, marginTop: 4, fontWeight: "500" },
 
   secHdr: { paddingHorizontal: 20, marginBottom: 14 },
-  secTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: colors.espresso },
+  secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
   secSub: { fontSize: 12, color: colors.char3, marginTop: 3 },
 
   // Genre grid
@@ -340,7 +344,7 @@ const styles = StyleSheet.create({
   },
   genreEmoji: { fontSize: 34, marginBottom: 8 },
   genreName: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 16,
     color: "#ffffff",
     marginBottom: 3,
@@ -362,7 +366,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-  wrapTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },
+  wrapTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },
   wrapSub: { fontSize: 12, color: colors.char3 },
   wrapBtn: {
     marginTop: 10,

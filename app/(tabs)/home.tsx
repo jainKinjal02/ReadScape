@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useRef, useEffect, useState } from "react";
 import {
   View,
@@ -10,6 +11,10 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -44,8 +49,12 @@ export default function HomeScreen() {
   const router = useRouter();
   const userName = useAppStore((s) => s.userName);
   const streak = useAppStore((s) => s.streak);
+  const readingGoal = useAppStore((s) => s.readingGoal);
+  const userBio = useAppStore((s) => s.userBio);
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
+  const setReadingGoal = useAppStore((s) => s.setReadingGoal);
+  const setUserBio = useAppStore((s) => s.setUserBio);
   const { books } = useBooks();
 
   // Derive real data from Supabase books
@@ -93,6 +102,47 @@ export default function HomeScreen() {
     setUserName("");
     setLoggingOut(false);
     closePanel(() => router.replace("/"));
+  };
+
+  // ── Edit Profile ──────────────────────────────────────────────────────────
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editGoal, setEditGoal] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editFocused, setEditFocused] = useState<string | null>(null);
+
+  const openEditProfile = () => {
+    setEditName(userName);
+    setEditGoal(readingGoal > 0 ? String(readingGoal) : "");
+    setEditBio(userBio);
+    closePanel(() => setEditProfileOpen(true));
+  };
+
+  const saveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert("Name required", "Please enter your name.");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: editName.trim(),
+          reading_goal: Number(editGoal) || 0,
+          bio: editBio.trim(),
+        },
+      });
+      if (error) throw error;
+      setUserName(editName.trim());
+      setReadingGoal(Number(editGoal) || 0);
+      setUserBio(editBio.trim());
+      setEditProfileOpen(false);
+    } catch (err: any) {
+      Alert.alert("Couldn't save", err.message ?? "Try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   // ── Hero crossfade ────────────────────────────────────────────────────────
@@ -340,6 +390,7 @@ export default function HomeScreen() {
 
           {/* Menu items */}
           <View style={styles.panelMenu}>
+            <PanelRow icon="✏️" label="Edit Profile" onPress={openEditProfile} />
             <PanelRow icon="📚" label="My Library" onPress={() => closePanel(() => router.push("/(tabs)/library"))} />
             <PanelRow icon="✦" label="AI Companion" onPress={() => closePanel(() => router.push("/(tabs)/ai"))} />
             <PanelRow icon="📊" label="Insights" onPress={() => closePanel(() => router.push("/(tabs)/insights"))} />
@@ -374,6 +425,127 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
       </Modal>
+
+      {/* ── Edit Profile Modal ───────────────────────────────────────────────── */}
+      <Modal
+        visible={editProfileOpen}
+        animationType="slide"
+        onRequestClose={() => setEditProfileOpen(false)}
+        statusBarTranslucent
+      >
+        <SafeAreaView style={styles.editScreen}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Header */}
+              <View style={styles.editHeader}>
+                <TouchableOpacity
+                  style={styles.editBackBtn}
+                  onPress={() => setEditProfileOpen(false)}
+                >
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M19 12H5M12 5l-7 7 7 7"
+                      stroke={colors.espresso2}
+                      strokeWidth={1.8}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </TouchableOpacity>
+                <Text style={styles.editTitle}>Edit Profile</Text>
+                <View style={{ width: 34 }} />
+              </View>
+
+              {/* Avatar preview */}
+              <View style={styles.editAvatarWrap}>
+                <View style={styles.editAvatar}>
+                  <Text style={styles.editAvatarText}>
+                    {editName.trim()
+                      ? editName.trim().split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+                      : initials}
+                  </Text>
+                </View>
+                <Text style={styles.editAvatarHint}>Your initials are shown automatically</Text>
+              </View>
+
+              {/* Form fields */}
+              <View style={styles.editForm}>
+                {/* Name */}
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>YOUR NAME</Text>
+                  <TextInput
+                    style={[styles.editInput, editFocused === "name" && styles.editInputFocused]}
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Your display name"
+                    placeholderTextColor={colors.char3}
+                    autoCapitalize="words"
+                    onFocus={() => setEditFocused("name")}
+                    onBlur={() => setEditFocused(null)}
+                  />
+                </View>
+
+                {/* Reading goal */}
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>READING GOAL</Text>
+                  <Text style={styles.editLabelSub}>How many books do you want to read this year?</Text>
+                  <TextInput
+                    style={[styles.editInput, editFocused === "goal" && styles.editInputFocused]}
+                    value={editGoal}
+                    onChangeText={setEditGoal}
+                    placeholder="e.g. 20"
+                    placeholderTextColor={colors.char3}
+                    keyboardType="number-pad"
+                    onFocus={() => setEditFocused("goal")}
+                    onBlur={() => setEditFocused(null)}
+                  />
+                </View>
+
+                {/* Bio */}
+                <View style={styles.editField}>
+                  <Text style={styles.editLabel}>BIO</Text>
+                  <Text style={styles.editLabelSub}>A short note about your reading taste</Text>
+                  <TextInput
+                    style={[
+                      styles.editInput,
+                      styles.editBioInput,
+                      editFocused === "bio" && styles.editInputFocused,
+                    ]}
+                    value={editBio}
+                    onChangeText={setEditBio}
+                    placeholder="e.g. Lover of quiet fiction and late-night thrillers…"
+                    placeholderTextColor={colors.char3}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    onFocus={() => setEditFocused("bio")}
+                    onBlur={() => setEditFocused(null)}
+                  />
+                </View>
+
+                {/* Save */}
+                <TouchableOpacity
+                  style={[styles.saveBtn, savingProfile && { opacity: 0.65 }]}
+                  onPress={saveProfile}
+                  disabled={savingProfile}
+                  activeOpacity={0.85}
+                >
+                  {savingProfile ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={{ height: 40 }} />
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -407,7 +579,7 @@ const styles = StyleSheet.create({
   heroContent: { padding: 20, paddingBottom: 16 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   greeting: { fontSize: 13, color: "rgba(247,242,235,0.8)", marginBottom: 2 },
-  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: "#faf6f0" },
+  name: { fontFamily: "CormorantGaramond_700Bold", fontSize: 26, color: "#faf6f0" },
   avatar: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(127,119,221,0.35)",
@@ -444,7 +616,7 @@ const styles = StyleSheet.create({
     fontSize: 10, color: colors.terracotta,
     textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4,
   },
-  curTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: colors.espresso, marginBottom: 2 },
+  curTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso, marginBottom: 2 },
   curAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
   progBg: { backgroundColor: colors.cream3, borderRadius: 4, height: 4 },
   progFill: { backgroundColor: colors.terracotta, height: 4, borderRadius: 4 },
@@ -463,7 +635,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 12, alignItems: "center",
   },
-  statV: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: colors.espresso },
+  statV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 20, color: colors.espresso },
   statL: { fontSize: 10, color: colors.char3, marginTop: 2, textAlign: "center", lineHeight: 13 },
 
   // Want to read
@@ -471,7 +643,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 20, marginBottom: 12,
   },
-  secTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: colors.espresso },
+  secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
   secAll: { fontSize: 12, color: colors.terracotta, fontWeight: "500" },
   shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
   shelfItem: { width: 80, marginRight: 10 },
@@ -565,7 +737,7 @@ const styles = StyleSheet.create({
     color: "#f0eef8",
   },
   panelName: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 20,
     color: colors.espresso,
     marginBottom: 8,
@@ -599,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   panelStatV: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "CormorantGaramond_700Bold",
     fontSize: 22,
     color: colors.espresso,
   },
@@ -665,5 +837,107 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#e88080",
+  },
+
+  // ── Edit Profile ────────────────────────────────────────────────────────
+  editScreen: {
+    flex: 1,
+    backgroundColor: colors.cream,
+  },
+  editHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cream3,
+    backgroundColor: colors.parchment,
+  },
+  editBackBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
+    alignItems: "center", justifyContent: "center",
+  },
+  editTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 20,
+    color: colors.espresso,
+  },
+
+  editAvatarWrap: {
+    alignItems: "center",
+    paddingTop: 32,
+    paddingBottom: 28,
+  },
+  editAvatar: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: "rgba(127,119,221,0.18)",
+    borderWidth: 2.5, borderColor: colors.terracotta,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 10,
+  },
+  editAvatarText: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: colors.espresso,
+  },
+  editAvatarHint: {
+    fontSize: 12,
+    color: colors.char3,
+  },
+
+  editForm: {
+    paddingHorizontal: 20,
+  },
+  editField: {
+    marginBottom: 22,
+  },
+  editLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.espresso2,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  editLabelSub: {
+    fontSize: 12,
+    color: colors.char3,
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: colors.parchment,
+    borderWidth: 1.5,
+    borderColor: colors.cream3,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
+    color: colors.espresso,
+  },
+  editInputFocused: {
+    borderColor: colors.terracotta,
+    backgroundColor: "rgba(127,119,221,0.06)",
+  },
+  editBioInput: {
+    height: 100,
+    paddingTop: 13,
+  },
+
+  saveBtn: {
+    backgroundColor: colors.terracotta,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  saveBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

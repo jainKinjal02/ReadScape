@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   // Info
   bdInfo: { paddingTop: 44, paddingHorizontal: 20, alignItems: "center", paddingBottom: 16 },
   bdTitle: {
-    fontFamily: "PlayfairDisplay_700Bold", fontSize: 22,
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 22,
     color: colors.espresso, textAlign: "center", marginBottom: 4,
   },
   bdAuthor: { fontSize: 13, color: colors.char3, marginBottom: 12 },
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment, padding: 12, marginBottom: 12,
   },
   quoteText: {
-    fontFamily: "PlayfairDisplay_400Regular_Italic",
+    fontFamily: "CormorantGaramond_400Regular_Italic",
     fontSize: 13, color: colors.espresso, lineHeight: 20, marginBottom: 6,
   },
   quotePage: { fontSize: 11, color: colors.char3 },
