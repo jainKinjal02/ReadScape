@@ -56,6 +56,82 @@ export async function updateBookStatus(
   if (error) throw error;
 }
 
+export async function updateBookRating(
+  bookId: string,
+  rating: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update({ rating })
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+// ─── Quotes ──────────────────────────────────────────────────────────────────
+
+import { Quote, Note } from "../types";
+
+export async function fetchQuotes(bookId: string): Promise<Quote[]> {
+  const { data, error } = await supabase
+    .from("quotes")
+    .select("*")
+    .eq("book_id", bookId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addQuote(
+  userId: string,
+  bookId: string,
+  text: string,
+  page: number | null = null
+): Promise<Quote> {
+  const { data, error } = await supabase
+    .from("quotes")
+    .insert({ user_id: userId, book_id: bookId, text, page })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteQuote(quoteId: string): Promise<void> {
+  const { error } = await supabase.from("quotes").delete().eq("id", quoteId);
+  if (error) throw error;
+}
+
+// ─── Notes ───────────────────────────────────────────────────────────────────
+
+export async function fetchNotes(bookId: string): Promise<Note[]> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("book_id", bookId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addNote(
+  userId: string,
+  bookId: string,
+  text: string
+): Promise<Note> {
+  const { data, error } = await supabase
+    .from("notes")
+    .insert({ user_id: userId, book_id: bookId, text })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  const { error } = await supabase.from("notes").delete().eq("id", noteId);
+  if (error) throw error;
+}
+
 // ─── Open Library API (replaces Google Books — no key, always free) ──────────
 // Docs: https://openlibrary.org/dev/docs/api
 
