@@ -284,9 +284,8 @@ export default function LibraryScreen() {
         visible={showAddModal}
         animationType="slide"
         onRequestClose={closeModal}
-        statusBarTranslucent
       >
-        <SafeAreaView style={styles.modalScreen}>
+        <SafeAreaView style={styles.modalScreen} edges={["top", "bottom"]}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}

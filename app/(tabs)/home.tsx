@@ -436,9 +436,8 @@ export default function HomeScreen() {
         visible={editProfileOpen}
         animationType="slide"
         onRequestClose={() => setEditProfileOpen(false)}
-        statusBarTranslucent
       >
-        <SafeAreaView style={styles.editScreen}>
+        <SafeAreaView style={styles.editScreen} edges={["top", "bottom"]}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
