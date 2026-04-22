@@ -438,30 +438,33 @@ export default function HomeScreen() {
         onRequestClose={() => setEditProfileOpen(false)}
       >
         <SafeAreaView style={styles.editScreen} edges={["top", "bottom"]}>
+
+          {/* Header — outside ScrollView so it's always visible below the notch */}
+          <View style={styles.editHeader}>
+            <TouchableOpacity
+              style={styles.editBackBtn}
+              onPress={() => setEditProfileOpen(false)}
+            >
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M19 12H5M12 5l-7 7 7 7"
+                  stroke={colors.espresso2}
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={styles.editTitle}>Edit Profile</Text>
+            <View style={{ width: 34 }} />
+          </View>
+
+          {/* Scrollable form — KeyboardAvoidingView wraps only this part */}
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Header */}
-              <View style={styles.editHeader}>
-                <TouchableOpacity
-                  style={styles.editBackBtn}
-                  onPress={() => setEditProfileOpen(false)}
-                >
-                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      d="M19 12H5M12 5l-7 7 7 7"
-                      stroke={colors.espresso2}
-                      strokeWidth={1.8}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </Svg>
-                </TouchableOpacity>
-                <Text style={styles.editTitle}>Edit Profile</Text>
-                <View style={{ width: 34 }} />
-              </View>
 
               {/* Avatar preview */}
               <View style={styles.editAvatarWrap}>
