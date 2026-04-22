@@ -1,4 +1,4 @@
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useRef, useEffect, useState } from "react";
 import {
   View,
@@ -47,6 +47,7 @@ function FireIcon() {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const userName = useAppStore((s) => s.userName);
   const streak = useAppStore((s) => s.streak);
   const readingGoal = useAppStore((s) => s.readingGoal);
@@ -437,9 +438,9 @@ export default function HomeScreen() {
         animationType="slide"
         onRequestClose={() => setEditProfileOpen(false)}
       >
-        <SafeAreaView style={styles.editScreen} edges={["top", "bottom"]}>
+        <View style={[styles.editScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
 
-          {/* Header — outside ScrollView so it's always visible below the notch */}
+          {/* Header — outside ScrollView, padded by real inset value */}
           <View style={styles.editHeader}>
             <TouchableOpacity
               style={styles.editBackBtn}
@@ -475,7 +476,6 @@ export default function HomeScreen() {
                       : initials}
                   </Text>
                 </View>
-                <Text style={styles.editAvatarHint}>Your initials are shown automatically</Text>
               </View>
 
               {/* Form fields */}
@@ -567,7 +567,7 @@ export default function HomeScreen() {
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
