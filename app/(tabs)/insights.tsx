@@ -243,9 +243,6 @@ export default function InsightsScreen() {
               <>
                 <View style={styles.secHdr}>
                   <Text style={styles.secTitle}>♥ My Favourites</Text>
-                  <Text style={styles.secSub}>
-                    {favoriteBooks.length} book{favoriteBooks.length !== 1 ? "s" : ""}
-                  </Text>
                 </View>
                 <FlatList
                   data={favoriteBooks}
