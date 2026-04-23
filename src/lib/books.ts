@@ -67,6 +67,32 @@ export async function updateBookRating(
   if (error) throw error;
 }
 
+export async function updateCurrentPage(
+  bookId: string,
+  page: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update({ current_page: page })
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+export async function markBookFinished(
+  bookId: string,
+  totalPages: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update({
+      status: "read",
+      current_page: totalPages,
+      date_finished: new Date().toISOString(),
+    })
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
 // ─── Quotes ──────────────────────────────────────────────────────────────────
 
 import { Quote, Note } from "../types";

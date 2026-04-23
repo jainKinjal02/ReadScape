@@ -23,6 +23,9 @@ import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
   updateBookRating,
+  updateBookStatus,
+  updateCurrentPage,
+  markBookFinished,
   fetchQuotes,
   addQuote,
   deleteQuote,
@@ -30,6 +33,7 @@ import {
   addNote,
   deleteNote,
 } from "../../src/lib/books";
+import { BookStatus } from "../../src/types";
 
 type Tab = "quotes" | "notes";
 
@@ -53,6 +57,7 @@ export default function BookDetailScreen() {
   const insets = useSafeAreaInsets();
   const userId = useAppStore((s) => s.userId);
   const books = useAppStore((s) => s.books);
+  const updateBook = useAppStore((s) => s.updateBook);
 
   const book = books.find((b) => b.id === id) ?? null;
 
@@ -62,6 +67,10 @@ export default function BookDetailScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Current page editing
+  const [pageEditing, setPageEditing] = useState(false);
+  const [pageInput, setPageInput] = useState(String(book?.current_page ?? 0));
 
   const progress =
     book && book.total_pages && book.total_pages > 0
@@ -81,8 +90,40 @@ export default function BookDetailScreen() {
   }, [id]);
 
   const handleRating = async (star: number) => {
+    if (!book) return;
     setRating(star);
+    updateBook({ ...book, rating: star });
     if (id) await updateBookRating(id, star).catch(() => {});
+  };
+
+  const handleStatusChange = async (status: BookStatus) => {
+    if (!id || !book) return;
+    updateBook({ ...book, status });
+    await updateBookStatus(id, status).catch(() => {});
+  };
+
+  const handlePageSave = async () => {
+    if (!id || !book) return;
+    const raw = Number(pageInput) || 0;
+    const page = book.total_pages ? Math.min(raw, book.total_pages) : raw;
+    setPageEditing(false);
+    setPageInput(String(page));
+    // Auto-finish if user reached total pages
+    if (book.total_pages && page >= book.total_pages) {
+      updateBook({ ...book, current_page: page, status: "read", date_finished: new Date().toISOString() });
+      await markBookFinished(id, page).catch(() => {});
+    } else {
+      updateBook({ ...book, current_page: page });
+      await updateCurrentPage(id, page).catch(() => {});
+    }
+  };
+
+  const handleMarkFinished = async () => {
+    if (!id || !book) return;
+    const totalPages = book.total_pages ?? book.current_page;
+    updateBook({ ...book, status: "read", current_page: totalPages, date_finished: new Date().toISOString() });
+    setPageInput(String(totalPages));
+    await markBookFinished(id, totalPages).catch(() => {});
   };
 
   const handleAddQuote = async (text: string, page: number | null) => {
@@ -181,23 +222,33 @@ export default function BookDetailScreen() {
             <Text style={styles.bdAuthor}>by {book.author}</Text>
           )}
 
-          {/* Tags */}
+          {/* Genre + page count tags */}
           <View style={styles.bdTags}>
             {(book.genre ?? []).map((g) => (
               <View key={g} style={styles.bdTag}>
                 <Text style={styles.bdTagText}>{g}</Text>
               </View>
             ))}
-            <View style={[styles.bdTag, styles.bdTagStatus]}>
-              <Text style={[styles.bdTagText, { color: STATUS_COLORS[book.status] ?? colors.espresso2 }]}>
-                {STATUS_LABELS[book.status] ?? book.status}
-              </Text>
-            </View>
             {!!book.total_pages && (
               <View style={styles.bdTag}>
                 <Text style={styles.bdTagText}>{book.total_pages} pages</Text>
               </View>
             )}
+          </View>
+
+          {/* Tappable status chips */}
+          <View style={styles.statusChips}>
+            {(["reading", "read", "want_to_read", "abandoned"] as BookStatus[]).map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={[styles.statusChip, book.status === s && { backgroundColor: STATUS_COLORS[s], borderColor: STATUS_COLORS[s] }]}
+                onPress={() => handleStatusChange(s)}
+              >
+                <Text style={[styles.statusChipText, book.status === s && styles.statusChipTextActive]}>
+                  {STATUS_LABELS[s]}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Star rating */}
@@ -225,10 +276,28 @@ export default function BookDetailScreen() {
             <View style={[styles.progFill, { width: `${progress}%` }]} />
           </View>
           <View style={styles.bdStatsMini}>
-            <View style={styles.bdStatMini}>
-              <Text style={styles.bdStatV}>{book.current_page}</Text>
-              <Text style={styles.bdStatL}>Current page</Text>
-            </View>
+            {/* Editable current page */}
+            <TouchableOpacity
+              style={styles.bdStatMini}
+              onPress={() => { setPageEditing(true); setPageInput(String(book.current_page)); }}
+              activeOpacity={0.7}
+            >
+              {pageEditing ? (
+                <TextInput
+                  style={styles.pageEditInput}
+                  value={pageInput}
+                  onChangeText={setPageInput}
+                  keyboardType="number-pad"
+                  autoFocus
+                  onBlur={handlePageSave}
+                  onSubmitEditing={handlePageSave}
+                  selectTextOnFocus
+                />
+              ) : (
+                <Text style={[styles.bdStatV, { color: colors.terracotta }]}>{book.current_page}</Text>
+              )}
+              <Text style={styles.bdStatL}>Tap to edit page</Text>
+            </TouchableOpacity>
             <View style={[styles.bdStatMini, styles.bdStatMiniMid]}>
               <Text style={styles.bdStatV}>{book.total_pages ?? "—"}</Text>
               <Text style={styles.bdStatL}>Total pages</Text>
@@ -238,6 +307,13 @@ export default function BookDetailScreen() {
               <Text style={styles.bdStatL}>Complete</Text>
             </View>
           </View>
+
+          {/* Mark as Finished CTA */}
+          {book.status === "reading" && (
+            <TouchableOpacity style={styles.finishBtn} onPress={handleMarkFinished}>
+              <Text style={styles.finishBtnText}>✓ Mark as Finished</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── Tabs header (sticky) ── */}
@@ -487,10 +563,32 @@ const styles = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
     borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.cream2,
   },
-  bdTagStatus: {
-    backgroundColor: "rgba(127,119,221,0.12)", borderColor: "rgba(127,119,221,0.3)",
-  },
   bdTagText: { fontSize: 11, color: colors.espresso2, fontWeight: "500" },
+
+  // Status chips
+  statusChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 },
+  statusChip: {
+    paddingVertical: 5, paddingHorizontal: 14, borderRadius: 20,
+    borderWidth: 1.5, borderColor: colors.cream3, backgroundColor: colors.cream2,
+  },
+  statusChipText: { fontSize: 11, color: colors.char3, fontWeight: "500" },
+  statusChipTextActive: { color: "#fff", fontWeight: "700" },
+
+  // Page edit
+  pageEditInput: {
+    fontSize: 13, fontWeight: "600", color: colors.terracotta,
+    borderBottomWidth: 1.5, borderBottomColor: colors.terracotta,
+    paddingVertical: 0, minWidth: 36, textAlign: "center",
+  },
+
+  // Mark as Finished
+  finishBtn: {
+    marginTop: 12, backgroundColor: "#5bbfaa",
+    borderRadius: 20, paddingVertical: 10, paddingHorizontal: 24,
+    alignSelf: "center",
+  },
+  finishBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+
   starsRow: { flexDirection: "row", gap: 3, marginBottom: 12 },
   star: { fontSize: 18, color: colors.cream3 },
   starFilled: { color: colors.terracotta },
