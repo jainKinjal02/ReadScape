@@ -266,18 +266,8 @@ export default function BookDetailScreen() {
           <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} scrollRef={scrollRef} />
         )}
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: insets.bottom + 20 }} />
       </ScrollView>
-
-      {/* ── Bottom action bar ── */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
-        <TouchableOpacity
-          style={[styles.bottomBtnPrimary, { flex: 1 }]}
-          onPress={() => router.push("/(tabs)/ai")}
-        >
-          <Text style={styles.bottomBtnPrimaryText}>Ask your reading companion</Text>
-        </TouchableOpacity>
-      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -609,16 +599,4 @@ const styles = StyleSheet.create({
   },
   addCancelBtnText: { color: colors.char3, fontSize: 13 },
 
-  // Bottom bar
-  bottomBar: {
-    flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, paddingTop: 10,
-    backgroundColor: colors.cream,
-    borderTopWidth: 1, borderTopColor: colors.cream3,
-  },
-  bottomBtnPrimary: {
-    flex: 1, backgroundColor: colors.espresso,
-    borderRadius: 20, paddingVertical: 13, alignItems: "center",
-  },
-  bottomBtnPrimaryText: { fontSize: 13, fontWeight: "600", color: colors.cream },
 });
