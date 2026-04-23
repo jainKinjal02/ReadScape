@@ -178,19 +178,22 @@ export default function BookDetailScreen() {
 
         {/* ── Hero blurred background ── */}
         <View style={[styles.bdHero, { paddingTop: insets.top + 8 }]}>
-          {book.cover_url ? (
-            <Image
-              source={{ uri: book.cover_url }}
-              style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]}
-              contentFit="cover"
+          {/* Clip only the background layers, not the floating cover */}
+          <View style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}>
+            {book.cover_url ? (
+              <Image
+                source={{ uri: book.cover_url }}
+                style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]}
+                contentFit="cover"
+              />
+            ) : null}
+            <BlurView intensity={50} style={StyleSheet.absoluteFill} />
+            <LinearGradient
+              colors={["rgba(15,25,35,0.05)", colors.cream]}
+              locations={[0, 1]}
+              style={[StyleSheet.absoluteFill, { top: "35%" }]}
             />
-          ) : null}
-          <BlurView intensity={50} style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={["rgba(15,25,35,0.05)", colors.cream]}
-            locations={[0, 1]}
-            style={[StyleSheet.absoluteFill, { top: "35%" }]}
-          />
+          </View>
 
           {/* Back button */}
           <View style={styles.bdTopRow}>
@@ -531,7 +534,7 @@ function NotesTab({
 
 const styles = StyleSheet.create({
   // Hero
-  bdHero: { height: 300, overflow: "hidden", position: "relative" },
+  bdHero: { height: 300 },
   bdTopRow: {
     flexDirection: "row", justifyContent: "space-between",
     paddingHorizontal: 16, paddingTop: 8,
