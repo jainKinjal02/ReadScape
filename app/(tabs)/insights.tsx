@@ -1,4 +1,4 @@
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useRef, useEffect } from "react";
 import {
   View,
@@ -23,6 +23,12 @@ const { width: SW } = Dimensions.get("window");
 const CARD_W = (SW - 40 - 12) / 2;
 
 const BG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80";
+
+const HEADER_IMGS = [
+  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80",
+  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800&q=80",
+  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800&q=80",
+];
 
 // ─── Genre configuration ─────────────────────────────────────────────────────
 // Add a local `image` require() for each genre as you generate the images.
@@ -188,9 +194,25 @@ function GenreCard({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const readingGoal = useAppStore((s) => s.readingGoal);
   const books = useAppStore((s) => s.books);
   const favoriteBooks = books.filter((b) => b.is_favorite);
+
+  // Crossfading header images
+  const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
+  const currentIdx = useRef(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cur = currentIdx.current;
+      const nxt = (cur + 1) % HEADER_IMGS.length;
+      Animated.parallel([
+        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
+        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
+      ]).start(() => { currentIdx.current = nxt; });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -202,14 +224,26 @@ export default function InsightsScreen() {
       />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
 
-      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* ── Atmospheric hero header ── */}
+      <View style={styles.heroHeader}>
+        {HEADER_IMGS.map((src, i) => (
+          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
+            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+        ))}
+        <LinearGradient
+          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.heroTitle}>Reading Insights</Text>
+          <Text style={styles.heroSub}>Your {new Date().getFullYear()} journey</Text>
+        </View>
+      </View>
 
-          {/* Header */}
-          <View style={styles.insHdr}>
-            <Text style={styles.insTitle}>Reading insights</Text>
-            <Text style={styles.insSub}>Your {new Date().getFullYear()} journey so far</Text>
-          </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
           <View style={styles.body}>
             {/* Stats 2×2 */}
@@ -308,16 +342,11 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  insHdr: {
-    backgroundColor: colors.parchment,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cream3,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 14,
-  },
-  insTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
-  insSub: { fontSize: 13, color: colors.char3, marginTop: 2 },
+  // Atmospheric hero header
+  heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
+  heroContent: { paddingHorizontal: 20, paddingBottom: 16 },
+  heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
+  heroSub: { fontSize: 13, color: "rgba(247,242,235,0.75)", marginTop: 3 },
 
   body: { paddingTop: 16 },
 

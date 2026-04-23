@@ -1,5 +1,5 @@
-import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState, useRef } from "react";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
@@ -25,6 +27,12 @@ import { searchBooks, addBookToLibrary } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
 const BG = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80";
+
+const HEADER_IMGS = [
+  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
+  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80",
+  "https://images.unsplash.com/photo-1524578271613-d550eacf6090?w=800&q=80",
+];
 
 type Filter = "all" | "reading" | "read" | "want_to_read" | "abandoned";
 
@@ -60,9 +68,25 @@ function SearchIcon() {
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const userId = useAppStore((s) => s.userId);
   const { books, loading, refresh } = useBooks();
   const setBooks = useAppStore((s) => s.setBooks);
+
+  // Crossfading header images
+  const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
+  const currentIdx = useRef(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cur = currentIdx.current;
+      const nxt = (cur + 1) % HEADER_IMGS.length;
+      Animated.parallel([
+        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
+        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
+      ]).start(() => { currentIdx.current = nxt; });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -215,16 +239,29 @@ export default function LibraryScreen() {
       <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
 
-      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
-        <View style={styles.container}>
+      {/* ── Atmospheric hero header ── */}
+      <View style={styles.heroHeader}>
+        {HEADER_IMGS.map((src, i) => (
+          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
+            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+        ))}
+        <LinearGradient
+          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.heroTitle}>My Library</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
+            <Text style={styles.addBtnText}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.heading}>My Library</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
-              <Text style={styles.addBtnText}>+ Add</Text>
-            </TouchableOpacity>
-          </View>
+      {/* ── Content below hero ── */}
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
+        <View style={styles.container}>
 
           {/* Filter pills */}
           <View style={styles.filterRow}>
@@ -247,14 +284,13 @@ export default function LibraryScreen() {
             </ScrollView>
           </View>
 
-          {/* Loading skeleton */}
+          {/* Loading / empty / grid */}
           {loading && books.length === 0 ? (
             <View style={styles.loadingWrap}>
               <ActivityIndicator color={colors.terracotta} />
               <Text style={styles.loadingText}>Loading your library…</Text>
             </View>
           ) : filtered.length === 0 && filter === "all" ? (
-            /* Empty library state */
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyIcon}>📚</Text>
               <Text style={styles.emptyTitle}>Your library is empty</Text>
@@ -360,16 +396,17 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  header: {
-    backgroundColor: "rgba(22,32,48,0.95)",
-    borderBottomWidth: 1, borderBottomColor: colors.cream3,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  // Atmospheric hero header
+  heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
+  heroContent: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end",
+    paddingHorizontal: 20, paddingBottom: 16,
   },
-  heading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
+  heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
   addBtn: {
-    backgroundColor: colors.terracotta, borderRadius: 16,
-    paddingVertical: 6, paddingHorizontal: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.45)",
+    borderRadius: 16, paddingVertical: 6, paddingHorizontal: 14,
   },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
 
