@@ -26,6 +26,7 @@ import {
   updateBookStatus,
   updateCurrentPage,
   markBookFinished,
+  deleteBook,
   fetchQuotes,
   addQuote,
   deleteQuote,
@@ -58,6 +59,7 @@ export default function BookDetailScreen() {
   const userId = useAppStore((s) => s.userId);
   const books = useAppStore((s) => s.books);
   const updateBook = useAppStore((s) => s.updateBook);
+  const removeBook = useAppStore((s) => s.removeBook);
 
   const book = books.find((b) => b.id === id) ?? null;
 
@@ -124,6 +126,26 @@ export default function BookDetailScreen() {
     updateBook({ ...book, status: "read", current_page: totalPages, date_finished: new Date().toISOString() });
     setPageInput(String(totalPages));
     await markBookFinished(id, totalPages).catch(() => {});
+  };
+
+  const handleDeleteBook = () => {
+    Alert.alert(
+      "Remove from Library",
+      `Remove "${book?.title}" from your library? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            if (!id) return;
+            removeBook(id);
+            router.back();
+            await deleteBook(id).catch(() => {});
+          },
+        },
+      ]
+    );
   };
 
   const handleAddQuote = async (text: string, page: number | null) => {
@@ -195,13 +217,24 @@ export default function BookDetailScreen() {
             />
           </View>
 
-          {/* Back button */}
+          {/* Back + Delete buttons */}
           <View style={styles.bdTopRow}>
             <TouchableOpacity style={styles.bdCircleBtn} onPress={() => router.back()}>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M19 12H5M12 5l-7 7 7 7"
                   stroke={colors.espresso}
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bdCircleBtn} onPress={handleDeleteBook}>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
+                  stroke="#c0392b"
                   strokeWidth={1.8}
                   strokeLinecap="round"
                   strokeLinejoin="round"

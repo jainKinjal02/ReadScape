@@ -45,6 +45,11 @@ export async function addBookToLibrary(
   return data;
 }
 
+export async function deleteBook(bookId: string): Promise<void> {
+  const { error } = await supabase.from("books").delete().eq("id", bookId);
+  if (error) throw error;
+}
+
 export async function updateBookStatus(
   bookId: string,
   status: BookStatus

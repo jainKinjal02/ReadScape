@@ -19,6 +19,7 @@ interface AppState {
   books: Book[];
   setBooks: (books: Book[]) => void;
   updateBook: (book: Book) => void;
+  removeBook: (bookId: string) => void;
 
   // Currently reading (derived: first book with status 'reading')
   currentlyReadingId: string | null;
@@ -51,6 +52,10 @@ export const useAppStore = create<AppState>((set) => ({
   updateBook: (book) =>
     set((state) => ({
       books: state.books.map((b) => (b.id === book.id ? book : b)),
+    })),
+  removeBook: (bookId) =>
+    set((state) => ({
+      books: state.books.filter((b) => b.id !== bookId),
     })),
 
   currentlyReadingId: null,
