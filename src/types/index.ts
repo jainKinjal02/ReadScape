@@ -18,7 +18,7 @@ export interface Book {
   total_pages: number | null;
   current_page: number;
   rating: number | null;
-  is_favorite: boolean;
+  is_favorite: boolean | null;
   synopsis: string | null;
   google_books_id: string | null;
   date_added: string;
