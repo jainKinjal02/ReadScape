@@ -274,7 +274,6 @@ export default function InsightsScreen() {
             {/* Genre section header */}
             <View style={styles.secHdr}>
               <Text style={styles.secTitle}>Explore by genre</Text>
-              <Text style={styles.secSub}>Tap a genre to see your books</Text>
             </View>
 
             {/* Genre grid */}
