@@ -132,8 +132,16 @@ export default function BookDetailScreen() {
   const handleToggleFavorite = async () => {
     if (!id || !book) return;
     const next = !book.is_favorite;
-    updateBook({ ...book, is_favorite: next });
-    await toggleFavorite(id, next).catch(() => {});
+    updateBook({ ...book, is_favorite: next }); // optimistic
+    try {
+      await toggleFavorite(id, next);
+    } catch (e: any) {
+      updateBook({ ...book, is_favorite: !next }); // revert on failure
+      Alert.alert(
+        "Couldn't save favourite",
+        "Please run this SQL in your Supabase dashboard:\n\nalter table books add column if not exists is_favorite boolean default false;"
+      );
+    }
   };
 
   const handleDeleteBook = () => {
