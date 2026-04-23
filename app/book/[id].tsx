@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -121,8 +123,15 @@ export default function BookDetailScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[2]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.cream }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
+        keyboardShouldPersistTaps="handled"
+      >
 
         {/* ── Hero blurred background ── */}
         <View style={[styles.bdHero, { paddingTop: insets.top + 8 }]}>
@@ -255,7 +264,7 @@ export default function BookDetailScreen() {
           <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} />
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* ── Bottom action bar ── */}
@@ -267,7 +276,7 @@ export default function BookDetailScreen() {
           <Text style={styles.bottomBtnPrimaryText}>Ask your reading companion</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -581,7 +590,6 @@ const styles = StyleSheet.create({
 
   // Bottom bar
   bottomBar: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
     flexDirection: "row", gap: 10,
     paddingHorizontal: 20, paddingTop: 10,
     backgroundColor: colors.cream,
