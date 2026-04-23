@@ -4,8 +4,8 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   StyleSheet,
-  
   TouchableOpacity,
   Animated,
   Dimensions,
@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
 import { useAppStore } from "../../src/store";
+import { CoverImage } from "../../src/components/CoverImage";
 
 const { width: SW } = Dimensions.get("window");
 // Card is 47% of (screen - 40px padding - 12px gap)
@@ -188,6 +189,8 @@ function GenreCard({
 export default function InsightsScreen() {
   const router = useRouter();
   const readingGoal = useAppStore((s) => s.readingGoal);
+  const books = useAppStore((s) => s.books);
+  const favoriteBooks = books.filter((b) => b.is_favorite);
 
   return (
     <View style={{ flex: 1 }}>
@@ -234,6 +237,42 @@ export default function InsightsScreen() {
                 <Text style={styles.bigStatS}>Across all books</Text>
               </View>
             </View>
+
+            {/* Favorites shelf */}
+            {favoriteBooks.length > 0 && (
+              <>
+                <View style={styles.secHdr}>
+                  <Text style={styles.secTitle}>♥ My Favourites</Text>
+                  <Text style={styles.secSub}>
+                    {favoriteBooks.length} book{favoriteBooks.length !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+                <FlatList
+                  data={favoriteBooks}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(b) => b.id}
+                  contentContainerStyle={styles.favList}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.favItem}
+                      onPress={() => router.push(`/book/${item.id}`)}
+                      activeOpacity={0.8}
+                    >
+                      <CoverImage
+                        uri={item.cover_url ?? ""}
+                        title={item.title}
+                        style={styles.favCover}
+                      />
+                      <Text style={styles.favTitle} numberOfLines={2}>{item.title}</Text>
+                      {!!item.author && (
+                        <Text style={styles.favAuthor} numberOfLines={1}>{item.author}</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              </>
+            )}
 
             {/* Genre section header */}
             <View style={styles.secHdr}>
@@ -299,6 +338,16 @@ const styles = StyleSheet.create({
   bigStatV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: colors.espresso },
   bigStatL: { fontSize: 11, color: colors.char3, marginTop: 2 },
   bigStatS: { fontSize: 11, color: colors.terracotta, marginTop: 4, fontWeight: "500" },
+
+  // Favourites
+  favList: { paddingHorizontal: 20, gap: 12, paddingBottom: 20 },
+  favItem: { width: 90 },
+  favCover: { width: 90, height: 130, borderRadius: 8, marginBottom: 6 },
+  favTitle: {
+    fontSize: 11, color: colors.espresso, fontWeight: "500",
+    lineHeight: 15,
+  },
+  favAuthor: { fontSize: 10, color: colors.char3, marginTop: 2 },
 
   secHdr: { paddingHorizontal: 20, marginBottom: 14 },
   secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
