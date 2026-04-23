@@ -1,5 +1,5 @@
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -61,6 +61,7 @@ export default function BookDetailScreen() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
 
   const progress =
     book && book.total_pages && book.total_pages > 0
@@ -128,6 +129,7 @@ export default function BookDetailScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[2]}
         keyboardShouldPersistTaps="handled"
@@ -259,9 +261,9 @@ export default function BookDetailScreen() {
             <ActivityIndicator color={colors.terracotta} />
           </View>
         ) : activeTab === "quotes" ? (
-          <QuotesTab quotes={quotes} onAdd={handleAddQuote} onDelete={handleDeleteQuote} />
+          <QuotesTab quotes={quotes} onAdd={handleAddQuote} onDelete={handleDeleteQuote} scrollRef={scrollRef} />
         ) : (
-          <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} />
+          <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} scrollRef={scrollRef} />
         )}
 
         <View style={{ height: 20 }} />
@@ -286,15 +288,25 @@ function QuotesTab({
   quotes,
   onAdd,
   onDelete,
+  scrollRef,
 }: {
   quotes: Quote[];
   onAdd: (text: string, page: number | null) => Promise<void>;
   onDelete: (id: string) => void;
+  scrollRef: React.RefObject<ScrollView>;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [text, setText] = useState("");
   const [pageText, setPageText] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (showAdd) {
+      // Wait for keyboard to fully open (~300ms), then scroll input into view
+      const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+      return () => clearTimeout(t);
+    }
+  }, [showAdd]);
 
   const handleSave = async () => {
     if (!text.trim()) return;
@@ -371,14 +383,23 @@ function NotesTab({
   notes,
   onAdd,
   onDelete,
+  scrollRef,
 }: {
   notes: Note[];
   onAdd: (text: string) => Promise<void>;
   onDelete: (id: string) => void;
+  scrollRef: React.RefObject<ScrollView>;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (showAdd) {
+      const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+      return () => clearTimeout(t);
+    }
+  }, [showAdd]);
 
   const handleSave = async () => {
     if (!text.trim()) return;
