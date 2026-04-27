@@ -200,7 +200,7 @@ export default function AIScreen() {
               value={input}
               onChangeText={setInput}
               placeholder="Ask anything about your book…"
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholderTextColor={colors.char3}
               onSubmitEditing={() => sendMessage()}
               returnKeyType="send"
             />
@@ -246,48 +246,48 @@ const styles = StyleSheet.create({
   msgAI: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginBottom: 12 },
   aiAv: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "rgba(127,119,221,0.6)",
-    borderWidth: 1, borderColor: "rgba(127,119,221,0.8)",
+    backgroundColor: colors.terracotta,
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   bubbleAI: {
-    backgroundColor: "rgba(247,244,239,0.92)",
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 4, borderTopLeftRadius: 0, borderTopRightRadius: 14,
     borderBottomRightRadius: 14, borderBottomLeftRadius: 14,
-    padding: 10, maxWidth: "78%",
+    padding: 12, maxWidth: "78%",
   },
-  bubbleAIText: { fontSize: 13, color: colors.espresso, lineHeight: 19 },
+  bubbleAIText: { fontSize: 13, color: colors.espresso, lineHeight: 20 },
   bubbleUser: {
-    backgroundColor: colors.espresso,
+    backgroundColor: colors.terracotta,
     borderRadius: 14, borderTopRightRadius: 4,
-    padding: 10, maxWidth: "78%", alignSelf: "flex-end", marginBottom: 12,
+    padding: 12, maxWidth: "78%", alignSelf: "flex-end", marginBottom: 12,
   },
-  bubbleUserText: { fontSize: 13, color: colors.cream, lineHeight: 19 },
+  bubbleUserText: { fontSize: 13, color: "#fff", lineHeight: 20 },
 
   // Starter prompts
   starterList: { padding: 16 },
-  starterLbl: { fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10 },
+  starterLbl: { fontSize: 12, color: colors.char3, marginBottom: 10 },
   starterChip: {
-    backgroundColor: "rgba(247,244,239,0.1)",
-    borderWidth: 1, borderColor: "rgba(247,244,239,0.2)",
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, marginBottom: 8,
   },
-  starterText: { fontSize: 13, color: "rgba(247,244,239,0.9)", lineHeight: 18 },
+  starterText: { fontSize: 13, color: colors.espresso, lineHeight: 18 },
 
   // Input bar
   inputRow: {
     flexDirection: "row", gap: 8,
     paddingHorizontal: 14, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(15,25,35,0.7)",
+    borderTopWidth: 1, borderTopColor: colors.cream3,
+    backgroundColor: colors.cream,
     alignItems: "center",
   },
   inputField: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9,
-    fontSize: 13, color: "#faf6f0",
+    fontSize: 13, color: colors.espresso,
   },
   sendBtn: {
     width: 36, height: 36, borderRadius: 18,
