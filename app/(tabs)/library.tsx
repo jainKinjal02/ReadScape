@@ -321,21 +321,21 @@ export default function LibraryScreen() {
         animationType="slide"
         onRequestClose={closeModal}
       >
-        <SafeAreaView style={styles.modalScreen} edges={["top", "bottom"]}>
+        <View style={[styles.modalScreen, { paddingBottom: insets.bottom }]}>
+          {/* Header outside KAV so it never moves with the keyboard */}
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 14 }]}>
+            <Text style={styles.modalTitle}>Add a Book</Text>
+            <TouchableOpacity onPress={closeModal} style={styles.modalCloseBtn}>
+              <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                <Path d="M18 6L6 18M6 6l12 12" stroke={colors.espresso2} strokeWidth={2} strokeLinecap="round" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
+
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add a Book</Text>
-              <TouchableOpacity onPress={closeModal} style={styles.modalCloseBtn}>
-                <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-                  <Path d="M18 6L6 18M6 6l12 12" stroke={colors.espresso2} strokeWidth={2} strokeLinecap="round" />
-                </Svg>
-              </TouchableOpacity>
-            </View>
-
             {/* Search input */}
             <View style={styles.searchRow}>
               <View style={styles.searchInputWrap}>
@@ -387,7 +387,7 @@ export default function LibraryScreen() {
               </View>
             ) : null}
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14,
+    paddingHorizontal: 20, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     backgroundColor: colors.parchment,
   },
