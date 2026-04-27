@@ -1,4 +1,4 @@
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -129,7 +129,7 @@ export default function AIScreen() {
       </View>
 
       {/* ── Content ── */}
-      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
+      <View style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -213,7 +213,7 @@ export default function AIScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }

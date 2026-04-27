@@ -77,6 +77,7 @@ export default function TabsLayout() {
         tabBarShowLabel: true,
         tabBarActiveTintColor: colors.terracotta,
         tabBarInactiveTintColor: colors.char3,
+        tabBarIndicatorStyle: { height: 0, backgroundColor: "transparent" },
         lazy: false,
       }}
     >
