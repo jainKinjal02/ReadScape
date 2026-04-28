@@ -191,6 +191,32 @@ function GenreCard({
   );
 }
 
+// ─── Fan position config per slot ─────────────────────────────────────────────
+const FAN_POS: Record<number, { rotate: number; tx: number; ty: number; scale: number }[]> = {
+  1: [{ rotate: 0,   tx: 0,   ty: 0,  scale: 1    }],
+  2: [{ rotate: -10, tx: -44, ty: 10, scale: 0.90 },
+      { rotate:  10, tx:  44, ty: 10, scale: 0.90 }],
+  3: [{ rotate: -15, tx: -58, ty: 18, scale: 0.83 },
+      { rotate:   0, tx:   0, ty:  0, scale: 1    },
+      { rotate:  15, tx:  58, ty: 18, scale: 0.83 }],
+};
+// JSX render order for each fan size so the center book appears on top
+const FAN_RENDER_ORDER: Record<number, number[]> = { 1: [0], 2: [0, 1], 3: [0, 2, 1] };
+
+// ─── Staggered timeline row ───────────────────────────────────────────────────
+function StaggeredRow({ index, children }: { index: number; children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const ty      = useRef(new Animated.Value(22)).current;
+  useEffect(() => {
+    const delay = 480 + index * 90;
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+      Animated.timing(ty,      { toValue: 0, duration: 320, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return <Animated.View style={{ opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
+}
+
 // ─── Year Wrap Modal ──────────────────────────────────────────────────────────
 function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
@@ -236,6 +262,47 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
   const goalMet = readingGoal > 0 && finishedBooks.length >= readingGoal;
 
+  // Cover fan — up to 3 books with a cover image
+  const coverBooks = finishedBooks.filter((b) => !!b.cover_url).slice(0, 3);
+  const fanCount = Math.min(coverBooks.length, 3) as 1 | 2 | 3;
+
+  // One animated slot per fan position (always 3 slots, unused ones stay at opacity 0)
+  const fanAnims = useRef(
+    Array.from({ length: 3 }, () => ({
+      rotate:  new Animated.Value(0),
+      tx:      new Animated.Value(0),
+      ty:      new Animated.Value(50),
+      scale:   new Animated.Value(0.55),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (visible && fanCount > 0) {
+      const positions = FAN_POS[fanCount];
+      Animated.parallel(
+        fanAnims.slice(0, fanCount).flatMap((anim, i) => {
+          const p = positions[i];
+          return [
+            Animated.spring(anim.rotate, { toValue: p.rotate, useNativeDriver: true, speed: 11, bounciness: 7 }),
+            Animated.spring(anim.tx,     { toValue: p.tx,     useNativeDriver: true, speed: 11, bounciness: 5 }),
+            Animated.spring(anim.ty,     { toValue: p.ty,     useNativeDriver: true, speed: 11, bounciness: 5 }),
+            Animated.spring(anim.scale,  { toValue: p.scale,  useNativeDriver: true, speed: 11, bounciness: 5 }),
+            Animated.timing(anim.opacity, { toValue: 1, duration: 300, delay: i * 60, useNativeDriver: true }),
+          ];
+        })
+      ).start();
+    } else {
+      fanAnims.forEach((anim) => {
+        anim.rotate.setValue(0);
+        anim.tx.setValue(0);
+        anim.ty.setValue(50);
+        anim.scale.setValue(0.55);
+        anim.opacity.setValue(0);
+      });
+    }
+  }, [visible]);
+
   return (
     <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
       <StatusBar barStyle="light-content" />
@@ -269,6 +336,45 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
           {/* Year label */}
           <Text style={wrapStyles.yearLabel}>{year}</Text>
           <Text style={wrapStyles.wrapHeading}>Your Reading Year</Text>
+
+          {/* Animated cover fan */}
+          {fanCount > 0 && (
+            <View style={wrapStyles.fanContainer}>
+              {(FAN_RENDER_ORDER[fanCount] ?? []).map((coverIdx) => {
+                const anim = fanAnims[coverIdx];
+                const book = coverBooks[coverIdx];
+                if (!book) return null;
+                return (
+                  <Animated.View
+                    key={book.id}
+                    style={[
+                      wrapStyles.fanCard,
+                      {
+                        opacity: anim.opacity,
+                        transform: [
+                          { translateX: anim.tx },
+                          { translateY: anim.ty },
+                          {
+                            rotate: anim.rotate.interpolate({
+                              inputRange: [-20, 20],
+                              outputRange: ["-20deg", "20deg"],
+                            }),
+                          },
+                          { scale: anim.scale },
+                        ],
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: book.cover_url! }}
+                      style={wrapStyles.fanCoverImg}
+                      contentFit="cover"
+                    />
+                  </Animated.View>
+                );
+              })}
+            </View>
+          )}
 
           {finishedBooks.length === 0 ? (
             /* Empty state */
@@ -312,41 +418,43 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
               {/* Books timeline */}
               <Text style={wrapStyles.timelineTitle}>Books you finished</Text>
               {finishedBooks.map((book, idx) => (
-                <View key={book.id} style={wrapStyles.timelineRow}>
-                  <View style={wrapStyles.timelineLeft}>
-                    <Text style={wrapStyles.timelineNum}>{String(idx + 1).padStart(2, "0")}</Text>
-                    {idx < finishedBooks.length - 1 && <View style={wrapStyles.timelineLine} />}
-                  </View>
-                  <View style={wrapStyles.timelineCard}>
-                    {book.cover_url ? (
-                      <Image
-                        source={{ uri: book.cover_url }}
-                        style={wrapStyles.timelineCover}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={[wrapStyles.timelineCover, wrapStyles.timelineCoverFallback]}>
-                        <Text style={{ fontSize: 18 }}>📚</Text>
+                <StaggeredRow key={book.id} index={idx}>
+                  <View style={wrapStyles.timelineRow}>
+                    <View style={wrapStyles.timelineLeft}>
+                      <Text style={wrapStyles.timelineNum}>{String(idx + 1).padStart(2, "0")}</Text>
+                      {idx < finishedBooks.length - 1 && <View style={wrapStyles.timelineLine} />}
+                    </View>
+                    <View style={wrapStyles.timelineCard}>
+                      {book.cover_url ? (
+                        <Image
+                          source={{ uri: book.cover_url }}
+                          style={wrapStyles.timelineCover}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={[wrapStyles.timelineCover, wrapStyles.timelineCoverFallback]}>
+                          <Text style={{ fontSize: 18 }}>📚</Text>
+                        </View>
+                      )}
+                      <View style={wrapStyles.timelineInfo}>
+                        <Text style={wrapStyles.timelineBookTitle} numberOfLines={2}>{book.title}</Text>
+                        {book.author ? (
+                          <Text style={wrapStyles.timelineAuthor} numberOfLines={1}>{book.author}</Text>
+                        ) : null}
+                        {book.rating ? (
+                          <Text style={wrapStyles.timelineRating}>
+                            {"★".repeat(book.rating)}{"☆".repeat(5 - (book.rating ?? 0))}
+                          </Text>
+                        ) : null}
+                        {book.date_finished ? (
+                          <Text style={wrapStyles.timelineDate}>
+                            {new Date(book.date_finished).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          </Text>
+                        ) : null}
                       </View>
-                    )}
-                    <View style={wrapStyles.timelineInfo}>
-                      <Text style={wrapStyles.timelineBookTitle} numberOfLines={2}>{book.title}</Text>
-                      {book.author ? (
-                        <Text style={wrapStyles.timelineAuthor} numberOfLines={1}>{book.author}</Text>
-                      ) : null}
-                      {book.rating ? (
-                        <Text style={wrapStyles.timelineRating}>
-                          {"★".repeat(book.rating)}{"☆".repeat(5 - (book.rating ?? 0))}
-                        </Text>
-                      ) : null}
-                      {book.date_finished ? (
-                        <Text style={wrapStyles.timelineDate}>
-                          {new Date(book.date_finished).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        </Text>
-                      ) : null}
                     </View>
                   </View>
-                </View>
+                </StaggeredRow>
               ))}
             </>
           )}
@@ -613,6 +721,27 @@ const wrapStyles = StyleSheet.create({
   closePill: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.cream3 },
 
   scrollContent: { paddingHorizontal: 24, paddingTop: 8 },
+
+  // Book cover fan
+  fanContainer: {
+    height: 168,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 28,
+  },
+  fanCard: {
+    position: "absolute",
+    width: 76,
+    height: 110,
+    borderRadius: 10,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  fanCoverImg: { width: "100%", height: "100%" },
 
   yearLabel: {
     fontFamily: "CormorantGaramond_700Bold",
