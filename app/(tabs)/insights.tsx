@@ -1,5 +1,5 @@
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Modal,
+  StatusBar,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -189,11 +191,179 @@ function GenreCard({
   );
 }
 
+// ─── Year Wrap Modal ──────────────────────────────────────────────────────────
+function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const books = useAppStore((s) => s.books);
+  const readingGoal = useAppStore((s) => s.readingGoal);
+  const year = new Date().getFullYear();
+
+  // Slide-up animation
+  const slideY = useRef(new Animated.Value(600)).current;
+  const bgOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(bgOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+        Animated.spring(slideY, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 4 }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(bgOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(slideY, { toValue: 600, duration: 240, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  // Compute wrap stats from real store data
+  const finishedBooks = books.filter((b) => {
+    if (b.status !== "read") return false;
+    if (!b.date_finished) return true; // count books marked read even without date
+    return new Date(b.date_finished).getFullYear() === year;
+  });
+
+  const totalPages = finishedBooks.reduce((sum, b) => sum + (b.total_pages ?? 0), 0);
+
+  // Top genre
+  const genreCounts: Record<string, number> = {};
+  finishedBooks.forEach((b) => {
+    (b.genre ?? []).forEach((g) => {
+      genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+    });
+  });
+  const topGenre = Object.entries(genreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  const goalMet = readingGoal > 0 && finishedBooks.length >= readingGoal;
+
+  return (
+    <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
+      <StatusBar barStyle="light-content" />
+      <Animated.View style={[wrapStyles.overlay, { opacity: bgOpacity }]}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+      </Animated.View>
+
+      <Animated.View
+        style={[wrapStyles.sheet, { paddingBottom: insets.bottom + 16, transform: [{ translateY: slideY }] }]}
+      >
+        {/* Header gradient */}
+        <LinearGradient
+          colors={["rgba(127,119,221,0.35)", "rgba(127,119,221,0.08)", "transparent"]}
+          style={wrapStyles.sheetGrad}
+          pointerEvents="none"
+        />
+
+        {/* Stars decoration */}
+        <View style={wrapStyles.starsRow} pointerEvents="none">
+          {["✦", "✧", "✦", "✧", "✦"].map((s, i) => (
+            <Text key={i} style={[wrapStyles.star, { opacity: 0.4 + i * 0.08 }]}>{s}</Text>
+          ))}
+        </View>
+
+        {/* Close pill */}
+        <TouchableOpacity style={wrapStyles.closeArea} onPress={onClose}>
+          <View style={wrapStyles.closePill} />
+        </TouchableOpacity>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={wrapStyles.scrollContent}>
+          {/* Year label */}
+          <Text style={wrapStyles.yearLabel}>{year}</Text>
+          <Text style={wrapStyles.wrapHeading}>Your Reading Year</Text>
+
+          {finishedBooks.length === 0 ? (
+            /* Empty state */
+            <View style={wrapStyles.emptyState}>
+              <Text style={wrapStyles.emptyEmoji}>📖</Text>
+              <Text style={wrapStyles.emptyTitle}>Your story starts here</Text>
+              <Text style={wrapStyles.emptySub}>
+                Finish your first book of {year} and it'll appear in your wrap.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* Big stat cards */}
+              <View style={wrapStyles.statRow}>
+                <View style={wrapStyles.statCard}>
+                  <Text style={wrapStyles.statBig}>{finishedBooks.length}</Text>
+                  <Text style={wrapStyles.statLabel}>Books finished</Text>
+                  {readingGoal > 0 && (
+                    <Text style={[wrapStyles.statNote, goalMet && { color: colors.sage }]}>
+                      {goalMet ? `Goal of ${readingGoal} reached ✓` : `${readingGoal - finishedBooks.length} left to goal`}
+                    </Text>
+                  )}
+                </View>
+                <View style={wrapStyles.statCard}>
+                  <Text style={wrapStyles.statBig}>{totalPages > 0 ? totalPages.toLocaleString() : "—"}</Text>
+                  <Text style={wrapStyles.statLabel}>Pages turned</Text>
+                  {totalPages > 0 && (
+                    <Text style={wrapStyles.statNote}>{Math.round(totalPages / 365)} pages/day avg</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Top genre badge */}
+              {topGenre && (
+                <View style={wrapStyles.genreBadge}>
+                  <Text style={wrapStyles.genreBadgeLabel}>Your top genre</Text>
+                  <Text style={wrapStyles.genreBadgeValue}>{topGenre}</Text>
+                </View>
+              )}
+
+              {/* Books timeline */}
+              <Text style={wrapStyles.timelineTitle}>Books you finished</Text>
+              {finishedBooks.map((book, idx) => (
+                <View key={book.id} style={wrapStyles.timelineRow}>
+                  <View style={wrapStyles.timelineLeft}>
+                    <Text style={wrapStyles.timelineNum}>{String(idx + 1).padStart(2, "0")}</Text>
+                    {idx < finishedBooks.length - 1 && <View style={wrapStyles.timelineLine} />}
+                  </View>
+                  <View style={wrapStyles.timelineCard}>
+                    {book.cover_url ? (
+                      <Image
+                        source={{ uri: book.cover_url }}
+                        style={wrapStyles.timelineCover}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[wrapStyles.timelineCover, wrapStyles.timelineCoverFallback]}>
+                        <Text style={{ fontSize: 18 }}>📚</Text>
+                      </View>
+                    )}
+                    <View style={wrapStyles.timelineInfo}>
+                      <Text style={wrapStyles.timelineBookTitle} numberOfLines={2}>{book.title}</Text>
+                      {book.author ? (
+                        <Text style={wrapStyles.timelineAuthor} numberOfLines={1}>{book.author}</Text>
+                      ) : null}
+                      {book.rating ? (
+                        <Text style={wrapStyles.timelineRating}>
+                          {"★".repeat(book.rating)}{"☆".repeat(5 - (book.rating ?? 0))}
+                        </Text>
+                      ) : null}
+                      {book.date_finished ? (
+                        <Text style={wrapStyles.timelineDate}>
+                          {new Date(book.date_finished).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
+
+          <View style={{ height: 16 }} />
+        </ScrollView>
+      </Animated.View>
+    </Modal>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const readingGoal = useAppStore((s) => s.readingGoal);
+  const [showWrap, setShowWrap] = useState(false);
 
   // Crossfading header images
   const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
@@ -286,7 +456,7 @@ export default function InsightsScreen() {
             </View>
 
             {/* Year wrap CTA */}
-            <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85} onPress={() => setShowWrap(true)}>
               <Text style={styles.wrapTitle}>Your {new Date().getFullYear()} reading wrap</Text>
               <Text style={styles.wrapSub}>{STATS.booksRead} books · your year in one page</Text>
               <View style={styles.wrapBtn}>
@@ -298,6 +468,8 @@ export default function InsightsScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <YearWrapModal visible={showWrap} onClose={() => setShowWrap(false)} />
     </View>
   );
 }
@@ -382,7 +554,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Year wrap
+  // Year wrap CTA button
   wrapCTA: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -403,4 +575,150 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
+});
+
+// ─── Year Wrap Modal styles ───────────────────────────────────────────────────
+const wrapStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  sheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "92%",
+    backgroundColor: colors.parchment,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: "hidden",
+  },
+  sheetGrad: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+  },
+  starsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 14,
+    paddingTop: 28,
+    paddingBottom: 4,
+  },
+  star: { fontSize: 10, color: colors.terracotta },
+  closeArea: { position: "absolute", top: 0, left: 0, right: 0, alignItems: "center", paddingTop: 12 },
+  closePill: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.cream3 },
+
+  scrollContent: { paddingHorizontal: 24, paddingTop: 8 },
+
+  yearLabel: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 56,
+    color: colors.terracotta,
+    opacity: 0.22,
+    textAlign: "center",
+    marginTop: 8,
+    letterSpacing: 6,
+  },
+  wrapHeading: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 26,
+    color: colors.espresso,
+    textAlign: "center",
+    marginTop: -34,
+    marginBottom: 24,
+  },
+
+  // Empty state
+  emptyState: { alignItems: "center", paddingVertical: 48 },
+  emptyEmoji: { fontSize: 52, marginBottom: 16 },
+  emptyTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: colors.char3, textAlign: "center", lineHeight: 20 },
+
+  // Stats row
+  statRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.cream2,
+    borderWidth: 1,
+    borderColor: colors.cream3,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+  },
+  statBig: { fontFamily: "CormorantGaramond_700Bold", fontSize: 36, color: colors.espresso },
+  statLabel: { fontSize: 11, color: colors.char3, marginTop: 2, textAlign: "center" },
+  statNote: { fontSize: 10, color: colors.terracotta, marginTop: 6, textAlign: "center", fontWeight: "500" },
+
+  // Top genre badge
+  genreBadge: {
+    backgroundColor: "rgba(127,119,221,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(127,119,221,0.3)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  genreBadgeLabel: { fontSize: 11, color: colors.char3, marginBottom: 4, letterSpacing: 0.5 },
+  genreBadgeValue: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.terracotta },
+
+  // Books timeline
+  timelineTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 17,
+    color: colors.espresso,
+    marginBottom: 16,
+  },
+  timelineRow: { flexDirection: "row", marginBottom: 20 },
+  timelineLeft: { width: 32, alignItems: "center" },
+  timelineNum: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 13,
+    color: colors.terracotta,
+    opacity: 0.7,
+    marginBottom: 6,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 1,
+    backgroundColor: colors.cream3,
+    marginBottom: 4,
+  },
+  timelineCard: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: colors.cream2,
+    borderWidth: 1,
+    borderColor: colors.cream3,
+    borderRadius: 12,
+    padding: 12,
+    marginLeft: 10,
+  },
+  timelineCover: {
+    width: 48,
+    height: 68,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  timelineCoverFallback: {
+    backgroundColor: colors.cream3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelineInfo: { flex: 1, justifyContent: "center" },
+  timelineBookTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 15,
+    color: colors.espresso,
+    lineHeight: 20,
+  },
+  timelineAuthor: { fontSize: 11, color: colors.char3, marginTop: 3 },
+  timelineRating: { fontSize: 11, color: colors.terracotta, marginTop: 4 },
+  timelineDate: { fontSize: 10, color: colors.char3, marginTop: 4, opacity: 0.7 },
 });
