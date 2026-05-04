@@ -782,8 +782,17 @@ export default function InsightsScreen() {
 
       {/* ── Caption sheet ────────────────────────────────────────────────────── */}
       <Modal transparent visible={showCaptionSheet} animationType="slide" onRequestClose={() => setShowCaptionSheet(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <TouchableOpacity style={galStyles.overlay} activeOpacity={1} onPress={() => setShowCaptionSheet(false)} />
+        {/*
+          KAV is a column. The backdrop TouchableOpacity takes flex:1 (all space
+          above the sheet). When the keyboard opens, KAV adds bottom padding equal
+          to the keyboard height — shrinking the column — which pushes the sheet up.
+          This works because the sheet is a normal flow child, NOT absolutely positioned.
+        */}
+        <KeyboardAvoidingView
+          style={galStyles.captionKAV}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowCaptionSheet(false)} />
           <View style={[galStyles.captionSheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={galStyles.sheetPill} />
             {pendingUri && (
@@ -797,6 +806,7 @@ export default function InsightsScreen() {
               placeholderTextColor={colors.char3}
               maxLength={120}
               returnKeyType="done"
+              onSubmitEditing={savePhoto}
             />
             <View style={galStyles.captionActions}>
               <TouchableOpacity style={galStyles.skipBtn} onPress={savePhoto}>
@@ -1222,9 +1232,13 @@ const galStyles = StyleSheet.create({
   },
   cancelText: { fontSize: 14, color: colors.char3, fontWeight: "500" },
 
-  // Caption sheet (Modal — doesn't launch a picker, so no conflict)
+  // Caption sheet
+  captionKAV: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
   captionSheet: {
-    position: "absolute", left: 0, right: 0, bottom: 0,
+    // No position:absolute — must be a normal flow child so KAV can push it up
     backgroundColor: colors.parchment,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingTop: 12, paddingHorizontal: 20, alignItems: "center",
