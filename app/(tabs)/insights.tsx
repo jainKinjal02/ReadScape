@@ -14,7 +14,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActionSheetIOS,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -498,33 +497,14 @@ export default function InsightsScreen() {
   const [showCaptionSheet, setShowCaptionSheet] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
 
-  // On iOS: use ActionSheetIOS (no UIViewController conflict with image picker).
-  // On Android: open the custom Modal sheet.
-  const handleAddPhoto = () => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ["Cancel", "Take a Photo", "Choose from Library"], cancelButtonIndex: 0, title: "Add a photo" },
-        (idx) => {
-          if (idx === 1) pickPhoto("camera", false);
-          else if (idx === 2) pickPhoto("library", false);
-        }
-      );
-    } else {
-      handleAddPhoto();
-    }
-  };
+  // Open the source picker overlay (not a Modal — no UIViewController conflict)
+  const handleAddPhoto = () => setShowSourcePicker(true);
 
-  // fromModal=true means we need to wait for the Modal to fully close before
-  // presenting the native picker (iOS UIViewController constraint).
-  const pickPhoto = async (source: "camera" | "library", fromModal = true) => {
-    console.log("[Gallery] pickPhoto called, source:", source, "fromModal:", fromModal);
-    if (fromModal) {
-      setShowSourcePicker(false);
-      await new Promise((r) => setTimeout(r, 450));
-    } else {
-      // ActionSheetIOS is a lightweight popover — no UIViewController to wait for
-      await new Promise((r) => setTimeout(r, 100));
-    }
+  const pickPhoto = async (source: "camera" | "library") => {
+    // Hide the overlay first, then give React one tick to remove it before
+    // the native picker presents — avoids any stacking issues
+    setShowSourcePicker(false);
+    await new Promise((r) => setTimeout(r, 180));
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === "camera") {
@@ -758,43 +738,47 @@ export default function InsightsScreen() {
 
       <YearWrapModal visible={showWrap} onClose={() => setShowWrap(false)} />
 
-      {/* ── Source picker sheet ──────────────────────────────────────────────── */}
-      <Modal transparent visible={showSourcePicker} animationType="slide" onRequestClose={() => setShowSourcePicker(false)}>
-        <TouchableOpacity style={galStyles.overlay} activeOpacity={1} onPress={() => setShowSourcePicker(false)} />
-        <View style={[galStyles.sourceSheet, { paddingBottom: insets.bottom + 8 }]}>
-          <View style={galStyles.sheetPill} />
-          <Text style={galStyles.sheetHeading}>Add a photo</Text>
-          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("camera", true)}>
-            <View style={galStyles.sourceIcon}>
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.terracotta} strokeWidth={1.5} strokeLinejoin="round" />
-                <Circle cx={12} cy={13} r={4} stroke={colors.terracotta} strokeWidth={1.5} />
-              </Svg>
-            </View>
-            <View>
-              <Text style={galStyles.sourceLabel}>Take a Photo</Text>
-              <Text style={galStyles.sourceSub}>Use your camera</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={galStyles.sourceDivider} />
-          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("library", true)}>
-            <View style={galStyles.sourceIcon}>
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                <Rect x={3} y={3} width={18} height={18} rx={3} stroke={colors.terracotta} strokeWidth={1.5} />
-                <Path d="M3 16l5-5 4 4 3-3 6 6" stroke={colors.terracotta} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                <Circle cx={8.5} cy={8.5} r={1.5} fill={colors.terracotta} />
-              </Svg>
-            </View>
-            <View>
-              <Text style={galStyles.sourceLabel}>Choose from Library</Text>
-              <Text style={galStyles.sourceSub}>Your photo library</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={galStyles.cancelBtn} onPress={() => setShowSourcePicker(false)}>
-            <Text style={galStyles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
+      {/* ── Source picker overlay (absolute, NOT a Modal — no UIViewController conflict) ── */}
+      {showSourcePicker && (
+        <View style={galStyles.sourceOverlayWrap} pointerEvents="box-none">
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowSourcePicker(false)} />
+          <View style={[galStyles.sourceSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={galStyles.sheetPill} />
+            <Text style={galStyles.sheetHeading}>Add a photo</Text>
+            <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("camera")}>
+              <View style={galStyles.sourceIcon}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.terracotta} strokeWidth={1.5} strokeLinejoin="round" />
+                  <Circle cx={12} cy={13} r={4} stroke={colors.terracotta} strokeWidth={1.5} />
+                </Svg>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={galStyles.sourceLabel}>Take a Photo</Text>
+                <Text style={galStyles.sourceSub}>Use your camera</Text>
+              </View>
+              <Text style={galStyles.sourceArrow}>›</Text>
+            </TouchableOpacity>
+            <View style={galStyles.sourceDivider} />
+            <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("library")}>
+              <View style={galStyles.sourceIcon}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Rect x={3} y={3} width={18} height={18} rx={3} stroke={colors.terracotta} strokeWidth={1.5} />
+                  <Path d="M3 16l5-5 4 4 3-3 6 6" stroke={colors.terracotta} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                  <Circle cx={8.5} cy={8.5} r={1.5} fill={colors.terracotta} />
+                </Svg>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={galStyles.sourceLabel}>Choose from Library</Text>
+                <Text style={galStyles.sourceSub}>Your photo library</Text>
+              </View>
+              <Text style={galStyles.sourceArrow}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={galStyles.cancelBtn} onPress={() => setShowSourcePicker(false)}>
+              <Text style={galStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </Modal>
+      )}
 
       {/* ── Caption sheet ────────────────────────────────────────────────────── */}
       <Modal transparent visible={showCaptionSheet} animationType="slide" onRequestClose={() => setShowCaptionSheet(false)}>
@@ -830,33 +814,43 @@ export default function InsightsScreen() {
       <Modal transparent visible={!!viewingPhoto} animationType="fade" onRequestClose={() => setViewingPhoto(null)}>
         <View style={galStyles.viewer}>
           <StatusBar barStyle="light-content" />
-          {viewingPhoto && (
-            <Image source={{ uri: viewingPhoto.uri }} style={galStyles.viewerImg} contentFit="contain" />
-          )}
-          {/* Caption */}
-          {viewingPhoto?.caption ? (
-            <View style={galStyles.viewerCaptionBar}>
-              <Text style={galStyles.viewerCaption}>{viewingPhoto.caption}</Text>
-            </View>
-          ) : null}
-          {/* Close */}
-          <TouchableOpacity style={[galStyles.viewerClose, { top: insets.top + 12 }]} onPress={() => setViewingPhoto(null)}>
-            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-              <Path d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth={2} strokeLinecap="round" />
+
+          {/* Close — top right */}
+          <TouchableOpacity
+            style={[galStyles.viewerClose, { top: insets.top + 12 }]}
+            onPress={() => setViewingPhoto(null)}
+          >
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+              <Path d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
             </Svg>
           </TouchableOpacity>
-          {/* Delete */}
+
+          {/* Image — fills remaining space */}
           {viewingPhoto && (
-            <TouchableOpacity
-              style={[galStyles.viewerDelete, { bottom: insets.bottom + 24 }]}
-              onPress={() => deletePhoto(viewingPhoto.id)}
-            >
-              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
-              <Text style={galStyles.viewerDeleteText}>Delete</Text>
-            </TouchableOpacity>
+            <Image
+              source={{ uri: viewingPhoto.uri }}
+              style={galStyles.viewerImg}
+              contentFit="contain"
+            />
           )}
+
+          {/* Bottom bar — caption above delete, clearly separated */}
+          <View style={[galStyles.viewerBottom, { paddingBottom: insets.bottom + 20 }]}>
+            {viewingPhoto?.caption ? (
+              <Text style={galStyles.viewerCaption}>{viewingPhoto.caption}</Text>
+            ) : null}
+            {viewingPhoto && (
+              <TouchableOpacity
+                style={galStyles.viewerDeleteBtn}
+                onPress={() => deletePhoto(viewingPhoto.id)}
+              >
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={galStyles.viewerDeleteText}>Delete photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -1184,48 +1178,64 @@ const wrapStyles = StyleSheet.create({
   timelineDate: { fontSize: 10, color: colors.char3, marginTop: 4, opacity: 0.7 },
 });
 
-// ─── Gallery modal styles ─────────────────────────────────────────────────────
+// ─── Gallery styles ───────────────────────────────────────────────────────────
 const galStyles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
-
-  // Source picker
-  sourceSheet: {
-    position: "absolute", left: 0, right: 0, bottom: 0,
-    backgroundColor: colors.parchment,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingTop: 12, paddingHorizontal: 20,
+  // Source picker — absolute overlay, no Modal, dark themed
+  sourceOverlayWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    zIndex: 100,
   },
-  sheetPill: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.cream3, alignSelf: "center", marginBottom: 20 },
-  sheetHeading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 20, color: colors.espresso, marginBottom: 20 },
-  sourceRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 14 },
+  sourceSheet: {
+    backgroundColor: colors.parchment,
+    borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    paddingTop: 12, paddingHorizontal: 20,
+    shadowColor: "#000", shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: -4 }, shadowRadius: 20,
+    elevation: 20,
+  },
+  sheetPill: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: colors.cream3, alignSelf: "center", marginBottom: 18,
+  },
+  sheetHeading: {
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
+    color: colors.espresso, marginBottom: 8,
+  },
+  sourceRow: {
+    flexDirection: "row", alignItems: "center",
+    gap: 14, paddingVertical: 16,
+  },
   sourceIcon: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 46, height: 46, borderRadius: 23,
     backgroundColor: "rgba(127,119,221,0.12)",
     alignItems: "center", justifyContent: "center",
   },
   sourceLabel: { fontSize: 15, color: colors.espresso, fontWeight: "600" },
   sourceSub: { fontSize: 12, color: colors.char3, marginTop: 2 },
-  sourceDivider: { height: 1, backgroundColor: colors.cream3, marginVertical: 2 },
+  sourceArrow: { fontSize: 20, color: colors.char3, opacity: 0.6 },
+  sourceDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.cream3 },
   cancelBtn: {
-    marginTop: 12, backgroundColor: colors.cream2,
-    borderRadius: 14, paddingVertical: 14, alignItems: "center",
+    marginTop: 10, backgroundColor: colors.cream2,
+    borderRadius: 16, paddingVertical: 15, alignItems: "center",
   },
   cancelText: { fontSize: 14, color: colors.char3, fontWeight: "500" },
 
-  // Caption sheet
+  // Caption sheet (Modal — doesn't launch a picker, so no conflict)
   captionSheet: {
     position: "absolute", left: 0, right: 0, bottom: 0,
     backgroundColor: colors.parchment,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingTop: 12, paddingHorizontal: 20, alignItems: "center",
   },
-  previewImg: { width: 120, height: 120, borderRadius: 10, marginBottom: 16 },
+  previewImg: { width: 110, height: 110, borderRadius: 10, marginBottom: 14 },
   captionInput: {
     width: "100%",
     backgroundColor: colors.cream2,
     borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
-    fontSize: 14, color: colors.espresso, marginBottom: 16,
+    fontSize: 14, color: colors.espresso, marginBottom: 14,
   },
   captionActions: { flexDirection: "row", gap: 10, width: "100%" },
   skipBtn: {
@@ -1239,25 +1249,31 @@ const galStyles = StyleSheet.create({
   },
   saveBtnText: { fontSize: 14, color: "#fff", fontWeight: "600" },
 
-  // Photo viewer
-  viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" },
-  viewerImg: { width: "100%", height: "80%" },
-  viewerCaptionBar: {
-    position: "absolute", bottom: 80, left: 24, right: 24,
-    backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 10, padding: 10,
-  },
-  viewerCaption: { color: "#fff", fontSize: 13, textAlign: "center" },
+  // Photo viewer — flex layout, nothing overlapping
+  viewer: { flex: 1, backgroundColor: "#000" },
+  viewerImg: { flex: 1, width: "100%" },
   viewerClose: {
-    position: "absolute", right: 20,
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    position: "absolute", right: 16, zIndex: 10,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
     alignItems: "center", justifyContent: "center",
   },
-  viewerDelete: {
-    position: "absolute", left: "50%", marginLeft: -44,
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 14, paddingVertical: 8, paddingHorizontal: 16,
+  viewerBottom: {
+    paddingTop: 18, paddingHorizontal: 28,
+    alignItems: "center", gap: 14,
+    backgroundColor: "rgba(0,0,0,0.75)",
+  },
+  viewerCaption: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 14, textAlign: "center", lineHeight: 20,
+  },
+  viewerDeleteBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingVertical: 10, paddingHorizontal: 22,
+    backgroundColor: "rgba(255,107,107,0.1)",
+    borderWidth: 1, borderColor: "rgba(255,107,107,0.3)",
+    borderRadius: 22,
   },
   viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
 });
