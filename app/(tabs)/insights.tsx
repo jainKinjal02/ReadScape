@@ -699,9 +699,9 @@ export default function InsightsScreen() {
               ))}
             </View>
 
-            {/* ── Book Life Gallery ── */}
+            {/* ── My Cozy Corner Gallery ── */}
             <View style={styles.secHdrRow}>
-              <Text style={styles.secTitle}>Book Life</Text>
+              <Text style={styles.secTitle}>My Cozy Corner</Text>
               <TouchableOpacity style={styles.cameraBtn} onPress={() => handleAddPhoto()}>
                 <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
                   <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.espresso} strokeWidth={1.5} strokeLinejoin="round" />
@@ -745,7 +745,13 @@ export default function InsightsScreen() {
                     onPress={() => setViewingPhoto(photo)}
                     activeOpacity={0.88}
                   >
-                    <Image source={{ uri: photo.uri }} style={styles.polaroidImg} contentFit="cover" />
+                    <Image
+                      source={{ uri: photo.uri }}
+                      style={styles.polaroidImg}
+                      contentFit="cover"
+                      transition={400}
+                      placeholder={{ color: "#ede8df" }}
+                    />
                     <Text style={styles.polaroidCaption} numberOfLines={1}>
                       {photo.caption || new Date(photo.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                     </Text>
@@ -888,6 +894,8 @@ export default function InsightsScreen() {
             <Image
               source={{ uri: viewingPhoto.uri }}
               style={galStyles.viewerImg}
+              transition={300}
+              placeholder={{ color: "#1a1a2e" }}
               contentFit="contain"
             />
           )}

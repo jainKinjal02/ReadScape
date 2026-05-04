@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
 
 const BUCKET = "book-photos";
@@ -17,18 +18,26 @@ export async function uploadGalleryPhoto(
   localUri: string,
   caption: string
 ): Promise<PersistedPhoto> {
-  // 1. Read local file as a Blob (React Native supports fetch on file:// URIs)
-  const response = await fetch(localUri);
-  const blob = await response.blob();
-
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
   const mimeType = ext === "png" ? "image/png" : "image/jpeg";
   const storagePath = `gallery/${userId}/${Date.now()}.${ext}`;
 
+  // 1. Read file as base64 via expo-file-system (fetch on file:// URIs returns 0 bytes in RN)
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: "base64",
+  });
+
+  // Convert base64 → Uint8Array for Supabase Storage
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
   // 2. Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(storagePath, blob, { contentType: mimeType, upsert: false });
+    .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
 
   if (uploadError) throw uploadError;
 
