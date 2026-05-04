@@ -23,13 +23,14 @@ import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
 import { useAppStore } from "../../src/store";
+import {
+  uploadGalleryPhoto,
+  fetchGalleryPhotos,
+  deleteGalleryPhoto,
+  type PersistedPhoto,
+} from "../../src/lib/gallery";
 
-interface GalleryPhoto {
-  id: string;
-  uri: string;
-  caption: string;
-  timestamp: number;
-}
+type GalleryPhoto = PersistedPhoto;
 
 // Slight tilt per card — deterministic so it doesn't change on re-render
 const TILTS = [-2.5, 1.4, -1.1, 2.6, -2, 1.8, -1.6, 2.2];
@@ -490,12 +491,25 @@ export default function InsightsScreen() {
   const [showWrap, setShowWrap] = useState(false);
 
   // ── Gallery state ─────────────────────────────────────────────────────────
+  const userId = useAppStore((s) => s.userId);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [captionInput, setCaptionInput] = useState("");
   const [showCaptionSheet, setShowCaptionSheet] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
+
+  // Fetch persisted photos whenever the user is known
+  useEffect(() => {
+    if (!userId) return;
+    setPhotosLoading(true);
+    fetchGalleryPhotos(userId)
+      .then(setPhotos)
+      .catch((e) => console.warn("[Gallery] fetch error:", e))
+      .finally(() => setPhotosLoading(false));
+  }, [userId]);
 
   // Open the source picker overlay (not a Modal — no UIViewController conflict)
   const handleAddPhoto = () => setShowSourcePicker(true);
@@ -551,23 +565,46 @@ export default function InsightsScreen() {
     }
   };
 
-  const savePhoto = () => {
-    if (!pendingUri) return;
-    setPhotos((prev) => [
-      { id: Date.now().toString(), uri: pendingUri, caption: captionInput.trim(), timestamp: Date.now() },
-      ...prev,
-    ]);
-    setPendingUri(null);
-    setCaptionInput("");
-    setShowCaptionSheet(false);
+  const savePhoto = async () => {
+    if (!pendingUri || !userId) return;
+    setIsSaving(true);
+    try {
+      const photo = await uploadGalleryPhoto(userId, pendingUri, captionInput.trim());
+      setPhotos((prev) => [photo, ...prev]);
+      setPendingUri(null);
+      setCaptionInput("");
+      setShowCaptionSheet(false);
+    } catch (e: any) {
+      console.error("[Gallery] upload error:", e);
+      Alert.alert(
+        "Couldn't save photo",
+        e?.message ?? "Check your connection and try again."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const deletePhoto = (id: string) => {
+    const photo = photos.find((p) => p.id === id);
+    if (!photo) return;
     Alert.alert("Delete photo?", "This can't be undone.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete", style: "destructive",
-        onPress: () => { setPhotos((p) => p.filter((ph) => ph.id !== id)); setViewingPhoto(null); },
+        onPress: async () => {
+          // Optimistic update — remove from UI immediately
+          setPhotos((p) => p.filter((ph) => ph.id !== id));
+          setViewingPhoto(null);
+          try {
+            await deleteGalleryPhoto(photo.id, photo.storagePath);
+          } catch (e: any) {
+            console.error("[Gallery] delete error:", e);
+            // Restore the photo if the server delete failed
+            setPhotos((p) => [photo, ...p]);
+            Alert.alert("Couldn't delete", e?.message ?? "Try again.");
+          }
+        },
       },
     ]);
   };
@@ -674,7 +711,11 @@ export default function InsightsScreen() {
               </TouchableOpacity>
             </View>
 
-            {photos.length === 0 ? (
+            {photosLoading ? (
+              <View style={{ height: 80, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: colors.char3, fontSize: 12 }}>Loading photos…</Text>
+              </View>
+            ) : photos.length === 0 ? (
               /* Empty state */
               <TouchableOpacity style={styles.galleryEmpty} activeOpacity={0.8} onPress={() => handleAddPhoto()}>
                 <LinearGradient
@@ -809,11 +850,18 @@ export default function InsightsScreen() {
               onSubmitEditing={savePhoto}
             />
             <View style={galStyles.captionActions}>
-              <TouchableOpacity style={galStyles.skipBtn} onPress={savePhoto}>
+              <TouchableOpacity style={galStyles.skipBtn} onPress={savePhoto} disabled={isSaving}>
                 <Text style={galStyles.skipText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={galStyles.saveBtn} onPress={savePhoto}>
-                <Text style={galStyles.saveBtnText}>Post to Gallery</Text>
+              <TouchableOpacity
+                style={[galStyles.saveBtn, isSaving && { opacity: 0.6 }]}
+                onPress={savePhoto}
+                disabled={isSaving}
+              >
+                {isSaving
+                  ? <Text style={galStyles.saveBtnText}>Saving…</Text>
+                  : <Text style={galStyles.saveBtnText}>Post to Gallery</Text>
+                }
               </TouchableOpacity>
             </View>
           </View>
