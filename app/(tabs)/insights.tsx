@@ -498,17 +498,21 @@ export default function InsightsScreen() {
   const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
 
   const pickPhoto = async (source: "camera" | "library") => {
+    console.log("[Gallery] pickPhoto called, source:", source);
     setShowSourcePicker(false);
     // Small delay so the sheet closing animation doesn't clash with the native picker
     await new Promise((r) => setTimeout(r, 350));
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === "camera") {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== "granted") {
+        console.log("[Gallery] Requesting camera permission...");
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        console.log("[Gallery] Camera permission status:", perm.status);
+        if (perm.status !== "granted") {
           Alert.alert("Camera access needed", "Allow camera access in Settings to take photos.");
           return;
         }
+        console.log("[Gallery] Launching camera...");
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ["images"],
           quality: 0.85,
@@ -516,12 +520,15 @@ export default function InsightsScreen() {
           aspect: [4, 5],
         });
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log("[Gallery] Requesting media library permission...");
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log("[Gallery] Media library permission status:", perm.status);
         // "limited" = iOS 14+ partial access — picker still works, so allow it
-        if (status !== "granted" && status !== "limited") {
+        if (perm.status !== "granted" && perm.status !== "limited") {
           Alert.alert("Photos access needed", "Allow photo library access in Settings.");
           return;
         }
+        console.log("[Gallery] Launching image library...");
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
           quality: 0.85,
@@ -529,12 +536,15 @@ export default function InsightsScreen() {
           aspect: [4, 5],
         });
       }
+      console.log("[Gallery] Picker result — canceled:", result.canceled, "assets:", result.assets?.length);
       if (!result.canceled && result.assets[0]) {
+        console.log("[Gallery] Photo selected, URI:", result.assets[0].uri);
         setPendingUri(result.assets[0].uri);
         setCaptionInput("");
         setShowCaptionSheet(true);
       }
     } catch (e) {
+      console.error("[Gallery] Error opening picker:", e);
       Alert.alert("Couldn't open " + (source === "camera" ? "camera" : "photos"));
     }
   };
