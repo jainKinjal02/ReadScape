@@ -10,13 +10,29 @@ import {
   Dimensions,
   Modal,
   StatusBar,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
 import { useAppStore } from "../../src/store";
+
+interface GalleryPhoto {
+  id: string;
+  uri: string;
+  caption: string;
+  timestamp: number;
+}
+
+// Slight tilt per card — deterministic so it doesn't change on re-render
+const TILTS = [-2.5, 1.4, -1.1, 2.6, -2, 1.8, -1.6, 2.2];
 
 const { width: SW } = Dimensions.get("window");
 // Card is 47% of (screen - 40px padding - 12px gap)
@@ -473,6 +489,74 @@ export default function InsightsScreen() {
   const readingGoal = useAppStore((s) => s.readingGoal);
   const [showWrap, setShowWrap] = useState(false);
 
+  // ── Gallery state ─────────────────────────────────────────────────────────
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const [captionInput, setCaptionInput] = useState("");
+  const [showCaptionSheet, setShowCaptionSheet] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
+
+  const pickPhoto = async (source: "camera" | "library") => {
+    setShowSourcePicker(false);
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === "camera") {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Camera access needed", "Allow camera access in Settings to take photos.");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.85,
+          allowsEditing: true,
+          aspect: [4, 5],
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Photos access needed", "Allow photo library access in Settings.");
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.85,
+          allowsEditing: true,
+          aspect: [4, 5],
+        });
+      }
+      if (!result.canceled && result.assets[0]) {
+        setPendingUri(result.assets[0].uri);
+        setCaptionInput("");
+        setShowCaptionSheet(true);
+      }
+    } catch (e) {
+      Alert.alert("Couldn't open " + (source === "camera" ? "camera" : "photos"));
+    }
+  };
+
+  const savePhoto = () => {
+    if (!pendingUri) return;
+    setPhotos((prev) => [
+      { id: Date.now().toString(), uri: pendingUri, caption: captionInput.trim(), timestamp: Date.now() },
+      ...prev,
+    ]);
+    setPendingUri(null);
+    setCaptionInput("");
+    setShowCaptionSheet(false);
+  };
+
+  const deletePhoto = (id: string) => {
+    Alert.alert("Delete photo?", "This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: () => { setPhotos((p) => p.filter((ph) => ph.id !== id)); setViewingPhoto(null); },
+      },
+    ]);
+  };
+
   // Crossfading header images
   const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
   const currentIdx = useRef(0);
@@ -563,6 +647,66 @@ export default function InsightsScreen() {
               ))}
             </View>
 
+            {/* ── Book Life Gallery ── */}
+            <View style={styles.secHdrRow}>
+              <Text style={styles.secTitle}>Book Life</Text>
+              <TouchableOpacity style={styles.cameraBtn} onPress={() => setShowSourcePicker(true)}>
+                <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                  <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.espresso} strokeWidth={1.5} strokeLinejoin="round" />
+                  <Circle cx={12} cy={13} r={4} stroke={colors.espresso} strokeWidth={1.5} />
+                </Svg>
+                <Text style={styles.cameraBtnText}>Add photo</Text>
+              </TouchableOpacity>
+            </View>
+
+            {photos.length === 0 ? (
+              /* Empty state */
+              <TouchableOpacity style={styles.galleryEmpty} activeOpacity={0.8} onPress={() => setShowSourcePicker(true)}>
+                <LinearGradient
+                  colors={["rgba(127,119,221,0.08)", "rgba(127,119,221,0.04)"]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Svg width={32} height={32} viewBox="0 0 24 24" fill="none">
+                  <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.char3} strokeWidth={1.4} strokeLinejoin="round" />
+                  <Circle cx={12} cy={13} r={4} stroke={colors.char3} strokeWidth={1.4} />
+                </Svg>
+                <Text style={styles.galleryEmptyTitle}>Capture your reading moments</Text>
+                <Text style={styles.galleryEmptySub}>Book hauls, cosy corners, margin notes — your story.</Text>
+                <View style={styles.galleryEmptyBtn}>
+                  <Text style={styles.galleryEmptyBtnText}>Take a photo</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.galleryStrip}
+              >
+                {photos.map((photo, idx) => (
+                  <TouchableOpacity
+                    key={photo.id}
+                    style={[styles.polaroid, { transform: [{ rotate: `${TILTS[idx % TILTS.length]}deg` }] }]}
+                    onPress={() => setViewingPhoto(photo)}
+                    activeOpacity={0.88}
+                  >
+                    <Image source={{ uri: photo.uri }} style={styles.polaroidImg} contentFit="cover" />
+                    <Text style={styles.polaroidCaption} numberOfLines={1}>
+                      {photo.caption || new Date(photo.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {/* Add more tile */}
+                <TouchableOpacity
+                  style={[styles.polaroidAdd, { transform: [{ rotate: `${TILTS[photos.length % TILTS.length]}deg` }] }]}
+                  onPress={() => setShowSourcePicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.polaroidAddPlus}>+</Text>
+                  <Text style={styles.polaroidAddLabel}>Add more</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+
             {/* Year wrap CTA */}
             <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85} onPress={() => setShowWrap(true)}>
               <Text style={styles.wrapTitle}>Your {new Date().getFullYear()} reading wrap</Text>
@@ -578,6 +722,108 @@ export default function InsightsScreen() {
       </SafeAreaView>
 
       <YearWrapModal visible={showWrap} onClose={() => setShowWrap(false)} />
+
+      {/* ── Source picker sheet ──────────────────────────────────────────────── */}
+      <Modal transparent visible={showSourcePicker} animationType="slide" onRequestClose={() => setShowSourcePicker(false)}>
+        <TouchableOpacity style={galStyles.overlay} activeOpacity={1} onPress={() => setShowSourcePicker(false)} />
+        <View style={[galStyles.sourceSheet, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={galStyles.sheetPill} />
+          <Text style={galStyles.sheetHeading}>Add a photo</Text>
+          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("camera")}>
+            <View style={galStyles.sourceIcon}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.terracotta} strokeWidth={1.5} strokeLinejoin="round" />
+                <Circle cx={12} cy={13} r={4} stroke={colors.terracotta} strokeWidth={1.5} />
+              </Svg>
+            </View>
+            <View>
+              <Text style={galStyles.sourceLabel}>Take a Photo</Text>
+              <Text style={galStyles.sourceSub}>Use your camera</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={galStyles.sourceDivider} />
+          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("library")}>
+            <View style={galStyles.sourceIcon}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Rect x={3} y={3} width={18} height={18} rx={3} stroke={colors.terracotta} strokeWidth={1.5} />
+                <Path d="M3 16l5-5 4 4 3-3 6 6" stroke={colors.terracotta} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                <Circle cx={8.5} cy={8.5} r={1.5} fill={colors.terracotta} />
+              </Svg>
+            </View>
+            <View>
+              <Text style={galStyles.sourceLabel}>Choose from Library</Text>
+              <Text style={galStyles.sourceSub}>Your photo library</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={galStyles.cancelBtn} onPress={() => setShowSourcePicker(false)}>
+            <Text style={galStyles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* ── Caption sheet ────────────────────────────────────────────────────── */}
+      <Modal transparent visible={showCaptionSheet} animationType="slide" onRequestClose={() => setShowCaptionSheet(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <TouchableOpacity style={galStyles.overlay} activeOpacity={1} onPress={() => setShowCaptionSheet(false)} />
+          <View style={[galStyles.captionSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={galStyles.sheetPill} />
+            {pendingUri && (
+              <Image source={{ uri: pendingUri }} style={galStyles.previewImg} contentFit="cover" />
+            )}
+            <TextInput
+              style={galStyles.captionInput}
+              value={captionInput}
+              onChangeText={setCaptionInput}
+              placeholder="Add a caption (optional)…"
+              placeholderTextColor={colors.char3}
+              maxLength={120}
+              returnKeyType="done"
+            />
+            <View style={galStyles.captionActions}>
+              <TouchableOpacity style={galStyles.skipBtn} onPress={savePhoto}>
+                <Text style={galStyles.skipText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={galStyles.saveBtn} onPress={savePhoto}>
+                <Text style={galStyles.saveBtnText}>Post to Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Full-screen photo viewer ─────────────────────────────────────────── */}
+      <Modal transparent visible={!!viewingPhoto} animationType="fade" onRequestClose={() => setViewingPhoto(null)}>
+        <View style={galStyles.viewer}>
+          <StatusBar barStyle="light-content" />
+          {viewingPhoto && (
+            <Image source={{ uri: viewingPhoto.uri }} style={galStyles.viewerImg} contentFit="contain" />
+          )}
+          {/* Caption */}
+          {viewingPhoto?.caption ? (
+            <View style={galStyles.viewerCaptionBar}>
+              <Text style={galStyles.viewerCaption}>{viewingPhoto.caption}</Text>
+            </View>
+          ) : null}
+          {/* Close */}
+          <TouchableOpacity style={[galStyles.viewerClose, { top: insets.top + 12 }]} onPress={() => setViewingPhoto(null)}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+              <Path d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth={2} strokeLinecap="round" />
+            </Svg>
+          </TouchableOpacity>
+          {/* Delete */}
+          {viewingPhoto && (
+            <TouchableOpacity
+              style={[galStyles.viewerDelete, { bottom: insets.bottom + 24 }]}
+              onPress={() => deletePhoto(viewingPhoto.id)}
+            >
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={galStyles.viewerDeleteText}>Delete</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -608,8 +854,59 @@ const styles = StyleSheet.create({
   bigStatS: { fontSize: 11, color: colors.terracotta, marginTop: 4, fontWeight: "500" },
 
   secHdr: { paddingHorizontal: 20, marginBottom: 14 },
+  secHdrRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, marginBottom: 14,
+  },
   secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
   secSub: { fontSize: 12, color: colors.char3, marginTop: 3 },
+
+  cameraBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, paddingVertical: 6, paddingHorizontal: 12,
+  },
+  cameraBtnText: { fontSize: 11, color: colors.espresso, fontWeight: "500" },
+
+  // Gallery empty state
+  galleryEmpty: {
+    marginHorizontal: 20, marginBottom: 24,
+    borderWidth: 1, borderColor: "rgba(127,119,221,0.2)", borderRadius: 18,
+    alignItems: "center", padding: 32, gap: 10, overflow: "hidden",
+  },
+  galleryEmptyTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso, textAlign: "center" },
+  galleryEmptySub: { fontSize: 12, color: colors.char3, textAlign: "center", lineHeight: 18 },
+  galleryEmptyBtn: {
+    marginTop: 6, backgroundColor: colors.terracotta,
+    borderRadius: 16, paddingVertical: 9, paddingHorizontal: 22,
+  },
+  galleryEmptyBtnText: { fontSize: 12, color: "#fff", fontWeight: "600" },
+
+  // Polaroid strip
+  galleryStrip: { paddingHorizontal: 20, paddingVertical: 16, gap: 14 },
+  polaroid: {
+    backgroundColor: "#fff",
+    borderRadius: 4,
+    padding: 8,
+    paddingBottom: 28,
+    shadowColor: "#000",
+    shadowOpacity: 0.28,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  polaroidImg: { width: 148, height: 148, borderRadius: 2 },
+  polaroidCaption: { fontFamily: "CormorantGaramond_700Bold", fontSize: 11, color: "#444", marginTop: 6, textAlign: "center" },
+  polaroidAdd: {
+    width: 164,
+    height: 192,
+    backgroundColor: colors.cream2,
+    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.35)", borderStyle: "dashed",
+    borderRadius: 4,
+    alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  polaroidAddPlus: { fontSize: 28, color: colors.terracotta },
+  polaroidAddLabel: { fontSize: 11, color: colors.terracotta },
 
   // Genre grid
   genreGrid: {
@@ -850,4 +1147,82 @@ const wrapStyles = StyleSheet.create({
   timelineAuthor: { fontSize: 11, color: colors.char3, marginTop: 3 },
   timelineRating: { fontSize: 11, color: colors.terracotta, marginTop: 4 },
   timelineDate: { fontSize: 10, color: colors.char3, marginTop: 4, opacity: 0.7 },
+});
+
+// ─── Gallery modal styles ─────────────────────────────────────────────────────
+const galStyles = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+
+  // Source picker
+  sourceSheet: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    backgroundColor: colors.parchment,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 20,
+  },
+  sheetPill: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.cream3, alignSelf: "center", marginBottom: 20 },
+  sheetHeading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 20, color: colors.espresso, marginBottom: 20 },
+  sourceRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 14 },
+  sourceIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(127,119,221,0.12)",
+    alignItems: "center", justifyContent: "center",
+  },
+  sourceLabel: { fontSize: 15, color: colors.espresso, fontWeight: "600" },
+  sourceSub: { fontSize: 12, color: colors.char3, marginTop: 2 },
+  sourceDivider: { height: 1, backgroundColor: colors.cream3, marginVertical: 2 },
+  cancelBtn: {
+    marginTop: 12, backgroundColor: colors.cream2,
+    borderRadius: 14, paddingVertical: 14, alignItems: "center",
+  },
+  cancelText: { fontSize: 14, color: colors.char3, fontWeight: "500" },
+
+  // Caption sheet
+  captionSheet: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    backgroundColor: colors.parchment,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 20, alignItems: "center",
+  },
+  previewImg: { width: 120, height: 120, borderRadius: 10, marginBottom: 16 },
+  captionInput: {
+    width: "100%",
+    backgroundColor: colors.cream2,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: 14, color: colors.espresso, marginBottom: 16,
+  },
+  captionActions: { flexDirection: "row", gap: 10, width: "100%" },
+  skipBtn: {
+    flex: 1, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, paddingVertical: 13, alignItems: "center",
+  },
+  skipText: { fontSize: 14, color: colors.char3 },
+  saveBtn: {
+    flex: 2, backgroundColor: colors.terracotta,
+    borderRadius: 14, paddingVertical: 13, alignItems: "center",
+  },
+  saveBtnText: { fontSize: 14, color: "#fff", fontWeight: "600" },
+
+  // Photo viewer
+  viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" },
+  viewerImg: { width: "100%", height: "80%" },
+  viewerCaptionBar: {
+    position: "absolute", bottom: 80, left: 24, right: 24,
+    backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 10, padding: 10,
+  },
+  viewerCaption: { color: "#fff", fontSize: 13, textAlign: "center" },
+  viewerClose: {
+    position: "absolute", right: 20,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  viewerDelete: {
+    position: "absolute", left: "50%", marginLeft: -44,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 14, paddingVertical: 8, paddingHorizontal: 16,
+  },
+  viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
 });
