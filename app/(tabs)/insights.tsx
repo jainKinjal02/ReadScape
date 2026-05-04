@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActionSheetIOS,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -497,11 +498,33 @@ export default function InsightsScreen() {
   const [showCaptionSheet, setShowCaptionSheet] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
 
-  const pickPhoto = async (source: "camera" | "library") => {
-    console.log("[Gallery] pickPhoto called, source:", source);
-    setShowSourcePicker(false);
-    // Small delay so the sheet closing animation doesn't clash with the native picker
-    await new Promise((r) => setTimeout(r, 350));
+  // On iOS: use ActionSheetIOS (no UIViewController conflict with image picker).
+  // On Android: open the custom Modal sheet.
+  const handleAddPhoto = () => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ["Cancel", "Take a Photo", "Choose from Library"], cancelButtonIndex: 0, title: "Add a photo" },
+        (idx) => {
+          if (idx === 1) pickPhoto("camera", false);
+          else if (idx === 2) pickPhoto("library", false);
+        }
+      );
+    } else {
+      handleAddPhoto();
+    }
+  };
+
+  // fromModal=true means we need to wait for the Modal to fully close before
+  // presenting the native picker (iOS UIViewController constraint).
+  const pickPhoto = async (source: "camera" | "library", fromModal = true) => {
+    console.log("[Gallery] pickPhoto called, source:", source, "fromModal:", fromModal);
+    if (fromModal) {
+      setShowSourcePicker(false);
+      await new Promise((r) => setTimeout(r, 450));
+    } else {
+      // ActionSheetIOS is a lightweight popover — no UIViewController to wait for
+      await new Promise((r) => setTimeout(r, 100));
+    }
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === "camera") {
@@ -523,7 +546,6 @@ export default function InsightsScreen() {
         console.log("[Gallery] Requesting media library permission...");
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         console.log("[Gallery] Media library permission status:", perm.status);
-        // "limited" = iOS 14+ partial access — picker still works, so allow it
         if (perm.status !== "granted" && perm.status !== "limited") {
           Alert.alert("Photos access needed", "Allow photo library access in Settings.");
           return;
@@ -663,7 +685,7 @@ export default function InsightsScreen() {
             {/* ── Book Life Gallery ── */}
             <View style={styles.secHdrRow}>
               <Text style={styles.secTitle}>Book Life</Text>
-              <TouchableOpacity style={styles.cameraBtn} onPress={() => setShowSourcePicker(true)}>
+              <TouchableOpacity style={styles.cameraBtn} onPress={() => handleAddPhoto()}>
                 <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
                   <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.espresso} strokeWidth={1.5} strokeLinejoin="round" />
                   <Circle cx={12} cy={13} r={4} stroke={colors.espresso} strokeWidth={1.5} />
@@ -674,7 +696,7 @@ export default function InsightsScreen() {
 
             {photos.length === 0 ? (
               /* Empty state */
-              <TouchableOpacity style={styles.galleryEmpty} activeOpacity={0.8} onPress={() => setShowSourcePicker(true)}>
+              <TouchableOpacity style={styles.galleryEmpty} activeOpacity={0.8} onPress={() => handleAddPhoto()}>
                 <LinearGradient
                   colors={["rgba(127,119,221,0.08)", "rgba(127,119,221,0.04)"]}
                   style={StyleSheet.absoluteFill}
@@ -711,7 +733,7 @@ export default function InsightsScreen() {
                 {/* Add more tile */}
                 <TouchableOpacity
                   style={[styles.polaroidAdd, { transform: [{ rotate: `${TILTS[photos.length % TILTS.length]}deg` }] }]}
-                  onPress={() => setShowSourcePicker(true)}
+                  onPress={() => handleAddPhoto()}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.polaroidAddPlus}>+</Text>
@@ -742,7 +764,7 @@ export default function InsightsScreen() {
         <View style={[galStyles.sourceSheet, { paddingBottom: insets.bottom + 8 }]}>
           <View style={galStyles.sheetPill} />
           <Text style={galStyles.sheetHeading}>Add a photo</Text>
-          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("camera")}>
+          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("camera", true)}>
             <View style={galStyles.sourceIcon}>
               <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                 <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.terracotta} strokeWidth={1.5} strokeLinejoin="round" />
@@ -755,7 +777,7 @@ export default function InsightsScreen() {
             </View>
           </TouchableOpacity>
           <View style={galStyles.sourceDivider} />
-          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("library")}>
+          <TouchableOpacity style={galStyles.sourceRow} onPress={() => pickPhoto("library", true)}>
             <View style={galStyles.sourceIcon}>
               <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                 <Rect x={3} y={3} width={18} height={18} rx={3} stroke={colors.terracotta} strokeWidth={1.5} />
