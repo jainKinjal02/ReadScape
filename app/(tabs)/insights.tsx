@@ -671,7 +671,7 @@ export default function InsightsScreen() {
                   <Circle cx={12} cy={13} r={4} stroke={colors.char3} strokeWidth={1.4} />
                 </Svg>
                 <Text style={styles.galleryEmptyTitle}>Capture your reading moments</Text>
-                <Text style={styles.galleryEmptySub}>Book hauls, cosy corners, margin notes — your story.</Text>
+                <Text style={styles.galleryEmptySub}>Book hauls, cosy corners, reading nooks — your story.</Text>
                 <View style={styles.galleryEmptyBtn}>
                   <Text style={styles.galleryEmptyBtnText}>Take a photo</Text>
                 </View>
