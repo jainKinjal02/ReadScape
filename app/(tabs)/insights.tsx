@@ -499,6 +499,8 @@ export default function InsightsScreen() {
 
   const pickPhoto = async (source: "camera" | "library") => {
     setShowSourcePicker(false);
+    // Small delay so the sheet closing animation doesn't clash with the native picker
+    await new Promise((r) => setTimeout(r, 350));
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === "camera") {
@@ -508,19 +510,20 @@ export default function InsightsScreen() {
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ["images"],
           quality: 0.85,
           allowsEditing: true,
           aspect: [4, 5],
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
+        // "limited" = iOS 14+ partial access — picker still works, so allow it
+        if (status !== "granted" && status !== "limited") {
           Alert.alert("Photos access needed", "Allow photo library access in Settings.");
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ["images"],
           quality: 0.85,
           allowsEditing: true,
           aspect: [4, 5],
