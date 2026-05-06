@@ -900,23 +900,30 @@ export default function InsightsScreen() {
             />
           )}
 
-          {/* Bottom bar — caption above delete, clearly separated */}
-          <View style={[galStyles.viewerBottom, { paddingBottom: insets.bottom + 20 }]}>
+          {/* Bottom bar — gradient fade, literary caption */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.88)"]}
+            locations={[0, 0.35, 1]}
+            style={[galStyles.viewerBottom, { paddingBottom: insets.bottom + 24 }]}
+          >
             {viewingPhoto?.caption ? (
-              <Text style={galStyles.viewerCaption}>{viewingPhoto.caption}</Text>
+              <View style={galStyles.captionBlock}>
+                <View style={galStyles.captionRule} />
+                <Text style={galStyles.viewerCaption}>{viewingPhoto.caption}</Text>
+              </View>
             ) : null}
             {viewingPhoto && (
               <TouchableOpacity
                 style={galStyles.viewerDeleteBtn}
                 onPress={() => deletePhoto(viewingPhoto.id)}
               >
-                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
                   <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
-                <Text style={galStyles.viewerDeleteText}>Delete photo</Text>
+                <Text style={galStyles.viewerDeleteText}>Delete</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </LinearGradient>
         </View>
       </Modal>
     </View>
@@ -1330,17 +1337,23 @@ const galStyles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   viewerBottom: {
-    paddingTop: 18, paddingHorizontal: 28,
-    alignItems: "center", gap: 14,
-    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingTop: 48, paddingHorizontal: 32,
+    alignItems: "center", gap: 18,
+  },
+  captionBlock: { alignItems: "center", gap: 10, width: "100%" },
+  captionRule: {
+    width: 36, height: 1,
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   viewerCaption: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 14, textAlign: "center", lineHeight: 20,
+    fontFamily: "CormorantGaramond_400Regular_Italic",
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 19, textAlign: "center", lineHeight: 27,
+    letterSpacing: 0.3,
   },
   viewerDeleteBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingVertical: 10, paddingHorizontal: 22,
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingVertical: 8, paddingHorizontal: 18,
     backgroundColor: "rgba(255,107,107,0.1)",
     borderWidth: 1, borderColor: "rgba(255,107,107,0.3)",
     borderRadius: 22,
