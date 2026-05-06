@@ -652,7 +652,7 @@ export default function InsightsScreen() {
         </View>
       </View>
 
-      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={[]}>
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
           <View style={styles.body}>
