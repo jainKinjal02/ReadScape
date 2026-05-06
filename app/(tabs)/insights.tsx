@@ -1337,6 +1337,7 @@ const galStyles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   viewerBottom: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
     paddingTop: 48, paddingHorizontal: 32,
     alignItems: "center", gap: 18,
   },
