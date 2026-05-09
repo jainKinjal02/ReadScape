@@ -33,6 +33,7 @@ import {
   fetchNotes,
   addNote,
   deleteNote,
+  toggleFavorite,
 } from "../../src/lib/books";
 import { BookStatus } from "../../src/types";
 
@@ -148,6 +149,15 @@ export default function BookDetailScreen() {
     );
   };
 
+  const handleToggleFavorite = async () => {
+    if (!book || !id) return;
+    const newValue = !book.is_favorite;
+    updateBook({ ...book, is_favorite: newValue });
+    await toggleFavorite(id, newValue).catch(() => {
+      updateBook({ ...book, is_favorite: !newValue });
+    });
+  };
+
   const handleAddQuote = async (text: string, page: number | null) => {
     if (!userId || !id) return;
     try {
@@ -230,17 +240,33 @@ export default function BookDetailScreen() {
                 />
               </Svg>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.bdCircleBtn} onPress={handleDeleteBook}>
-              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
-                  stroke="#c0392b"
-                  strokeWidth={1.8}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.bdCircleBtn, book.is_favorite && { backgroundColor: "rgba(224,92,92,0.18)" }]}
+                onPress={handleToggleFavorite}
+              >
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+                    fill={book.is_favorite ? "#e05c5c" : "none"}
+                    stroke={book.is_favorite ? "#e05c5c" : colors.espresso}
+                    strokeWidth={1.8}
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bdCircleBtn} onPress={handleDeleteBook}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
+                    stroke="#c0392b"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Floating cover */}
