@@ -23,6 +23,7 @@ export interface Book {
   date_added: string;
   date_started: string | null;
   date_finished: string | null;
+  is_favorite: boolean;
 }
 
 export interface MoodLog {

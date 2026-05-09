@@ -23,7 +23,7 @@ import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
-import { searchBooks, addBookToLibrary } from "../../src/lib/books";
+import { searchBooks, addBookToLibrary, toggleFavorite } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
 const BG = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80";
@@ -66,6 +66,20 @@ function SearchIcon() {
   );
 }
 
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+        fill={filled ? "#e05c5c" : "none"}
+        stroke={filled ? "#e05c5c" : "rgba(255,255,255,0.85)"}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export default function LibraryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -99,6 +113,16 @@ export default function LibraryScreen() {
 
   const filtered =
     filter === "all" ? books : books.filter((b) => b.status === filter);
+
+  const handleToggleFavorite = async (book: Book) => {
+    const newValue = !book.is_favorite;
+    setBooks(books.map((b) => b.id === book.id ? { ...b, is_favorite: newValue } : b));
+    try {
+      await toggleFavorite(book.id, newValue);
+    } catch {
+      setBooks(books.map((b) => b.id === book.id ? { ...b, is_favorite: !newValue } : b));
+    }
+  };
 
   const gridData: (Book | { id: "__add__" })[] = [
     ...filtered,
@@ -177,6 +201,15 @@ export default function LibraryScreen() {
       >
         <View style={styles.cover}>
           <CoverImage uri={b.cover_url ?? ""} title={b.title} style={styles.coverImg} />
+          <TouchableOpacity
+            style={styles.heartBtn}
+            onPress={() => handleToggleFavorite(b)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={styles.heartBg}>
+              <HeartIcon filled={!!b.is_favorite} />
+            </View>
+          </TouchableOpacity>
         </View>
         <Text style={styles.bookTitle} numberOfLines={2}>{b.title}</Text>
         <Text style={styles.bookAuthor} numberOfLines={1}>{b.author ?? ""}</Text>
@@ -431,6 +464,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   coverImg: { width: "100%", height: "100%", borderRadius: 8 },
+  heartBtn: { position: "absolute", top: 5, right: 5 },
+  heartBg: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center",
+  },
   coverAdd: {
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
     borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
