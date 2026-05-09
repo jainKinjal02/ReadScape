@@ -402,6 +402,9 @@ export default function HomeScreen() {
             <PanelRow icon="📊" label="Insights" onPress={() => closePanel(() => router.push("/(tabs)/insights"))} />
           </View>
 
+          {/* Push logout to the bottom */}
+          <View style={{ flex: 1 }} />
+
           {/* Divider */}
           <View style={styles.panelDivider} />
 
@@ -717,6 +720,7 @@ const styles = StyleSheet.create({
     right: 0,
     width: PANEL_W,
     height: "100%",
+    flexDirection: "column",
     backgroundColor: colors.cream2,
     shadowColor: "#000",
     shadowOpacity: 0.4,
