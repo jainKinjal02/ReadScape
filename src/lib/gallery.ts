@@ -56,18 +56,29 @@ async function readAndUpload(
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
   const mimeType = ext === "png" ? "image/png" : "image/jpeg";
 
+  // Step 1 — read file
+  console.log("[Upload] reading file:", localUri);
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: "base64" });
+  console.log("[Upload] file read OK, base64 length:", base64.length);
+
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+  console.log("[Upload] bytes length:", bytes.length, "storagePath:", storagePath);
 
+  // Step 2 — storage upload
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    console.error("[Upload] storage error:", JSON.stringify(uploadError));
+    throw uploadError;
+  }
+  console.log("[Upload] storage upload OK");
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
+  // Step 3 — DB insert
   const { data, error: dbError } = await supabase
     .from("photos")
     .insert({ user_id: userId, book_id: bookId, storage_path: storagePath, caption: caption || null })
@@ -75,9 +86,11 @@ async function readAndUpload(
     .single();
 
   if (dbError) {
+    console.error("[Upload] DB error:", JSON.stringify(dbError));
     await supabase.storage.from(BUCKET).remove([storagePath]);
     throw dbError;
   }
+  console.log("[Upload] DB insert OK, id:", data.id);
 
   return {
     id: data.id,
