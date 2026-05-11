@@ -95,7 +95,7 @@ export async function uploadBookPhoto(
   caption: string
 ): Promise<PersistedPhoto> {
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
-  const storagePath = `books/${bookId}/${Date.now()}.${ext}`;
+  const storagePath = `books/${userId}/${bookId}/${Date.now()}.${ext}`;
   return readAndUpload(userId, bookId, localUri, caption, storagePath);
 }
 
