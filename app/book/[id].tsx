@@ -1,4 +1,4 @@
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -11,11 +11,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  StatusBar,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
@@ -35,9 +38,15 @@ import {
   deleteNote,
   toggleFavorite,
 } from "../../src/lib/books";
+import {
+  uploadBookPhoto,
+  fetchBookPhotos,
+  deleteGalleryPhoto,
+  type PersistedPhoto,
+} from "../../src/lib/gallery";
 import { BookStatus } from "../../src/types";
 
-type Tab = "quotes" | "notes";
+type Tab = "quotes" | "notes" | "photos";
 
 const STATUS_LABELS: Record<string, string> = {
   reading:      "Reading",
@@ -75,6 +84,15 @@ export default function BookDetailScreen() {
   const [pageEditing, setPageEditing] = useState(false);
   const [pageInput, setPageInput] = useState(String(book?.current_page ?? 0));
 
+  // Photos state
+  const [bookPhotos, setBookPhotos] = useState<PersistedPhoto[]>([]);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+  const [photoCaptionInput, setPhotoCaptionInput] = useState("");
+  const [showCaptionModal, setShowCaptionModal] = useState(false);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<PersistedPhoto | null>(null);
+
   const progress =
     book && book.total_pages && book.total_pages > 0
       ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100))
@@ -83,10 +101,11 @@ export default function BookDetailScreen() {
   useEffect(() => {
     if (!id) return;
     setLoadingData(true);
-    Promise.all([fetchQuotes(id), fetchNotes(id)])
-      .then(([q, n]) => {
+    Promise.all([fetchQuotes(id), fetchNotes(id), fetchBookPhotos(id)])
+      .then(([q, n, p]) => {
         setQuotes(q);
         setNotes(n);
+        setBookPhotos(p);
       })
       .catch(() => {})
       .finally(() => setLoadingData(false));
@@ -186,6 +205,50 @@ export default function BookDetailScreen() {
   const handleDeleteNote = async (noteId: string) => {
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
     await deleteNote(noteId).catch(() => {});
+  };
+
+  // ── Photo handlers ────────────────────────────────────────────────────────
+  const pickBookPhoto = async (source: "camera" | "library") => {
+    setShowSourcePicker(false);
+    await new Promise((r) => setTimeout(r, 180));
+    const { status } = source === "camera"
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted" && status !== "limited") return;
+    const result = source === "camera"
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
+    if (!result.canceled && result.assets[0]) {
+      setPendingPhotoUri(result.assets[0].uri);
+      setPhotoCaptionInput("");
+      setShowCaptionModal(true);
+    }
+  };
+
+  const saveBookPhoto = async () => {
+    if (!pendingPhotoUri || !userId || !id) return;
+    setIsSavingPhoto(true);
+    try {
+      const photo = await uploadBookPhoto(userId, id, pendingPhotoUri, photoCaptionInput.trim());
+      setBookPhotos((prev) => [photo, ...prev]);
+      setPendingPhotoUri(null);
+      setPhotoCaptionInput("");
+      setShowCaptionModal(false);
+    } catch (e: any) {
+      Alert.alert("Couldn't save photo", e.message ?? "Please try again.");
+    } finally {
+      setIsSavingPhoto(false);
+    }
+  };
+
+  const deleteBookPhoto = async (photoId: string) => {
+    const photo = bookPhotos.find((p) => p.id === photoId);
+    if (!photo) return;
+    setBookPhotos((prev) => prev.filter((p) => p.id !== photoId));
+    setViewingPhoto(null);
+    await deleteGalleryPhoto(photo.id, photo.storagePath).catch(() => {
+      setBookPhotos((prev) => [photo, ...prev]);
+    });
   };
 
   if (!book) {
@@ -380,14 +443,14 @@ export default function BookDetailScreen() {
 
         {/* ── Tabs header (sticky) ── */}
         <View style={styles.tabRow}>
-          {(["quotes", "notes"] as Tab[]).map((tab) => (
+          {(["quotes", "notes", "photos"] as Tab[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabItemText, activeTab === tab && styles.tabItemTextActive]}>
-                {tab === "quotes" ? "Quotes" : "Notes"}
+                {tab === "quotes" ? "Quotes" : tab === "notes" ? "Notes" : "Photos"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -400,12 +463,107 @@ export default function BookDetailScreen() {
           </View>
         ) : activeTab === "quotes" ? (
           <QuotesTab quotes={quotes} onAdd={handleAddQuote} onDelete={handleDeleteQuote} scrollRef={scrollRef} />
-        ) : (
+        ) : activeTab === "notes" ? (
           <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} scrollRef={scrollRef} />
+        ) : (
+          <PhotosTab photos={bookPhotos} onAdd={() => setShowSourcePicker(true)} onView={setViewingPhoto} />
         )}
 
         <View style={{ height: insets.bottom + 20 }} />
       </ScrollView>
+
+      {/* ── Source picker overlay (no Modal — avoids UIViewController conflict) ── */}
+      {showSourcePicker && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowSourcePicker(false)} />
+          <View style={[photoStyles.sourceSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={photoStyles.sheetPill} />
+            <Text style={photoStyles.sheetHeading}>Add a photo</Text>
+            <TouchableOpacity style={photoStyles.sourceBtn} onPress={() => pickBookPhoto("camera")}>
+              <Text style={photoStyles.sourceBtnText}>📷  Take a photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={photoStyles.sourceBtn} onPress={() => pickBookPhoto("library")}>
+              <Text style={photoStyles.sourceBtnText}>🖼️  Choose from library</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── Caption modal ── */}
+      <Modal transparent visible={showCaptionModal} animationType="slide" onRequestClose={() => setShowCaptionModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowCaptionModal(false)} />
+          <View style={[photoStyles.captionSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={photoStyles.sheetPill} />
+            {pendingPhotoUri && (
+              <Image source={{ uri: pendingPhotoUri }} style={photoStyles.captionPreview} contentFit="cover" />
+            )}
+            <TextInput
+              style={photoStyles.captionInput}
+              value={photoCaptionInput}
+              onChangeText={setPhotoCaptionInput}
+              placeholder="Add a caption… (optional)"
+              placeholderTextColor={colors.char3}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[photoStyles.saveBtn, isSavingPhoto && { opacity: 0.6 }]}
+              onPress={saveBookPhoto}
+              disabled={isSavingPhoto}
+            >
+              {isSavingPhoto
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={photoStyles.saveBtnText}>Save photo</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Full-screen photo viewer ── */}
+      <Modal transparent visible={!!viewingPhoto} animationType="fade" onRequestClose={() => setViewingPhoto(null)}>
+        <View style={photoStyles.viewer}>
+          <StatusBar barStyle="light-content" />
+          <TouchableOpacity
+            style={[photoStyles.viewerClose, { top: insets.top + 12 }]}
+            onPress={() => setViewingPhoto(null)}
+          >
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+              <Path d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
+            </Svg>
+          </TouchableOpacity>
+
+          {viewingPhoto && (
+            <Image
+              source={{ uri: viewingPhoto.uri }}
+              style={{ flex: 1, width: "100%" }}
+              contentFit="contain"
+              transition={300}
+              placeholder={{ color: "#1a1a2e" }}
+            />
+          )}
+
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.88)"]}
+            locations={[0, 0.35, 1]}
+            style={[photoStyles.viewerBottom, { paddingBottom: insets.bottom + 24 }]}
+          >
+            {viewingPhoto?.caption ? (
+              <View style={{ alignItems: "center", gap: 10, width: "100%" }}>
+                <View style={{ width: 36, height: 1, backgroundColor: "rgba(255,255,255,0.35)" }} />
+                <Text style={photoStyles.viewerCaption}>{viewingPhoto.caption}</Text>
+              </View>
+            ) : null}
+            {viewingPhoto && (
+              <TouchableOpacity style={photoStyles.viewerDeleteBtn} onPress={() => deleteBookPhoto(viewingPhoto.id)}>
+                <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={photoStyles.viewerDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          </LinearGradient>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -589,6 +747,47 @@ function NotesTab({
   );
 }
 
+// ── Photos Tab ────────────────────────────────────────────────────────────────
+
+function PhotosTab({
+  photos,
+  onAdd,
+  onView,
+}: {
+  photos: PersistedPhoto[];
+  onAdd: () => void;
+  onView: (photo: PersistedPhoto) => void;
+}) {
+  return (
+    <View style={styles.tabContent}>
+      {photos.length === 0 && (
+        <Text style={styles.emptyTabText}>No photos yet. Add one to remember this book.</Text>
+      )}
+      <View style={photoStyles.grid}>
+        {photos.map((photo) => (
+          <TouchableOpacity key={photo.id} style={photoStyles.gridTile} onPress={() => onView(photo)} activeOpacity={0.85}>
+            <Image
+              source={{ uri: photo.uri }}
+              style={photoStyles.gridImg}
+              contentFit="cover"
+              transition={350}
+              placeholder={{ color: "#ede8df" }}
+            />
+            {!!photo.caption && (
+              <Text style={photoStyles.gridCaption} numberOfLines={1}>{photo.caption}</Text>
+            )}
+          </TouchableOpacity>
+        ))}
+        {/* Add tile */}
+        <TouchableOpacity style={photoStyles.addTile} onPress={onAdd} activeOpacity={0.75}>
+          <Text style={photoStyles.addTilePlus}>+</Text>
+          <Text style={photoStyles.addTileLabel}>Add photo</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -758,5 +957,81 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3,
   },
   addCancelBtnText: { color: colors.char3, fontSize: 13 },
+});
+
+// ── Photo-specific styles ─────────────────────────────────────────────────────
+const TILE_SIZE = 160;
+
+const photoStyles = StyleSheet.create({
+  // 2-column grid
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  gridTile: { width: TILE_SIZE, borderRadius: 10, overflow: "hidden", backgroundColor: colors.parchment },
+  gridImg: { width: TILE_SIZE, height: TILE_SIZE },
+  gridCaption: { fontSize: 10, color: colors.espresso2, paddingHorizontal: 6, paddingVertical: 5 },
+  addTile: {
+    width: TILE_SIZE, height: TILE_SIZE, borderRadius: 10,
+    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center", gap: 4,
+    backgroundColor: colors.cream2,
+  },
+  addTilePlus: { fontSize: 26, color: colors.terracotta },
+  addTileLabel: { fontSize: 10, color: colors.terracotta },
+
+  // Source picker sheet
+  sourceSheet: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: "#0f1923", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 12, paddingHorizontal: 20, gap: 10,
+  },
+  sheetPill: { width: 36, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "center", marginBottom: 8 },
+  sheetHeading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: "#faf6f0", marginBottom: 4 },
+  sourceBtn: {
+    backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16,
+  },
+  sourceBtnText: { fontSize: 14, color: "#faf6f0" },
+
+  // Caption sheet
+  captionSheet: {
+    backgroundColor: colors.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 12, paddingHorizontal: 20, gap: 12,
+  },
+  captionPreview: { width: "100%", height: 160, borderRadius: 12 },
+  captionInput: {
+    backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, color: colors.espresso,
+  },
+  saveBtn: {
+    backgroundColor: colors.terracotta, borderRadius: 12,
+    paddingVertical: 13, alignItems: "center",
+  },
+  saveBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+
+  // Full-screen viewer
+  viewer: { flex: 1, backgroundColor: "#000" },
+  viewerClose: {
+    position: "absolute", right: 16, zIndex: 10,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center", justifyContent: "center",
+  },
+  viewerBottom: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    paddingTop: 48, paddingHorizontal: 32, alignItems: "center", gap: 18,
+  },
+  viewerCaption: {
+    fontFamily: "CormorantGaramond_400Regular_Italic",
+    color: "rgba(255,255,255,0.92)", fontSize: 19,
+    textAlign: "center", lineHeight: 27, letterSpacing: 0.3,
+  },
+  viewerDeleteBtn: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingVertical: 8, paddingHorizontal: 18,
+    backgroundColor: "rgba(255,107,107,0.15)",
+    borderWidth: 1, borderColor: "rgba(255,107,107,0.3)",
+    borderRadius: 20,
+  },
+  viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
 
 });

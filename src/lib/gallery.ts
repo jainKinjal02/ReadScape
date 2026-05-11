@@ -19,51 +19,8 @@ export async function uploadGalleryPhoto(
   caption: string
 ): Promise<PersistedPhoto> {
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
-  const mimeType = ext === "png" ? "image/png" : "image/jpeg";
   const storagePath = `gallery/${userId}/${Date.now()}.${ext}`;
-
-  // 1. Read file as base64 via expo-file-system (fetch on file:// URIs returns 0 bytes in RN)
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: "base64",
-  });
-
-  // Convert base64 → Uint8Array for Supabase Storage
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  // 2. Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-
-  if (uploadError) throw uploadError;
-
-  // 3. Get the public URL
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
-
-  // 4. Insert metadata row (book_id is null — standalone gallery photo)
-  const { data, error: dbError } = await supabase
-    .from("photos")
-    .insert({ user_id: userId, book_id: null, storage_path: storagePath, caption: caption || null })
-    .select("id, caption, created_at")
-    .single();
-
-  if (dbError) {
-    // Clean up the uploaded file if DB insert fails
-    await supabase.storage.from(BUCKET).remove([storagePath]);
-    throw dbError;
-  }
-
-  return {
-    id: data.id,
-    uri: urlData.publicUrl,
-    caption: data.caption ?? "",
-    storagePath,
-    timestamp: new Date(data.created_at).getTime(),
-  };
+  return readAndUpload(userId, null, localUri, caption, storagePath);
 }
 
 // ─── Fetch ───────────────────────────────────────────────────────────────────
@@ -87,10 +44,82 @@ export async function fetchGalleryPhotos(userId: string): Promise<PersistedPhoto
   }));
 }
 
-// ─── Delete ──────────────────────────────────────────────────────────────────
+// ─── Book-specific photos ─────────────────────────────────────────────────────
+
+async function readAndUpload(
+  userId: string,
+  bookId: string | null,
+  localUri: string,
+  caption: string,
+  storagePath: string
+): Promise<PersistedPhoto> {
+  const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
+  const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+
+  const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: "base64" });
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+
+  const { data, error: dbError } = await supabase
+    .from("photos")
+    .insert({ user_id: userId, book_id: bookId, storage_path: storagePath, caption: caption || null })
+    .select("id, caption, created_at")
+    .single();
+
+  if (dbError) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    throw dbError;
+  }
+
+  return {
+    id: data.id,
+    uri: urlData.publicUrl,
+    caption: data.caption ?? "",
+    storagePath,
+    timestamp: new Date(data.created_at).getTime(),
+  };
+}
+
+export async function uploadBookPhoto(
+  userId: string,
+  bookId: string,
+  localUri: string,
+  caption: string
+): Promise<PersistedPhoto> {
+  const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
+  const storagePath = `books/${bookId}/${Date.now()}.${ext}`;
+  return readAndUpload(userId, bookId, localUri, caption, storagePath);
+}
+
+export async function fetchBookPhotos(bookId: string): Promise<PersistedPhoto[]> {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, storage_path, caption, created_at")
+    .eq("book_id", bookId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    uri: supabase.storage.from(BUCKET).getPublicUrl(row.storage_path).data.publicUrl,
+    caption: row.caption ?? "",
+    storagePath: row.storage_path,
+    timestamp: new Date(row.created_at).getTime(),
+  }));
+}
+
+// ─── Delete (shared by gallery and book photos) ───────────────────────────────
 
 export async function deleteGalleryPhoto(id: string, storagePath: string): Promise<void> {
-  // Remove file first, then the DB row (order doesn't matter much but storage first is safer)
   await supabase.storage.from(BUCKET).remove([storagePath]);
   const { error } = await supabase.from("photos").delete().eq("id", id);
   if (error) throw error;
