@@ -16,6 +16,8 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
+import { supabase } from "../../src/lib/supabase";
+import { useAppStore } from "../../src/store";
 
 const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
 
@@ -27,6 +29,14 @@ const HEADER_IMGS = [
 
 type Tab = "Chat" | "Recommend" | "Define" | "Themes";
 const TABS: Tab[] = ["Chat", "Recommend", "Define", "Themes"];
+
+// Map UI tab → Edge Function mode
+const TAB_MODE: Record<Tab, string> = {
+  Chat:      "chat",
+  Recommend: "recommend",
+  Define:    "define",
+  Themes:    "themes",
+};
 
 const STARTERS: Record<Tab, string[]> = {
   Chat: [],
@@ -66,12 +76,69 @@ function SendIcon() {
   );
 }
 
+// Three-dot typing indicator
+function TypingIndicator() {
+  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+
+  useEffect(() => {
+    const animations = dots.map((dot, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 160),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay((dots.length - i) * 160),
+        ])
+      )
+    );
+    Animated.parallel(animations).start();
+    return () => animations.forEach((a) => a.stop());
+  }, []);
+
+  return (
+    <View style={styles.msgAI}>
+      <View style={styles.aiAv}>
+        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+          <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={colors.cream} strokeWidth={1.5} />
+        </Svg>
+      </View>
+      <View style={styles.bubbleAI}>
+        <View style={{ flexDirection: "row", gap: 5, alignItems: "center", paddingVertical: 4 }}>
+          {dots.map((dot, i) => (
+            <Animated.View
+              key={i}
+              style={{
+                width: 7, height: 7, borderRadius: 4,
+                backgroundColor: colors.terracotta,
+                opacity: dot,
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function AIScreen() {
   const insets = useSafeAreaInsets();
+  const books = useAppStore((s) => s.books);
   const [activeTab, setActiveTab] = useState<Tab>("Chat");
   const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  // Current book context — first book with status "reading"
+  const currentBook = books.find((b) => b.status === "reading") ?? null;
+  const bookContext = currentBook
+    ? {
+        title: currentBook.title,
+        author: currentBook.author ?? "Unknown",
+        currentPage: currentBook.current_page,
+        totalPages: currentBook.total_pages,
+      }
+    : null;
 
   // Crossfading header images
   const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
@@ -88,19 +155,45 @@ export default function AIScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const sendMessage = (text?: string) => {
+  const sendMessage = async (text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg) return;
+    if (!msg || isLoading) return;
+
     const userMsg: Message = { id: Date.now().toString(), role: "user", text: msg };
-    const aiReply: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      text: "That's a great question! I'm currently in demo mode — once connected to the AI backend, I'll give you thoughtful, personalised answers based on your reading history and current book.",
-    };
-    setMessages((prev) => [...prev, userMsg, aiReply]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setActiveTab("Chat");
+    setIsLoading(true);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-companion", {
+        body: {
+          message: msg,
+          mode: TAB_MODE[activeTab],
+          bookContext,
+        },
+      });
+
+      if (error) throw error;
+
+      const aiReply: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        text: data?.reply ?? "Sorry, I couldn't get a response. Please try again.",
+      };
+      setMessages((prev) => [...prev, aiReply]);
+    } catch {
+      const errMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        text: "I'm having trouble connecting right now. Please check your connection and try again.",
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    }
   };
 
   const starters = STARTERS[activeTab];
@@ -124,7 +217,11 @@ export default function AIScreen() {
         />
         <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.heroTitle}>Reading Companion</Text>
-          <Text style={styles.heroSub}>Ask anything about your books</Text>
+          {bookContext ? (
+            <Text style={styles.heroSub}>Reading: {bookContext.title}</Text>
+          ) : (
+            <Text style={styles.heroSub}>Ask anything about your books</Text>
+          )}
         </View>
       </View>
 
@@ -174,6 +271,7 @@ export default function AIScreen() {
                   </View>
                 )
               }
+              ListFooterComponent={isLoading ? <TypingIndicator /> : null}
             />
           )}
 
@@ -203,11 +301,12 @@ export default function AIScreen() {
               placeholderTextColor={colors.char3}
               onSubmitEditing={() => sendMessage()}
               returnKeyType="send"
+              editable={!isLoading}
             />
             <TouchableOpacity
-              style={[styles.sendBtn, !input.trim() && { opacity: 0.4 }]}
+              style={[styles.sendBtn, (!input.trim() || isLoading) && { opacity: 0.4 }]}
               onPress={() => sendMessage()}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isLoading}
             >
               <SendIcon />
             </TouchableOpacity>
