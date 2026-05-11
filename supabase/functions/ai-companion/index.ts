@@ -30,26 +30,42 @@ Deno.serve(async (req) => {
     // ANTHROPIC_API_KEY is automatically read from the environment
 
     // Build a context-aware system prompt based on what the user is reading
-    let systemPrompt = `You are a warm, knowledgeable literary companion inside ReadScape, a personal reading tracker app.
-You are conversational, insightful, and passionate about books. Keep responses concise — 2-4 paragraphs max.`;
+    let systemPrompt = `You are a focused literary companion inside ReadScape, a personal reading tracker app.
+
+Your expertise is strictly limited to:
+- Books: plots, characters, themes, symbolism, narrative structure, literary devices
+- Authors: biography, writing style, other works, historical context
+- Word definitions and translations: explain English words, literary terms, and phrases clearly — include etymology when it adds insight
+- Reading recommendations: suggest books based on what the user enjoys
+
+You do NOT answer questions outside this scope (news, coding, general knowledge, etc.).
+If asked something unrelated, gently redirect: "I'm your reading companion — ask me about books, authors, or words!"
+
+Tone: warm, bookish, concise. Never exceed 3 paragraphs. No bullet-point walls — write like a thoughtful friend who loves books.`;
 
     if (bookContext) {
-      systemPrompt += `\n\nThe user is currently reading: "${bookContext.title}" by ${bookContext.author}.`;
+      systemPrompt += `\n\n--- Reader context ---`;
+      systemPrompt += `\nCurrently reading: "${bookContext.title}" by ${bookContext.author}.`;
       if (bookContext.currentPage && bookContext.totalPages) {
-        systemPrompt += ` They are on page ${bookContext.currentPage} of ${bookContext.totalPages}.`;
+        systemPrompt += ` On page ${bookContext.currentPage} of ${bookContext.totalPages} (${Math.round((bookContext.currentPage / bookContext.totalPages) * 100)}% through).`;
       }
       if (bookContext.lastMood) {
-        systemPrompt += ` Their last logged mood was: ${bookContext.lastMood.replace(/_/g, " ")}.`;
+        systemPrompt += ` Current reading mood: ${bookContext.lastMood.replace(/_/g, " ")}.`;
       }
+      systemPrompt += `\nTailor answers to where they are in the book — avoid spoilers for events beyond their current page unless they explicitly ask.`;
+    } else {
+      systemPrompt += `\n\nThe user hasn't added a book yet. Encourage them to add one, and answer general book/author/word questions in the meantime.`;
     }
 
-    // Tailor the AI's behaviour based on the selected mode
+    // Mode-specific instructions
     if (mode === "define") {
-      systemPrompt += `\n\nThe user wants word or concept definitions. Provide the definition, etymology if interesting, and how it might appear in literary contexts. Be concise.`;
+      systemPrompt += `\n\n--- Mode: Define ---\nThe user wants a word or literary term explained. Give: (1) a clear definition, (2) etymology or origin if interesting, (3) an example of how it appears in literature. Keep it under 150 words.`;
     } else if (mode === "recommend") {
-      systemPrompt += `\n\nThe user wants book recommendations. Suggest 3-4 specific books with brief reasons why they'd enjoy each, based on what they're currently reading and their mood.`;
+      systemPrompt += `\n\n--- Mode: Recommend ---\nSuggest exactly 3 books. For each: title, author, and one compelling sentence on why it fits. Base recommendations on the user's current book, mood, and reading taste. No lengthy descriptions.`;
+    } else if (mode === "themes") {
+      systemPrompt += `\n\n--- Mode: Themes ---\nFocus on literary analysis: themes, symbols, motifs, narrative structure, and authorial intent. Be specific to the book the user is reading. Avoid generic observations.`;
     } else {
-      systemPrompt += `\n\nThe user wants to chat about their reading. Answer questions about the book, characters, themes, author, or anything literary. Avoid spoilers unless asked.`;
+      systemPrompt += `\n\n--- Mode: Chat ---\nAnswer the user's question about their book, the author, or a word/phrase. Be specific, not generic. If the question is about the current book, use your knowledge of it to give a meaningful answer.`;
     }
 
     const response = await client.messages.create({
