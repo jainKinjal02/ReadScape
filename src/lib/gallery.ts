@@ -56,8 +56,12 @@ async function readAndUpload(
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
   const mimeType = ext === "png" ? "image/png" : "image/jpeg";
 
+  // Step 0 — verify auth session
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("[Upload] session user:", session?.user?.id ?? "NO SESSION");
+
   // Step 1 — read file
-  console.log("[Upload] reading file:", localUri);
+  console.log("[Upload] reading file:", localUri, "storagePath:", storagePath);
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: "base64" });
   console.log("[Upload] file read OK, base64 length:", base64.length);
 
@@ -108,7 +112,7 @@ export async function uploadBookPhoto(
   caption: string
 ): Promise<PersistedPhoto> {
   const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
-  const storagePath = `gallery/${userId}/${bookId}-${Date.now()}.${ext}`;
+  const storagePath = `gallery/${userId}/${Date.now()}.${ext}`;
   return readAndUpload(userId, bookId, localUri, caption, storagePath);
 }
 
