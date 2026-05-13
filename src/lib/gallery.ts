@@ -73,7 +73,6 @@ async function readAndUpload(
   // Step 2 — storage upload via direct fetch (bypasses Supabase SDK wrapper)
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
   const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token ?? supabaseAnonKey;
 
   const uploadUrl = `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`;
