@@ -92,6 +92,7 @@ export default function BookDetailScreen() {
   const [showCaptionModal, setShowCaptionModal] = useState(false);
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<PersistedPhoto | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ uri: string; caption: string } | null>(null);
 
   const progress =
     book && book.total_pages && book.total_pages > 0
@@ -225,21 +226,34 @@ export default function BookDetailScreen() {
     }
   };
 
-  const saveBookPhoto = async () => {
-    if (!pendingPhotoUri || !userId || !id) return;
-    setIsSavingPhoto(true);
-    try {
-      const photo = await uploadBookPhoto(userId, id, pendingPhotoUri, photoCaptionInput.trim());
-      setBookPhotos((prev) => [photo, ...prev]);
-      setPendingPhotoUri(null);
-      setPhotoCaptionInput("");
-      setShowCaptionModal(false);
-    } catch (e: any) {
-      Alert.alert("Couldn't save photo", e.message ?? "Please try again.");
-    } finally {
-      setIsSavingPhoto(false);
-    }
+  // Dismiss the Modal first, then upload via useEffect — iOS blocks network requests
+  // initiated from inside a presented Modal (same root cause as image-picker UIViewController conflict).
+  const saveBookPhoto = () => {
+    if (!pendingPhotoUri) return;
+    const upload = { uri: pendingPhotoUri, caption: photoCaptionInput.trim() };
+    setShowCaptionModal(false);
+    setPendingPhotoUri(null);
+    setPhotoCaptionInput("");
+    setPendingUpload(upload);
   };
+
+  useEffect(() => {
+    if (!pendingUpload || !userId || !id) return;
+    const { uri, caption } = pendingUpload;
+    setPendingUpload(null);
+    setIsSavingPhoto(true);
+    const timer = setTimeout(async () => {
+      try {
+        const photo = await uploadBookPhoto(userId, id, uri, caption);
+        setBookPhotos((prev) => [photo, ...prev]);
+      } catch (e: any) {
+        Alert.alert("Couldn't save photo", e.message ?? "Please try again.");
+      } finally {
+        setIsSavingPhoto(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [pendingUpload]);
 
   const deleteBookPhoto = async (photoId: string) => {
     const photo = bookPhotos.find((p) => p.id === photoId);
@@ -466,7 +480,7 @@ export default function BookDetailScreen() {
         ) : activeTab === "notes" ? (
           <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} scrollRef={scrollRef} />
         ) : (
-          <PhotosTab photos={bookPhotos} onAdd={() => setShowSourcePicker(true)} onView={setViewingPhoto} />
+          <PhotosTab photos={bookPhotos} onAdd={() => setShowSourcePicker(true)} onView={setViewingPhoto} isUploading={isSavingPhoto} />
         )}
 
         <View style={{ height: insets.bottom + 20 }} />
@@ -753,14 +767,22 @@ function PhotosTab({
   photos,
   onAdd,
   onView,
+  isUploading,
 }: {
   photos: PersistedPhoto[];
   onAdd: () => void;
   onView: (photo: PersistedPhoto) => void;
+  isUploading?: boolean;
 }) {
   return (
     <View style={styles.tabContent}>
-      {photos.length === 0 && (
+      {isUploading && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 10 }}>
+          <ActivityIndicator color={colors.terracotta} size="small" />
+          <Text style={{ fontSize: 12, color: colors.char3 }}>Saving photo…</Text>
+        </View>
+      )}
+      {photos.length === 0 && !isUploading && (
         <Text style={styles.emptyTabText}>No photos yet. Add one to remember this book.</Text>
       )}
       <View style={photoStyles.grid}>

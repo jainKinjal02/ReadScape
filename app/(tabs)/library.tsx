@@ -103,16 +103,25 @@ export default function LibraryScreen() {
   }, []);
 
   const [filter, setFilter] = useState<Filter>("all");
+  const [librarySearch, setLibrarySearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<GoogleBook[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const libraryInputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered =
+  const statusFiltered =
     filter === "all" ? books : books.filter((b) => b.status === filter);
+
+  const filtered = librarySearch.trim().length === 0
+    ? statusFiltered
+    : statusFiltered.filter((b) => {
+        const q = librarySearch.toLowerCase();
+        return b.title.toLowerCase().includes(q) || (b.author ?? "").toLowerCase().includes(q);
+      });
 
   const handleToggleFavorite = async (book: Book) => {
     const newValue = !book.is_favorite;
@@ -126,7 +135,7 @@ export default function LibraryScreen() {
 
   const gridData: (Book | { id: "__add__" })[] = [
     ...filtered,
-    { id: "__add__" },
+    ...(librarySearch.trim().length === 0 ? [{ id: "__add__" as const }] : []),
   ];
 
   // ── Real-time debounced search ───────────────────────────────────────────
@@ -317,11 +326,37 @@ export default function LibraryScreen() {
             </ScrollView>
           </View>
 
+          {/* Library search bar */}
+          <View style={styles.libSearchWrap}>
+            <SearchIcon />
+            <TextInput
+              ref={libraryInputRef}
+              style={styles.libSearchInput}
+              value={librarySearch}
+              onChangeText={setLibrarySearch}
+              placeholder="Search your library…"
+              placeholderTextColor={colors.char3}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {librarySearch.length > 0 && (
+              <TouchableOpacity onPress={() => setLibrarySearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.clearBtn}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Loading / empty / grid */}
           {loading && books.length === 0 ? (
             <View style={styles.loadingWrap}>
               <ActivityIndicator color={colors.terracotta} />
               <Text style={styles.loadingText}>Loading your library…</Text>
+            </View>
+          ) : filtered.length === 0 && librarySearch.trim().length > 0 ? (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyTitle}>No matches</Text>
+              <Text style={styles.emptySub}>No books matching "{librarySearch}" in your library.</Text>
             </View>
           ) : filtered.length === 0 && filter === "all" ? (
             <View style={styles.emptyWrap}>
@@ -453,6 +488,18 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
   pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
   pillTextActive: { color: "#fff" },
+
+  // Library search bar
+  libSearchWrap: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginHorizontal: 20, marginBottom: 10,
+    backgroundColor: "#fff",
+    borderRadius: 10, borderWidth: 1, borderColor: colors.cream3,
+    paddingHorizontal: 12, paddingVertical: 8,
+  },
+  libSearchInput: {
+    flex: 1, fontSize: 13, color: colors.espresso,
+  },
 
   grid: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 },
   gridRow: { gap: 12, marginBottom: 16 },
