@@ -57,11 +57,11 @@ const ADD_STATUS: { label: string; value: BookStatus }[] = [
   { label: "Read",    value: "read" },
 ];
 
-function SearchIcon() {
+function SearchIcon({ color = "rgba(255,255,255,0.5)" }: { color?: string }) {
   return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Circle cx={11} cy={11} r={8} stroke={colors.char3} strokeWidth={1.5} />
-      <Path d="M21 21l-4.35-4.35" stroke={colors.char3} strokeWidth={1.5} strokeLinecap="round" />
+    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={8} stroke={color} strokeWidth={1.8} />
+      <Path d="M21 21l-4.35-4.35" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -335,13 +335,13 @@ export default function LibraryScreen() {
               value={librarySearch}
               onChangeText={setLibrarySearch}
               placeholder="Search your library…"
-              placeholderTextColor={colors.char3}
+              placeholderTextColor="rgba(255,255,255,0.4)"
               returnKeyType="search"
               autoCorrect={false}
             />
             {librarySearch.length > 0 && (
               <TouchableOpacity onPress={() => setLibrarySearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.clearBtn}>✕</Text>
+                <Text style={styles.libClearBtn}>✕</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -493,13 +493,14 @@ const styles = StyleSheet.create({
   libSearchWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 20, marginBottom: 10,
-    backgroundColor: "#fff",
-    borderRadius: 10, borderWidth: 1, borderColor: colors.cream3,
-    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: "rgba(22,32,48,0.75)",
+    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 12, paddingVertical: 9,
   },
   libSearchInput: {
-    flex: 1, fontSize: 13, color: colors.espresso,
+    flex: 1, fontSize: 13, color: "#fff",
   },
+  libClearBtn: { fontSize: 13, color: "rgba(255,255,255,0.5)", paddingHorizontal: 2 },
 
   grid: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 },
   gridRow: { gap: 12, marginBottom: 16 },
