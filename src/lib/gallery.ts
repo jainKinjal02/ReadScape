@@ -70,29 +70,15 @@ async function readAndUpload(
   for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
   console.log("[Upload] bytes length:", bytes.length, "storagePath:", storagePath);
 
-  // Step 2 — storage upload via direct fetch (bypasses Supabase SDK wrapper)
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  const token = session?.access_token ?? supabaseAnonKey;
+  // Step 2 — storage upload
+  console.log("[Upload] uploading to bucket:", BUCKET, "path:", storagePath);
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
 
-  const uploadUrl = `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`;
-  console.log("[Upload] uploading to:", uploadUrl);
-
-  const uploadRes = await fetch(uploadUrl, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "apikey": supabaseAnonKey,
-      "Content-Type": mimeType,
-      "x-upsert": "false",
-    },
-    body: bytes,
-  });
-
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text();
-    console.error("[Upload] storage HTTP error:", uploadRes.status, errText);
-    throw new Error(`Storage upload failed (${uploadRes.status}): ${errText}`);
+  if (uploadError) {
+    console.error("[Upload] storage error — name:", uploadError.name, "message:", uploadError.message, "status:", (uploadError as any).statusCode);
+    throw uploadError;
   }
   console.log("[Upload] storage upload OK");
 
