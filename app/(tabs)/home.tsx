@@ -63,6 +63,13 @@ export default function HomeScreen() {
   const currentBook = books.find((b) => b.status === "reading") ?? null;
   const wantToRead = books.filter((b) => b.status === "want_to_read").slice(0, 5);
   const readCount = books.filter((b) => b.status === "read").length;
+  const currentYear = new Date().getFullYear();
+  const booksReadThisYear = books.filter((b) => {
+    if (b.status !== "read") return false;
+    if (!b.date_finished) return true; // no finish date — assume current year
+    return new Date(b.date_finished).getFullYear() === currentYear;
+  }).length;
+  const goalPct = readingGoal > 0 ? Math.min(100, Math.round((booksReadThisYear / readingGoal) * 100)) : 0;
   const progress =
     currentBook && currentBook.total_pages && currentBook.total_pages > 0
       ? Math.min(100, Math.round((currentBook.current_page / currentBook.total_pages) * 100))
@@ -271,6 +278,36 @@ export default function HomeScreen() {
             <Text style={styles.statL}>Want to read</Text>
           </View>
         </View>
+
+        {/* ── Reading Goal ── */}
+        {readingGoal > 0 ? (
+          <View style={styles.goalCard}>
+            <View style={styles.goalHeader}>
+              <Text style={styles.goalTitle}>{currentYear} Reading Goal</Text>
+              <Text style={styles.goalCount}>
+                <Text style={styles.goalCountBig}>{booksReadThisYear}</Text>
+                <Text style={styles.goalCountOf}> / {readingGoal} books</Text>
+              </Text>
+            </View>
+            <View style={styles.goalBarBg}>
+              <View style={[styles.goalBarFill, { width: `${goalPct}%` }]} />
+            </View>
+            <Text style={styles.goalPct}>
+              {goalPct === 100
+                ? "Goal complete! Amazing work 🎉"
+                : `${goalPct}% of your goal · ${readingGoal - booksReadThisYear} book${readingGoal - booksReadThisYear === 1 ? "" : "s"} to go`}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.goalCardEmpty} onPress={openEditProfile} activeOpacity={0.8}>
+            <Text style={styles.goalEmptyIcon}>🎯</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.goalEmptyTitle}>Set a reading goal</Text>
+              <Text style={styles.goalEmptySub}>How many books do you want to read in {currentYear}?</Text>
+            </View>
+            <Text style={styles.goalEmptyChevron}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Want to Read ── */}
         <View style={styles.secHdrRow}>
@@ -692,6 +729,37 @@ const styles = StyleSheet.create({
   emptyBook: { flexDirection: "row", gap: 14, alignItems: "center" },
   emptyBookIcon: { fontSize: 40 },
   emptyBookText: { flex: 1 },
+
+  // Reading goal card
+  goalCard: {
+    marginHorizontal: 16, marginTop: 16,
+    backgroundColor: "#fff",
+    borderRadius: 14, padding: 16,
+    shadowColor: "#2c1f14", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 10,
+    elevation: 2,
+  },
+  goalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  goalTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
+  goalCount: {},
+  goalCountBig: { fontSize: 18, fontWeight: "700", color: colors.terracotta },
+  goalCountOf: { fontSize: 13, color: colors.char3 },
+  goalBarBg: { height: 7, borderRadius: 4, backgroundColor: colors.cream2, overflow: "hidden" },
+  goalBarFill: { height: "100%", borderRadius: 4, backgroundColor: colors.terracotta },
+  goalPct: { fontSize: 11, color: colors.char3, marginTop: 8 },
+
+  goalCardEmpty: {
+    marginHorizontal: 16, marginTop: 16,
+    backgroundColor: "#fff",
+    borderRadius: 14, padding: 16,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderWidth: 1, borderColor: colors.cream3,
+    shadowColor: "#2c1f14", shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
+    elevation: 1,
+  },
+  goalEmptyIcon: { fontSize: 24 },
+  goalEmptyTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
+  goalEmptySub: { fontSize: 11, color: colors.char3, marginTop: 2 },
+  goalEmptyChevron: { fontSize: 22, color: colors.char3, fontWeight: "300" },
 
   // AI promo
   aiPromo: {
