@@ -283,19 +283,22 @@ export default function HomeScreen() {
         {readingGoal > 0 ? (
           <View style={styles.goalCard}>
             <View style={styles.goalHeader}>
-              <Text style={styles.goalTitle}>{currentYear} Reading Goal</Text>
-              <Text style={styles.goalCount}>
+              <View>
+                <Text style={styles.goalLabel}>{currentYear} Reading Goal</Text>
+                <Text style={styles.goalTitle}>
+                  {goalPct === 100 ? "Goal complete!" : `${readingGoal - booksReadThisYear} book${readingGoal - booksReadThisYear === 1 ? "" : "s"} to go`}
+                </Text>
+              </View>
+              <View style={styles.goalCount}>
                 <Text style={styles.goalCountBig}>{booksReadThisYear}</Text>
-                <Text style={styles.goalCountOf}> / {readingGoal} books</Text>
-              </Text>
+                <Text style={styles.goalCountOf}>of {readingGoal} books</Text>
+              </View>
             </View>
             <View style={styles.goalBarBg}>
               <View style={[styles.goalBarFill, { width: `${goalPct}%` }]} />
             </View>
             <Text style={styles.goalPct}>
-              {goalPct === 100
-                ? "Goal complete! Amazing work 🎉"
-                : `${goalPct}% of your goal · ${readingGoal - booksReadThisYear} book${readingGoal - booksReadThisYear === 1 ? "" : "s"} to go`}
+              {goalPct === 100 ? "Amazing work this year 🎉" : `${goalPct}% complete`}
             </Text>
           </View>
         ) : (
@@ -732,31 +735,36 @@ const styles = StyleSheet.create({
 
   // Reading goal card
   goalCard: {
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: "#fff",
-    borderRadius: 14, padding: 16,
-    shadowColor: "#2c1f14", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 10,
+    marginHorizontal: 16, marginTop: 0,
+    backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 16, padding: 16,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
     elevation: 2,
   },
-  goalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  goalTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
-  goalCount: {},
-  goalCountBig: { fontSize: 18, fontWeight: "700", color: colors.terracotta },
-  goalCountOf: { fontSize: 13, color: colors.char3 },
-  goalBarBg: { height: 7, borderRadius: 4, backgroundColor: colors.cream2, overflow: "hidden" },
+  goalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  goalLabel: {
+    fontSize: 10, color: colors.terracotta,
+    textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 3,
+  },
+  goalTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso },
+  goalCount: { alignItems: "flex-end" },
+  goalCountBig: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
+  goalCountOf: { fontSize: 11, color: colors.char3 },
+  goalBarBg: { height: 6, borderRadius: 4, backgroundColor: colors.cream3, overflow: "hidden" },
   goalBarFill: { height: "100%", borderRadius: 4, backgroundColor: colors.terracotta },
   goalPct: { fontSize: 11, color: colors.char3, marginTop: 8 },
 
   goalCardEmpty: {
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: "#fff",
-    borderRadius: 14, padding: 16,
+    marginHorizontal: 16, marginTop: 0,
+    backgroundColor: colors.parchment,
+    borderRadius: 16, padding: 16,
     flexDirection: "row", alignItems: "center", gap: 12,
     borderWidth: 1, borderColor: colors.cream3,
-    shadowColor: "#2c1f14", shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
+    shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
     elevation: 1,
   },
-  goalEmptyIcon: { fontSize: 24 },
+  goalEmptyIcon: { fontSize: 22 },
   goalEmptyTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
   goalEmptySub: { fontSize: 11, color: colors.char3, marginTop: 2 },
   goalEmptyChevron: { fontSize: 22, color: colors.char3, fontWeight: "300" },
