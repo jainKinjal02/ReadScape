@@ -374,7 +374,6 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
 
-        <View style={{ height: 32 }} />
       </ScrollView>
 
       {/* ── Profile slide-in panel ── */}
@@ -638,10 +637,10 @@ function getGreeting() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: { paddingBottom: 20 },
+  content: { paddingBottom: 8 },
 
   // Hero header
-  heroHeader: { height: 190, justifyContent: "flex-end", overflow: "hidden" },
+  heroHeader: { height: 165, justifyContent: "flex-end", overflow: "hidden" },
   heroContent: { padding: 20, paddingBottom: 16 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   greeting: { fontSize: 13, color: "rgba(247,242,235,0.8)", marginBottom: 2 },
@@ -695,7 +694,7 @@ const styles = StyleSheet.create({
   moodTagText: { fontSize: 11, color: colors.terracotta },
 
   // Stats
-  statsRow: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 20 },
+  statsRow: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 10, marginBottom: 10 },
   statC: {
     flex: 1, backgroundColor: colors.parchment,
     borderWidth: 1, borderColor: colors.cream3,
@@ -707,21 +706,21 @@ const styles = StyleSheet.create({
   // Want to read
   secHdrRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, marginBottom: 12,
+    paddingHorizontal: 20, marginTop: 14, marginBottom: 8,
   },
   secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
   secAll: { fontSize: 12, color: colors.terracotta, fontWeight: "500" },
   shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
   shelfItem: { width: 80, marginRight: 10 },
   shelfCover: {
-    width: 80, height: 116, borderRadius: 8, marginBottom: 6,
+    width: 80, height: 100, borderRadius: 8, marginBottom: 6,
     shadowColor: "#000", shadowOpacity: 0.14, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
     elevation: 3,
   },
-  shelfCoverImg: { width: 80, height: 116, borderRadius: 8 },
+  shelfCoverImg: { width: 80, height: 100, borderRadius: 8 },
   shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
   addCard: {
-    width: 80, height: 116, borderRadius: 8,
+    width: 80, height: 100, borderRadius: 8,
     borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", marginRight: 10,
     backgroundColor: "rgba(127,119,221,0.08)",
@@ -738,7 +737,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginTop: 0,
     backgroundColor: colors.parchment,
     borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 16, padding: 16,
+    borderRadius: 16, padding: 13,
     shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
     elevation: 2,
   },
