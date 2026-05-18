@@ -21,8 +21,8 @@ import * as ImagePicker from "expo-image-picker";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { colors } from "../../src/design/tokens";
-import { STATS, LIBRARY_BOOKS } from "../../src/data/mockData";
 import { useAppStore } from "../../src/store";
+import { Book } from "../../src/types";
 import {
   uploadGalleryPhoto,
   fetchGalleryPhotos,
@@ -68,21 +68,22 @@ const GENRES: {
   { name: "Dystopian",  emoji: "🔮", gradient: ["#4a5078", "#222440"], image: require("../../assets/genres/dystopian.png") },
 ];
 
-function bookCountForGenre(genre: string) {
-  return LIBRARY_BOOKS.filter((b) => b.genre === genre).length;
+function bookCountForGenre(genre: string, books: Book[]) {
+  return books.filter((b) => (b.genre ?? []).some((g) => g.toLowerCase() === genre.toLowerCase())).length;
 }
 
 // ─── Animated genre card ──────────────────────────────────────────────────────
 function GenreCard({
   genre,
   index,
+  count,
   onPress,
 }: {
   genre: typeof GENRES[number];
   index: number;
+  count: number;
   onPress: () => void;
 }) {
-  const count = bookCountForGenre(genre.name);
 
   // 1. Staggered entrance — fades + slides up
   const entranceOpacity = useRef(new Animated.Value(0)).current;
@@ -483,12 +484,95 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
   );
 }
 
+// ─── Monthly Reading Chart ────────────────────────────────────────────────────
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function MonthlyChart({ books }: { books: Book[] }) {
+  const year = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-indexed
+
+  // Count books finished per month this year
+  const counts = Array.from({ length: 12 }, (_, m) => {
+    return books.filter((b) => {
+      if (b.status !== "read") return false;
+      if (!b.date_finished) return false;
+      const d = new Date(b.date_finished);
+      return d.getFullYear() === year && d.getMonth() === m;
+    }).length;
+  });
+
+  const maxCount = Math.max(...counts, 1);
+  const BAR_H = 80;
+  const BAR_W = 18;
+  const GAP = 8;
+  const chartWidth = 12 * (BAR_W + GAP) - GAP;
+
+  // Entrance animation per bar
+  const anims = useRef(Array.from({ length: 12 }, () => new Animated.Value(0))).current;
+  useEffect(() => {
+    Animated.stagger(50, anims.map((a) =>
+      Animated.timing(a, { toValue: 1, duration: 500, useNativeDriver: false })
+    )).start();
+  }, []);
+
+  return (
+    <View style={chartStyles.wrap}>
+      <View style={chartStyles.header}>
+        <Text style={chartStyles.title}>Books per month</Text>
+        <Text style={chartStyles.year}>{year}</Text>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", height: BAR_H + 24 }}>
+        {counts.map((count, m) => {
+          const barHeight = count > 0 ? Math.max(10, (count / maxCount) * BAR_H) : 4;
+          const isPast = m <= currentMonth;
+          const height = anims[m].interpolate({ inputRange: [0, 1], outputRange: [0, barHeight] });
+          return (
+            <View key={m} style={{ width: BAR_W + GAP, alignItems: "center" }}>
+              <View style={{ height: BAR_H, justifyContent: "flex-end" }}>
+                <Animated.View
+                  style={{
+                    width: BAR_W, height,
+                    borderRadius: 5,
+                    backgroundColor: isPast
+                      ? count > 0 ? colors.terracotta : colors.cream3
+                      : "rgba(0,0,0,0.06)",
+                  }}
+                />
+              </View>
+              {count > 0 && <Text style={chartStyles.barCount}>{count}</Text>}
+              <Text style={[chartStyles.monthLabel, m === currentMonth && chartStyles.monthLabelActive]}>
+                {MONTHS_SHORT[m]}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      {counts.every((c) => c === 0) && (
+        <Text style={chartStyles.empty}>Finish a book and it'll appear here.</Text>
+      )}
+    </View>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const readingGoal = useAppStore((s) => s.readingGoal);
+  const streak = useAppStore((s) => s.streak);
+  const books = useAppStore((s) => s.books);
   const [showWrap, setShowWrap] = useState(false);
+
+  // Real computed stats
+  const year = new Date().getFullYear();
+  const booksFinished = books.filter((b) => {
+    if (b.status !== "read") return false;
+    if (!b.date_finished) return true;
+    return new Date(b.date_finished).getFullYear() === year;
+  });
+  const booksFinishedCount = booksFinished.length;
+  const pagesRead = booksFinished.reduce((sum, b) => sum + (b.total_pages ?? 0), 0);
+  const inLibrary = books.length;
 
   // ── Gallery state ─────────────────────────────────────────────────────────
   const userId = useAppStore((s) => s.userId);
@@ -659,28 +743,31 @@ export default function InsightsScreen() {
             {/* Stats 2×2 */}
             <View style={styles.bigStatRow}>
               <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{STATS.booksRead}</Text>
+                <Text style={styles.bigStatV}>{booksFinishedCount}</Text>
                 <Text style={styles.bigStatL}>Books finished</Text>
                 <Text style={styles.bigStatS}>
                   {readingGoal > 0 ? `Goal: ${readingGoal} books` : "Set a goal"}
                 </Text>
               </View>
               <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>2,847</Text>
+                <Text style={styles.bigStatV}>{pagesRead > 0 ? pagesRead.toLocaleString() : "—"}</Text>
                 <Text style={styles.bigStatL}>Pages read</Text>
-                <Text style={styles.bigStatS}>Avg 34 min/day</Text>
+                <Text style={styles.bigStatS}>{year} total</Text>
               </View>
               <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{STATS.streak}</Text>
+                <Text style={styles.bigStatV}>{streak}</Text>
                 <Text style={styles.bigStatL}>Day streak</Text>
-                <Text style={styles.bigStatS}>Best: 23 days</Text>
+                <Text style={styles.bigStatS}>Keep it up!</Text>
               </View>
               <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{STATS.quotesSaved}</Text>
-                <Text style={styles.bigStatL}>Quotes saved</Text>
-                <Text style={styles.bigStatS}>Across all books</Text>
+                <Text style={styles.bigStatV}>{inLibrary}</Text>
+                <Text style={styles.bigStatL}>In library</Text>
+                <Text style={styles.bigStatS}>All time</Text>
               </View>
             </View>
+
+            {/* Monthly reading chart */}
+            <MonthlyChart books={books} />
 
             {/* Genre section header */}
             <View style={styles.secHdr}>
@@ -694,6 +781,7 @@ export default function InsightsScreen() {
                   key={g.name}
                   genre={g}
                   index={i}
+                  count={bookCountForGenre(g.name, books)}
                   onPress={() => router.push(`/genre/${g.name}`)}
                 />
               ))}
@@ -1082,6 +1170,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
+});
+
+// ─── Monthly chart styles ─────────────────────────────────────────────────────
+const chartStyles = StyleSheet.create({
+  wrap: {
+    marginHorizontal: 20, marginBottom: 8,
+    backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 16, padding: 16,
+    shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
+    elevation: 1,
+  },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  title: { fontSize: 13, fontWeight: "600", color: colors.espresso },
+  year: { fontSize: 11, color: colors.char3 },
+  barCount: { fontSize: 9, color: colors.terracotta, fontWeight: "600", marginTop: 2 },
+  monthLabel: { fontSize: 8, color: colors.char3, marginTop: 3 },
+  monthLabelActive: { color: colors.terracotta, fontWeight: "600" },
+  empty: { fontSize: 11, color: colors.char3, textAlign: "center", marginTop: 8 },
 });
 
 // ─── Year Wrap Modal styles ───────────────────────────────────────────────────
