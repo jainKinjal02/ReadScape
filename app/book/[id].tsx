@@ -13,6 +13,8 @@ import {
   Platform,
   Modal,
   StatusBar,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -94,6 +96,12 @@ export default function BookDetailScreen() {
   const [viewingPhoto, setViewingPhoto] = useState<PersistedPhoto | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{ uri: string; caption: string } | null>(null);
 
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationRating, setCelebrationRating] = useState(0);
+  const [celebrationNote, setCelebrationNote] = useState("");
+  const [savingCelebration, setSavingCelebration] = useState(false);
+
   const progress =
     book && book.total_pages && book.total_pages > 0
       ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100))
@@ -147,6 +155,24 @@ export default function BookDetailScreen() {
     updateBook({ ...book, status: "read", current_page: totalPages, date_finished: new Date().toISOString() });
     setPageInput(String(totalPages));
     await markBookFinished(id, totalPages).catch(() => {});
+    setCelebrationRating(book.rating ?? 0);
+    setCelebrationNote("");
+    setShowCelebration(true);
+  };
+
+  const handleCelebrationDone = async () => {
+    if (!id || !book) return;
+    setSavingCelebration(true);
+    try {
+      if (celebrationRating > 0 && celebrationRating !== book.rating) {
+        setRating(celebrationRating);
+        updateBook({ ...book, rating: celebrationRating });
+        await updateBookRating(id, celebrationRating).catch(() => {});
+      }
+    } finally {
+      setSavingCelebration(false);
+      setShowCelebration(false);
+    }
   };
 
   const handleDeleteBook = () => {
@@ -578,7 +604,117 @@ export default function BookDetailScreen() {
           </LinearGradient>
         </View>
       </Modal>
+
+      {/* ── Book Finish Celebration ── */}
+      <Modal visible={showCelebration} transparent animationType="fade" onRequestClose={handleCelebrationDone}>
+        <View style={celebStyles.overlay}>
+          <Confetti />
+          <View style={[celebStyles.card, { paddingBottom: insets.bottom + 24 }]}>
+            {/* Book cover */}
+            {book?.cover_url ? (
+              <Image
+                source={{ uri: book.cover_url }}
+                style={celebStyles.cover}
+                contentFit="cover"
+                transition={300}
+              />
+            ) : (
+              <View style={[celebStyles.cover, { backgroundColor: colors.cream3, alignItems: "center", justifyContent: "center" }]}>
+                <Text style={{ fontSize: 32 }}>📖</Text>
+              </View>
+            )}
+
+            <Text style={celebStyles.emoji}>🎉</Text>
+            <Text style={celebStyles.headline}>You finished it!</Text>
+            <Text style={celebStyles.bookTitle} numberOfLines={2}>{book?.title}</Text>
+            {!!book?.author && (
+              <Text style={celebStyles.bookAuthor}>by {book.author}</Text>
+            )}
+
+            {/* Star rating */}
+            <Text style={celebStyles.rateLabel}>How would you rate it?</Text>
+            <View style={celebStyles.starsRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity key={star} onPress={() => setCelebrationRating(star)} activeOpacity={0.7}>
+                  <Text style={[celebStyles.star, celebrationRating >= star && celebStyles.starFilled]}>
+                    {celebrationRating >= star ? "★" : "☆"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[celebStyles.doneBtn, savingCelebration && { opacity: 0.6 }]}
+              onPress={handleCelebrationDone}
+              disabled={savingCelebration}
+              activeOpacity={0.85}
+            >
+              {savingCelebration
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={celebStyles.doneBtnText}>Done — back to my book</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+// ── Confetti animation ────────────────────────────────────────────────────────
+
+const { width: SW, height: SH } = Dimensions.get("window");
+const CONFETTI_COLORS = ["#e07b6b", "#9b95e8", "#5bbfaa", "#f5c842", "#e8a0bf", "#7fd4b8"];
+const PIECES = 28;
+
+function Confetti() {
+  const pieces = useRef(
+    Array.from({ length: PIECES }, (_, i) => ({
+      x: Math.random() * SW,
+      size: 6 + Math.random() * 7,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      delay: Math.random() * 600,
+      duration: 1600 + Math.random() * 1000,
+      drift: (Math.random() - 0.5) * 120,
+      rotate: Math.random() * 360,
+      anim: new Animated.Value(0),
+    }))
+  ).current;
+
+  useEffect(() => {
+    const animations = pieces.map((p) =>
+      Animated.sequence([
+        Animated.delay(p.delay),
+        Animated.timing(p.anim, { toValue: 1, duration: p.duration, useNativeDriver: true }),
+      ])
+    );
+    Animated.parallel(animations).start();
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {pieces.map((p, i) => {
+        const translateY = p.anim.interpolate({ inputRange: [0, 1], outputRange: [-20, SH * 0.75] });
+        const translateX = p.anim.interpolate({ inputRange: [0, 1], outputRange: [0, p.drift] });
+        const opacity = p.anim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
+        const rotate = p.anim.interpolate({ inputRange: [0, 1], outputRange: [`${p.rotate}deg`, `${p.rotate + 360}deg`] });
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: "absolute",
+              left: p.x,
+              top: 0,
+              width: p.size,
+              height: p.size * 0.55,
+              borderRadius: 2,
+              backgroundColor: p.color,
+              opacity,
+              transform: [{ translateY }, { translateX }, { rotate }],
+            }}
+          />
+        );
+      })}
+    </View>
   );
 }
 
@@ -1056,4 +1192,53 @@ const photoStyles = StyleSheet.create({
   },
   viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
 
+});
+
+// ── Celebration styles ────────────────────────────────────────────────────────
+
+const celebStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,25,35,0.88)",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  card: {
+    width: "100%",
+    backgroundColor: colors.cream,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 32,
+    paddingHorizontal: 32,
+    alignItems: "center",
+  },
+  cover: {
+    width: 100, height: 148,
+    borderRadius: 10,
+    marginBottom: 6,
+    shadowColor: "#2c1f14", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 10 }, shadowRadius: 20,
+    elevation: 10,
+  },
+  emoji: { fontSize: 36, marginBottom: 8 },
+  headline: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 30, color: colors.espresso, marginBottom: 4,
+  },
+  bookTitle: {
+    fontFamily: "CormorantGaramond_400Regular_Italic",
+    fontSize: 18, color: colors.espresso2,
+    textAlign: "center", lineHeight: 24,
+  },
+  bookAuthor: { fontSize: 12, color: colors.char3, marginTop: 3, marginBottom: 20 },
+  rateLabel: { fontSize: 12, color: colors.char3, marginBottom: 10 },
+  starsRow: { flexDirection: "row", gap: 6, marginBottom: 24 },
+  star: { fontSize: 34, color: colors.cream3 },
+  starFilled: { color: colors.terracotta },
+  doneBtn: {
+    width: "100%",
+    backgroundColor: colors.espresso,
+    borderRadius: 14, paddingVertical: 15,
+    alignItems: "center",
+  },
+  doneBtnText: { color: colors.cream, fontSize: 14, fontWeight: "600" },
 });
