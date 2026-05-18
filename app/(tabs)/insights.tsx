@@ -860,7 +860,7 @@ export default function InsightsScreen() {
             {/* Year wrap CTA */}
             <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85} onPress={() => setShowWrap(true)}>
               <Text style={styles.wrapTitle}>Your {new Date().getFullYear()} reading wrap</Text>
-              <Text style={styles.wrapSub}>{STATS.booksRead} books · your year in one page</Text>
+              <Text style={styles.wrapSub}>{booksFinishedCount} book{booksFinishedCount !== 1 ? "s" : ""} · your year in one page</Text>
               <View style={styles.wrapBtn}>
                 <Text style={styles.wrapBtnText}>View wrap</Text>
               </View>
