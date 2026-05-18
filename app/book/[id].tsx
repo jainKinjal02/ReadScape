@@ -651,7 +651,7 @@ export default function BookDetailScreen() {
             >
               {savingCelebration
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={celebStyles.doneBtnText}>Done — back to my book</Text>}
+                : <Text style={celebStyles.doneBtnText}>Continue</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -1240,5 +1240,5 @@ const celebStyles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 15,
     alignItems: "center",
   },
-  doneBtnText: { color: colors.cream, fontSize: 14, fontWeight: "600" },
+  doneBtnText: { color: colors.cream, fontSize: 15, fontWeight: "600", letterSpacing: 0.5 },
 });
