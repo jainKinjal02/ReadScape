@@ -484,75 +484,6 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
   );
 }
 
-// ─── Monthly Reading Chart ────────────────────────────────────────────────────
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-function MonthlyChart({ books }: { books: Book[] }) {
-  const year = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-indexed
-
-  // Count books finished per month this year
-  const counts = Array.from({ length: 12 }, (_, m) => {
-    return books.filter((b) => {
-      if (b.status !== "read") return false;
-      if (!b.date_finished) return false;
-      const d = new Date(b.date_finished);
-      return d.getFullYear() === year && d.getMonth() === m;
-    }).length;
-  });
-
-  const maxCount = Math.max(...counts, 1);
-  const BAR_H = 80;
-  const BAR_W = 18;
-  const GAP = 8;
-  const chartWidth = 12 * (BAR_W + GAP) - GAP;
-
-  // Entrance animation per bar
-  const anims = useRef(Array.from({ length: 12 }, () => new Animated.Value(0))).current;
-  useEffect(() => {
-    Animated.stagger(50, anims.map((a) =>
-      Animated.timing(a, { toValue: 1, duration: 500, useNativeDriver: false })
-    )).start();
-  }, []);
-
-  return (
-    <View style={chartStyles.wrap}>
-      <View style={chartStyles.header}>
-        <Text style={chartStyles.title}>Books per month</Text>
-        <Text style={chartStyles.year}>{year}</Text>
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", height: BAR_H + 24 }}>
-        {counts.map((count, m) => {
-          const barHeight = count > 0 ? Math.max(10, (count / maxCount) * BAR_H) : 4;
-          const isPast = m <= currentMonth;
-          const height = anims[m].interpolate({ inputRange: [0, 1], outputRange: [0, barHeight] });
-          return (
-            <View key={m} style={{ width: BAR_W + GAP, alignItems: "center" }}>
-              <View style={{ height: BAR_H, justifyContent: "flex-end" }}>
-                <Animated.View
-                  style={{
-                    width: BAR_W, height,
-                    borderRadius: 5,
-                    backgroundColor: isPast
-                      ? count > 0 ? colors.terracotta : colors.cream3
-                      : "rgba(0,0,0,0.06)",
-                  }}
-                />
-              </View>
-              {count > 0 && <Text style={chartStyles.barCount}>{count}</Text>}
-              <Text style={[chartStyles.monthLabel, m === currentMonth && chartStyles.monthLabelActive]}>
-                {MONTHS_SHORT[m]}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-      {counts.every((c) => c === 0) && (
-        <Text style={chartStyles.empty}>Finish a book and it'll appear here.</Text>
-      )}
-    </View>
-  );
-}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
@@ -765,9 +696,6 @@ export default function InsightsScreen() {
                 <Text style={styles.bigStatS}>All time</Text>
               </View>
             </View>
-
-            {/* Monthly reading chart */}
-            <MonthlyChart books={books} />
 
             {/* Genre section header */}
             <View style={styles.secHdr}>
@@ -1170,25 +1098,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
-});
-
-// ─── Monthly chart styles ─────────────────────────────────────────────────────
-const chartStyles = StyleSheet.create({
-  wrap: {
-    marginHorizontal: 20, marginBottom: 8,
-    backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 16, padding: 16,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
-    elevation: 1,
-  },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  title: { fontSize: 13, fontWeight: "600", color: colors.espresso },
-  year: { fontSize: 11, color: colors.char3 },
-  barCount: { fontSize: 9, color: colors.terracotta, fontWeight: "600", marginTop: 2 },
-  monthLabel: { fontSize: 8, color: colors.char3, marginTop: 3 },
-  monthLabelActive: { color: colors.terracotta, fontWeight: "600" },
-  empty: { fontSize: 11, color: colors.char3, textAlign: "center", marginTop: 8 },
 });
 
 // ─── Year Wrap Modal styles ───────────────────────────────────────────────────
