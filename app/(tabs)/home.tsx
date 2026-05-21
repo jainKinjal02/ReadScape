@@ -365,9 +365,7 @@ export default function HomeScreen() {
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
-            <Text style={styles.aiPromoSub}>
-              {currentBook ? `About ${currentBook.title}` : "Get recommendations & more"}
-            </Text>
+            <Text style={styles.aiPromoSub}>Books, authors, words & more</Text>
           </View>
           <View style={styles.aiPromoBtn}>
             <Text style={styles.aiPromoBtnText}>Ask AI</Text>
