@@ -662,8 +662,16 @@ export default function InsightsScreen() {
           style={StyleSheet.absoluteFill}
         />
         <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
-          <Text style={styles.heroTitle}>Reading Insights</Text>
-          <Text style={styles.heroSub}>Your {new Date().getFullYear()} journey</Text>
+          <View style={styles.heroRow}>
+            <View>
+              <Text style={styles.heroTitle}>Reading Insights</Text>
+              <Text style={styles.heroSub}>Your {new Date().getFullYear()} journey</Text>
+            </View>
+            <TouchableOpacity style={styles.wrapIconBtn} onPress={() => setShowWrap(true)} activeOpacity={0.8}>
+              <Text style={styles.wrapIconEmoji}>✦</Text>
+              <Text style={styles.wrapIconLabel}>{new Date().getFullYear()} Wrap</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -785,15 +793,6 @@ export default function InsightsScreen() {
                 </TouchableOpacity>
               </ScrollView>
             )}
-
-            {/* Year wrap CTA */}
-            <TouchableOpacity style={styles.wrapCTA} activeOpacity={0.85} onPress={() => setShowWrap(true)}>
-              <Text style={styles.wrapTitle}>Your {new Date().getFullYear()} reading wrap</Text>
-              <Text style={styles.wrapSub}>{booksFinishedCount} book{booksFinishedCount !== 1 ? "s" : ""} · your year in one page</Text>
-              <View style={styles.wrapBtn}>
-                <Text style={styles.wrapBtnText}>View wrap</Text>
-              </View>
-            </TouchableOpacity>
 
             <View style={{ height: 24 }} />
           </View>
@@ -953,8 +952,17 @@ const styles = StyleSheet.create({
   // Atmospheric hero header
   heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
   heroContent: { paddingHorizontal: 20, paddingBottom: 16 },
+  heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
   heroSub: { fontSize: 13, color: "rgba(247,242,235,0.75)", marginTop: 3 },
+  wrapIconBtn: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
+  },
+  wrapIconEmoji: { fontSize: 16, color: "#faf6f0" },
+  wrapIconLabel: { fontSize: 10, color: "rgba(247,242,235,0.85)", fontWeight: "600", marginTop: 3, letterSpacing: 0.5 },
 
   body: { paddingTop: 16 },
 
@@ -1077,27 +1085,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Year wrap CTA button
-  wrapCTA: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    backgroundColor: "rgba(127,119,221,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(127,119,221,0.25)",
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-  },
-  wrapTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 16, color: colors.espresso, marginBottom: 4 },
-  wrapSub: { fontSize: 12, color: colors.char3 },
-  wrapBtn: {
-    marginTop: 10,
-    backgroundColor: colors.espresso,
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-  },
-  wrapBtnText: { color: colors.cream, fontSize: 12, fontWeight: "500" },
 });
 
 // ─── Year Wrap Modal styles ───────────────────────────────────────────────────
