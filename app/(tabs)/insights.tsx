@@ -671,29 +671,26 @@ export default function InsightsScreen() {
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
           <View style={styles.body}>
-            {/* Stats 2×2 */}
-            <View style={styles.bigStatRow}>
-              <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{booksFinishedCount}</Text>
-                <Text style={styles.bigStatL}>Books finished</Text>
-                <Text style={styles.bigStatS}>
-                  {readingGoal > 0 ? `Goal: ${readingGoal} books` : "Set a goal"}
-                </Text>
+            {/* Compact stats strip */}
+            <View style={styles.statStrip}>
+              <View style={styles.statItem}>
+                <Text style={styles.statItemV}>{booksFinishedCount}</Text>
+                <Text style={styles.statItemL}>Finished</Text>
               </View>
-              <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{pagesRead > 0 ? pagesRead.toLocaleString() : "—"}</Text>
-                <Text style={styles.bigStatL}>Pages read</Text>
-                <Text style={styles.bigStatS}>{year} total</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statItemV}>{pagesRead > 0 ? pagesRead.toLocaleString() : "—"}</Text>
+                <Text style={styles.statItemL}>Pages</Text>
               </View>
-              <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{streak}</Text>
-                <Text style={styles.bigStatL}>Day streak</Text>
-                <Text style={styles.bigStatS}>Keep it up!</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statItemV}>{streak}</Text>
+                <Text style={styles.statItemL}>Day streak</Text>
               </View>
-              <View style={styles.bigStat}>
-                <Text style={styles.bigStatV}>{inLibrary}</Text>
-                <Text style={styles.bigStatL}>In library</Text>
-                <Text style={styles.bigStatS}>All time</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statItemV}>{inLibrary}</Text>
+                <Text style={styles.statItemL}>In library</Text>
               </View>
             </View>
 
@@ -702,8 +699,12 @@ export default function InsightsScreen() {
               <Text style={styles.secTitle}>Explore by genre</Text>
             </View>
 
-            {/* Genre grid */}
-            <View style={styles.genreGrid}>
+            {/* Genre horizontal scroll */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.genreScroll}
+            >
               {GENRES.map((g, i) => (
                 <GenreCard
                   key={g.name}
@@ -713,7 +714,7 @@ export default function InsightsScreen() {
                   onPress={() => router.push(`/genre/${g.name}`)}
                 />
               ))}
-            </View>
+            </ScrollView>
 
             {/* ── My Cozy Corner Gallery ── */}
             <View style={styles.secHdrRow}>
@@ -958,18 +959,18 @@ const styles = StyleSheet.create({
   body: { paddingTop: 16 },
 
   // Stats
-  bigStatRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 20, marginBottom: 24 },
-  bigStat: {
-    width: "47%",
+  // Compact stats strip
+  statStrip: {
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 20, marginBottom: 20,
     backgroundColor: colors.parchment,
-    borderWidth: 1,
-    borderColor: colors.cream3,
-    borderRadius: 14,
-    padding: 16,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 14, paddingVertical: 14,
   },
-  bigStatV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: colors.espresso },
-  bigStatL: { fontSize: 11, color: colors.char3, marginTop: 2 },
-  bigStatS: { fontSize: 11, color: colors.terracotta, marginTop: 4, fontWeight: "500" },
+  statItem: { flex: 1, alignItems: "center" },
+  statItemV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
+  statItemL: { fontSize: 10, color: colors.char3, marginTop: 2 },
+  statDivider: { width: 1, height: 32, backgroundColor: colors.cream3 },
 
   secHdr: { paddingHorizontal: 20, marginBottom: 14 },
   secHdrRow: {
@@ -1026,20 +1027,19 @@ const styles = StyleSheet.create({
   polaroidAddPlus: { fontSize: 28, color: colors.terracotta },
   polaroidAddLabel: { fontSize: 11, color: colors.terracotta },
 
-  // Genre grid
-  genreGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  // Genre horizontal scroll
+  genreScroll: {
+    paddingLeft: 20,
+    paddingRight: 8,
     gap: 12,
-    paddingHorizontal: 20,
     marginBottom: 24,
   },
 
   // Card
   cardWrapper: {
-    width: CARD_W,
-    aspectRatio: 0.92,
-    borderRadius: 18,
+    width: 130,
+    height: 160,
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.3,
