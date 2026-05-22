@@ -502,15 +502,23 @@ function AnimatedNumber({
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (value <= 0) return;
+    // Always reset to 0 first so the roll-up is visible
+    anim.setValue(0);
+    setDisplay(0);
     const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
-    Animated.timing(anim, {
-      toValue: value,
-      duration: 1200,
-      delay,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-    return () => anim.removeListener(id);
+    const timer = setTimeout(() => {
+      Animated.timing(anim, {
+        toValue: value,
+        duration: 1200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+      anim.removeListener(id);
+    };
   }, [value]);
 
   const text = format ? format(display) : display > 999 ? display.toLocaleString() : String(display);
