@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Easing,
   Dimensions,
   Modal,
   StatusBar,
@@ -485,6 +486,37 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
 }
 
 
+// ─── Animated count-up number ────────────────────────────────────────────────
+function AnimatedNumber({
+  value,
+  style,
+  delay = 0,
+  format,
+}: {
+  value: number;
+  style: any;
+  delay?: number;
+  format?: (n: number) => string;
+}) {
+  const [display, setDisplay] = useState(0);
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
+    Animated.timing(anim, {
+      toValue: value,
+      duration: 1200,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    return () => anim.removeListener(id);
+  }, [value]);
+
+  const text = format ? format(display) : display > 999 ? display.toLocaleString() : String(display);
+  return <Text style={style}>{text}</Text>;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const router = useRouter();
@@ -682,22 +714,22 @@ export default function InsightsScreen() {
             {/* Compact stats strip */}
             <View style={styles.statStrip}>
               <View style={styles.statItem}>
-                <Text style={styles.statItemV}>{booksFinishedCount}</Text>
+                <AnimatedNumber value={booksFinishedCount} style={styles.statItemV} delay={0} />
                 <Text style={styles.statItemL}>Finished</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statItemV}>{pagesRead > 0 ? pagesRead.toLocaleString() : "—"}</Text>
+                <AnimatedNumber value={pagesRead} style={styles.statItemV} delay={150} format={(n) => n > 999 ? n.toLocaleString() : n === 0 ? "—" : String(n)} />
                 <Text style={styles.statItemL}>Pages</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statItemV}>{streak}</Text>
+                <AnimatedNumber value={streak} style={styles.statItemV} delay={300} />
                 <Text style={styles.statItemL}>Day streak</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statItemV}>{inLibrary}</Text>
+                <AnimatedNumber value={inLibrary} style={styles.statItemV} delay={450} />
                 <Text style={styles.statItemL}>In library</Text>
               </View>
             </View>
