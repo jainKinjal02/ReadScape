@@ -21,6 +21,8 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import ViewShot from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
@@ -502,7 +504,7 @@ export default function BookDetailScreen() {
             <ActivityIndicator color={colors.terracotta} />
           </View>
         ) : activeTab === "quotes" ? (
-          <QuotesTab quotes={quotes} onAdd={handleAddQuote} onDelete={handleDeleteQuote} scrollRef={scrollRef} />
+          <QuotesTab quotes={quotes} onAdd={handleAddQuote} onDelete={handleDeleteQuote} scrollRef={scrollRef} book={book} />
         ) : activeTab === "notes" ? (
           <NotesTab notes={notes} onAdd={handleAddNote} onDelete={handleDeleteNote} scrollRef={scrollRef} />
         ) : (
@@ -725,16 +727,21 @@ function QuotesTab({
   onAdd,
   onDelete,
   scrollRef,
+  book,
 }: {
   quotes: Quote[];
   onAdd: (text: string, page: number | null) => Promise<void>;
   onDelete: (id: string) => void;
   scrollRef: React.RefObject<ScrollView>;
+  book: any;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [text, setText] = useState("");
   const [pageText, setPageText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [sharingQuote, setSharingQuote] = useState<Quote | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const cardRef = useRef<ViewShot>(null);
 
   useEffect(() => {
     if (showAdd) {
@@ -754,6 +761,20 @@ function QuotesTab({
     setSaving(false);
   };
 
+  const handleShare = async () => {
+    if (!cardRef.current) return;
+    setIsSharing(true);
+    try {
+      const uri = await (cardRef.current as any).capture();
+      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share quote" });
+    } catch {
+      // user cancelled or sharing unavailable — silent
+    } finally {
+      setIsSharing(false);
+      setSharingQuote(null);
+    }
+  };
+
   return (
     <View style={styles.tabContent}>
       {quotes.length === 0 && !showAdd && (
@@ -761,13 +782,54 @@ function QuotesTab({
       )}
       {quotes.map((q) => (
         <View key={q.id} style={styles.quoteCard}>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(q.id)}>
-            <Text style={styles.deleteBtnText}>✕</Text>
-          </TouchableOpacity>
+          <View style={styles.quoteCardActions}>
+            <TouchableOpacity onPress={() => setSharingQuote(q)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke={colors.terracotta} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onDelete(q.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.deleteBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.quoteText}>"{q.text}"</Text>
           {!!q.page && <Text style={styles.quotePage}>Page {q.page}</Text>}
         </View>
       ))}
+
+      {/* Share modal */}
+      <Modal visible={!!sharingQuote} transparent animationType="fade" onRequestClose={() => setSharingQuote(null)}>
+        <View style={shareStyles.overlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSharingQuote(null)} />
+
+          {/* The card that gets captured */}
+          <ViewShot ref={cardRef} options={{ format: "png", quality: 1 }} style={shareStyles.cardWrap}>
+            <LinearGradient colors={["#1a1025", "#2c1f14"]} style={shareStyles.card}>
+              <Text style={shareStyles.bigQuote}>"</Text>
+              <Text style={shareStyles.quoteText}>{sharingQuote?.text}</Text>
+              <View style={shareStyles.divider} />
+              <Text style={shareStyles.bookTitle}>{book?.title}</Text>
+              {!!book?.author && <Text style={shareStyles.bookAuthor}>{book.author}</Text>}
+              <Text style={shareStyles.brand}>ReadScape</Text>
+            </LinearGradient>
+          </ViewShot>
+
+          <TouchableOpacity
+            style={[shareStyles.shareBtn, isSharing && { opacity: 0.6 }]}
+            onPress={handleShare}
+            disabled={isSharing}
+            activeOpacity={0.85}
+          >
+            {isSharing
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={shareStyles.shareBtnText}>Share</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setSharingQuote(null)}>
+            <Text style={shareStyles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
       {showAdd ? (
         <View style={styles.addCard}>
           <TextInput
@@ -1059,7 +1121,10 @@ const styles = StyleSheet.create({
     borderRightWidth: 1, borderRightColor: colors.cream3,
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     borderTopRightRadius: 10, borderBottomRightRadius: 10,
-    backgroundColor: colors.parchment, padding: 12, marginBottom: 12,
+    backgroundColor: colors.parchment, padding: 12, paddingTop: 10, marginBottom: 12,
+  },
+  quoteCardActions: {
+    flexDirection: "row", justifyContent: "flex-end", gap: 14, marginBottom: 6,
   },
   quoteText: {
     fontFamily: "CormorantGaramond_400Regular_Italic",
@@ -1241,4 +1306,43 @@ const celebStyles = StyleSheet.create({
     alignItems: "center",
   },
   doneBtnText: { color: colors.cream, fontSize: 15, fontWeight: "600", letterSpacing: 0.5 },
+});
+
+// ── Share quote styles ────────────────────────────────────────────────────────
+const shareStyles = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.82)",
+    alignItems: "center", justifyContent: "center", gap: 20, padding: 24,
+  },
+  cardWrap: { width: "100%", borderRadius: 20, overflow: "hidden" },
+  card: {
+    padding: 32, alignItems: "center",
+    borderRadius: 20,
+  },
+  bigQuote: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 72, color: colors.terracotta,
+    lineHeight: 60, marginBottom: 8, alignSelf: "flex-start",
+  },
+  quoteText: {
+    fontFamily: "CormorantGaramond_400Regular_Italic",
+    fontSize: 20, color: "#faf6f0", lineHeight: 30,
+    textAlign: "center", marginBottom: 24,
+  },
+  divider: { width: 40, height: 1, backgroundColor: "rgba(247,242,235,0.3)", marginBottom: 20 },
+  bookTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 14, color: "#faf6f0", textAlign: "center",
+  },
+  bookAuthor: { fontSize: 12, color: "rgba(247,242,235,0.6)", marginTop: 3, textAlign: "center" },
+  brand: {
+    fontSize: 10, color: "rgba(247,242,235,0.35)",
+    letterSpacing: 2, textTransform: "uppercase", marginTop: 24,
+  },
+  shareBtn: {
+    width: "100%", backgroundColor: colors.terracotta,
+    borderRadius: 14, paddingVertical: 15, alignItems: "center",
+  },
+  shareBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  cancelText: { fontSize: 13, color: "rgba(255,255,255,0.5)" },
 });
