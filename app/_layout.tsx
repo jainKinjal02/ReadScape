@@ -7,9 +7,13 @@ import {
   CormorantGaramond_700Bold,
   CormorantGaramond_400Regular_Italic,
 } from "@expo-google-fonts/cormorant-garamond";
+import * as SplashScreen from "expo-splash-screen";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
 import { View } from "react-native";
+
+// Keep the native splash visible until we're ready
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -28,6 +32,7 @@ export default function RootLayout() {
   // Store whether the user already has a session — navigate only after
   // fontsLoaded is true so the Stack navigator is mounted first.
   const [shouldRedirectHome, setShouldRedirectHome] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,6 +45,7 @@ export default function RootLayout() {
         setUserBio(meta.bio ?? "");
         setShouldRedirectHome(true);
       }
+      setAuthChecked(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -55,15 +61,18 @@ export default function RootLayout() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Only navigate once the Stack is rendered (fontsLoaded = true)
+  // Hide splash and navigate once fonts + auth are both ready
   useEffect(() => {
-    if (fontsLoaded && shouldRedirectHome) {
-      router.replace("/(tabs)/home");
+    if (fontsLoaded && authChecked) {
+      SplashScreen.hideAsync();
+      if (shouldRedirectHome) {
+        router.replace("/(tabs)/home");
+      }
     }
-  }, [fontsLoaded, shouldRedirectHome]);
+  }, [fontsLoaded, authChecked, shouldRedirectHome]);
 
   if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: "#0f1923" }} />;
+    return <View style={{ flex: 1, backgroundColor: "#0D1B2A" }} />;
   }
 
   return (
