@@ -357,20 +357,6 @@ export default function HomeScreen() {
           }}
         />
 
-        {/* ── AI Companion promo ── */}
-        <TouchableOpacity
-          style={styles.aiPromo}
-          onPress={() => router.push("/(tabs)/ai")}
-          activeOpacity={0.85}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
-            <Text style={styles.aiPromoSub}>Books, authors, words & more</Text>
-          </View>
-          <View style={styles.aiPromoBtn}>
-            <Text style={styles.aiPromoBtnText}>Ask AI</Text>
-          </View>
-        </TouchableOpacity>
 
       </ScrollView>
 
