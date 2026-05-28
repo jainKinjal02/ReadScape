@@ -765,10 +765,10 @@ const styles = StyleSheet.create({
 
   // AI promo
   aiPromo: {
-    marginHorizontal: 16, marginTop: 10,
+    marginHorizontal: 16, marginTop: 8, marginBottom: 12,
     backgroundColor: "rgba(127,119,221,0.1)",
     borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   aiPromoTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso, flex: 1 },
