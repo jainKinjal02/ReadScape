@@ -189,41 +189,41 @@ export default function HomeScreen() {
       />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.72)" }]} />
 
+      {/* ── Atmospheric header — fixed, outside ScrollView ── */}
+      <View style={styles.heroHeader}>
+        {HEADER_IMGS.map((src, i) => (
+          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
+            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+        ))}
+        <LinearGradient
+          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroContent}>
+          <View style={styles.topRow}>
+            <View>
+              <Text style={styles.greeting}>{greeting},</Text>
+              <Text style={styles.name}>{userName || "Reader"}</Text>
+            </View>
+            {/* Avatar — opens profile panel */}
+            <TouchableOpacity style={styles.avatar} onPress={openPanel} activeOpacity={0.75}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.streakPill}>
+            <FireIcon />
+            <Text style={styles.streakText}>{streak} day reading streak</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Atmospheric header ── */}
-        <View style={styles.heroHeader}>
-          {HEADER_IMGS.map((src, i) => (
-            <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-              <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            </Animated.View>
-          ))}
-          <LinearGradient
-            colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
-            locations={[0, 0.4, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.heroContent}>
-            <View style={styles.topRow}>
-              <View>
-                <Text style={styles.greeting}>{greeting},</Text>
-                <Text style={styles.name}>{userName || "Reader"}</Text>
-              </View>
-              {/* Avatar — opens profile panel */}
-              <TouchableOpacity style={styles.avatar} onPress={openPanel} activeOpacity={0.75}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.streakPill}>
-              <FireIcon />
-              <Text style={styles.streakText}>{streak} day reading streak</Text>
-            </View>
-          </View>
-        </View>
-
         {/* ── Currently Reading ── */}
         {currentBook ? (
           <TouchableOpacity
