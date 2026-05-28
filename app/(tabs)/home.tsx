@@ -363,10 +363,7 @@ export default function HomeScreen() {
           onPress={() => router.push("/(tabs)/ai")}
           activeOpacity={0.85}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
-            <Text style={styles.aiPromoSub}>Books, authors, words & more</Text>
-          </View>
+          <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
           <View style={styles.aiPromoBtn}>
             <Text style={styles.aiPromoBtnText}>Ask AI</Text>
           </View>
@@ -768,17 +765,16 @@ const styles = StyleSheet.create({
 
   // AI promo
   aiPromo: {
-    marginHorizontal: 16, marginTop: 16,
+    marginHorizontal: 16, marginTop: 10,
     backgroundColor: "rgba(127,119,221,0.1)",
     borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
-    borderRadius: 14, padding: 14,
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
-  aiPromoTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
-  aiPromoSub: { fontSize: 11, color: colors.char3, marginTop: 2 },
+  aiPromoTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso, flex: 1 },
   aiPromoBtn: {
     backgroundColor: colors.espresso, borderRadius: 20,
-    paddingVertical: 8, paddingHorizontal: 16,
+    paddingVertical: 6, paddingHorizontal: 14, marginLeft: 10,
   },
   aiPromoBtnText: { fontSize: 12, color: colors.cream, fontWeight: "500" },
 
