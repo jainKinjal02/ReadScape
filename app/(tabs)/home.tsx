@@ -195,7 +195,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Atmospheric header ── */}
-        <View style={[styles.heroHeader, { height: 165 + insets.top }]}>
+        <View style={styles.heroHeader}>
           {HEADER_IMGS.map((src, i) => (
             <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
               <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -206,7 +206,7 @@ export default function HomeScreen() {
             locations={[0, 0.4, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={[styles.heroContent, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.heroContent}>
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.greeting}>{greeting},</Text>
@@ -357,6 +357,20 @@ export default function HomeScreen() {
           }}
         />
 
+        {/* ── AI Companion promo ── */}
+        <TouchableOpacity
+          style={styles.aiPromo}
+          onPress={() => router.push("/(tabs)/ai")}
+          activeOpacity={0.85}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
+            <Text style={styles.aiPromoSub}>Books, authors, words & more</Text>
+          </View>
+          <View style={styles.aiPromoBtn}>
+            <Text style={styles.aiPromoBtnText}>Ask AI</Text>
+          </View>
+        </TouchableOpacity>
 
       </ScrollView>
 
