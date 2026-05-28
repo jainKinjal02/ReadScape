@@ -1,5 +1,5 @@
 import "../global.css";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import {
   useFonts,
@@ -10,7 +10,13 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
-import { View } from "react-native";
+import {
+  Animated,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 // Keep the native splash visible until we're ready
 SplashScreen.preventAutoHideAsync();
@@ -29,10 +35,10 @@ export default function RootLayout() {
   const setUserBio = useAppStore((s) => s.setUserBio);
   const setStreak = useAppStore((s) => s.setStreak);
 
-  // Store whether the user already has a session — navigate only after
-  // fontsLoaded is true so the Stack navigator is mounted first.
   const [shouldRedirectHome, setShouldRedirectHome] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showInAppSplash, setShowInAppSplash] = useState(true);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -61,38 +67,94 @@ export default function RootLayout() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Hide splash and navigate once fonts + auth are both ready
+  // Once fonts + auth are ready: hide native splash, navigate, fade out in-app splash
   useEffect(() => {
     if (fontsLoaded && authChecked) {
       SplashScreen.hideAsync();
       if (shouldRedirectHome) {
         router.replace("/(tabs)/home");
       }
+      // Short pause so the screen beneath has a moment to render, then fade out
+      setTimeout(() => {
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }).start(() => setShowInAppSplash(false));
+      }, 300);
     }
   }, [fontsLoaded, authChecked, shouldRedirectHome]);
 
-  if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: "#0D1B2A" }} />;
-  }
-
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="auth" />
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="book/[id]"
-        options={{ presentation: "card", animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="genre/[name]"
-        options={{ presentation: "card", animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="session/[id]"
-        options={{ presentation: "modal", animation: "slide_from_bottom" }}
-      />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="book/[id]"
+          options={{ presentation: "card", animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="genre/[name]"
+          options={{ presentation: "card", animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="session/[id]"
+          options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+      </Stack>
+
+      {/* In-app splash — overlays everything while loading, then fades out */}
+      {showInAppSplash && (
+        <Animated.View style={[styles.splash, { opacity: splashOpacity }]}>
+          <Image
+            source={require("../assets/icon.png")}
+            style={styles.icon}
+          />
+          <Text style={styles.appName}>ReadScape</Text>
+          <Text style={styles.tagline}>Your reading journey</Text>
+          <View style={styles.divider} />
+        </Animated.View>
+      )}
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0D1B2A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: {
+    width: 160,
+    height: 160,
+    borderRadius: 36,
+  },
+  appName: {
+    color: "#F7F4EF",
+    fontSize: 42,
+    fontFamily: "Georgia",
+    marginTop: 28,
+    letterSpacing: 2,
+  },
+  tagline: {
+    color: "#E8C5CF",
+    fontSize: 16,
+    fontFamily: "Georgia",
+    marginTop: 10,
+    letterSpacing: 1.5,
+    opacity: 0.85,
+  },
+  divider: {
+    marginTop: 24,
+    width: 60,
+    height: 1.5,
+    backgroundColor: "#C4899A",
+    opacity: 0.4,
+    borderRadius: 1,
+  },
+});
