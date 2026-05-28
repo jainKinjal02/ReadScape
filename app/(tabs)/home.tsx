@@ -191,11 +191,11 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Atmospheric header ── */}
-        <View style={styles.heroHeader}>
+        <View style={[styles.heroHeader, { height: 165 + insets.top }]}>
           {HEADER_IMGS.map((src, i) => (
             <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
               <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -206,7 +206,7 @@ export default function HomeScreen() {
             locations={[0, 0.4, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.heroContent}>
+          <View style={[styles.heroContent, { paddingTop: insets.top + 16 }]}>
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.greeting}>{greeting},</Text>

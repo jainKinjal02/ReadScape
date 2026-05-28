@@ -690,7 +690,7 @@ export default function InsightsScreen() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
 
       {/* ── Atmospheric hero header ── */}
-      <View style={styles.heroHeader}>
+      <View style={[styles.heroHeader, { height: 170 + insets.top }]}>
         {HEADER_IMGS.map((src, i) => (
           <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
             <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -834,7 +834,7 @@ export default function InsightsScreen() {
               </ScrollView>
             )}
 
-            <View style={{ height: 24 }} />
+            <View style={{ height: 24 + insets.bottom }} />
           </View>
         </ScrollView>
       </SafeAreaView>

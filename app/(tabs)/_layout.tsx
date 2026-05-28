@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
@@ -65,6 +66,8 @@ function TabLabel({ label, color }: { label: string; color: string }) {
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   useEffect(() => {
     BG_URLS.forEach((url) => Image.prefetch(url));
   }, []);
@@ -73,7 +76,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, {
+          height: 52 + insets.bottom,
+          paddingBottom: insets.bottom + 4,
+        }],
         tabBarShowLabel: true,
         tabBarActiveTintColor: colors.terracotta,
         tabBarInactiveTintColor: colors.char3,
@@ -126,8 +132,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment,
     borderTopColor: colors.cream3,
     borderTopWidth: 1,
-    height: Platform.OS === "ios" ? 82 : 62,
-    paddingBottom: Platform.OS === "ios" ? 22 : 6,
     paddingTop: 6,
     shadowColor: "#000",
     shadowOpacity: 0.07,
