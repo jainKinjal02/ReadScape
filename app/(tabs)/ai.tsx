@@ -8,7 +8,7 @@ import {
   FlatList,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Animated,
 } from "react-native";
@@ -128,6 +128,7 @@ export default function AIScreen() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const kbHeight = useRef(new Animated.Value(0)).current;
 
   // Current book context — first book with status "reading"
   const currentBook = books.find((b) => b.status === "reading") ?? null;
@@ -154,6 +155,36 @@ export default function AIScreen() {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Keyboard listeners — reliable alternative to KeyboardAvoidingView inside tab navigators
+  useEffect(() => {
+    const tabBarH = 52 + insets.bottom;
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const show = Keyboard.addListener(showEvent, (e) => {
+      const h = Math.max(0, e.endCoordinates.height - tabBarH);
+      Animated.timing(kbHeight, {
+        toValue: h,
+        duration: Platform.OS === "ios" ? e.duration ?? 250 : 150,
+        useNativeDriver: false,
+      }).start();
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    const hide = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(kbHeight, {
+        toValue: 0,
+        duration: Platform.OS === "ios" ? e.duration ?? 250 : 150,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [insets.bottom]);
 
   const sendMessage = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -227,11 +258,7 @@ export default function AIScreen() {
 
       {/* ── Content ── */}
       <View style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom + 52 : 0}
-        >
+        <View style={{ flex: 1 }}>
           {/* Tab bar */}
           <View style={styles.tabsRow}>
             {TABS.map((tab) => (
@@ -311,7 +338,8 @@ export default function AIScreen() {
               <SendIcon />
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+          <Animated.View style={{ height: kbHeight }} />
+        </View>
       </View>
     </View>
   );
