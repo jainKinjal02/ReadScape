@@ -229,8 +229,8 @@ export default function AIScreen() {
       <View style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={10}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom + 52 : 0}
         >
           {/* Tab bar */}
           <View style={styles.tabsRow}>
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   // Input bar
   inputRow: {
     flexDirection: "row", gap: 8,
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12,
     borderTopWidth: 1, borderTopColor: colors.cream3,
     backgroundColor: colors.cream,
     alignItems: "center",
