@@ -1,5 +1,6 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState, useRef, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -129,6 +130,26 @@ export default function AIScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const kbHeight = useRef(new Animated.Value(0)).current;
+
+  // Load persisted messages on first mount
+  useEffect(() => {
+    AsyncStorage.getItem("ai_chat_messages").then((stored) => {
+      if (stored) {
+        try {
+          const parsed: Message[] = JSON.parse(stored);
+          if (parsed.length > 0) setMessages(parsed);
+        } catch {}
+      }
+    });
+  }, []);
+
+  // Save messages whenever they change (skip the initial welcome-only state)
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === "welcome") return;
+    // Keep last 200 messages to avoid unbounded growth
+    const toStore = messages.slice(-200);
+    AsyncStorage.setItem("ai_chat_messages", JSON.stringify(toStore));
+  }, [messages]);
 
   // Current book context — first book with status "reading"
   const currentBook = books.find((b) => b.status === "reading") ?? null;
