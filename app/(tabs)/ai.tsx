@@ -1,6 +1,7 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
@@ -150,6 +151,13 @@ export default function AIScreen() {
     const toStore = messages.slice(-200);
     AsyncStorage.setItem("ai_chat_messages", JSON.stringify(toStore));
   }, [messages]);
+
+  // Scroll to bottom whenever the tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
+    }, [])
+  );
 
   // Current book context — first book with status "reading"
   const currentBook = books.find((b) => b.status === "reading") ?? null;
