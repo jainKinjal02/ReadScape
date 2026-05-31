@@ -357,18 +357,6 @@ export default function HomeScreen() {
           }}
         />
 
-        {/* ── AI Companion promo ── */}
-        <TouchableOpacity
-          style={styles.aiPromo}
-          onPress={() => router.push("/(tabs)/ai")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.aiPromoTitle}>Ask your reading companion</Text>
-          <View style={styles.aiPromoBtn}>
-            <Text style={styles.aiPromoBtnText}>Ask AI</Text>
-          </View>
-        </TouchableOpacity>
-
       </ScrollView>
 
       {/* ── Profile slide-in panel ── */}
@@ -762,21 +750,6 @@ const styles = StyleSheet.create({
   goalEmptyTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
   goalEmptySub: { fontSize: 11, color: colors.char3, marginTop: 2 },
   goalEmptyChevron: { fontSize: 22, color: colors.char3, fontWeight: "300" },
-
-  // AI promo
-  aiPromo: {
-    marginHorizontal: 16, marginTop: 8, marginBottom: 12,
-    backgroundColor: "rgba(127,119,221,0.1)",
-    borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
-    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-  },
-  aiPromoTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso, flex: 1 },
-  aiPromoBtn: {
-    backgroundColor: colors.espresso, borderRadius: 20,
-    paddingVertical: 6, paddingHorizontal: 14, marginLeft: 10,
-  },
-  aiPromoBtnText: { fontSize: 12, color: colors.cream, fontWeight: "500" },
 
   // ── Profile panel ──────────────────────────────────────────────────────────
   overlay: {
