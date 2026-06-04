@@ -248,17 +248,21 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.curCard}
+            style={styles.curCardEmpty}
             onPress={() => router.push("/(tabs)/library")}
             activeOpacity={0.88}
           >
-            <View style={styles.emptyBook}>
-              <Text style={styles.emptyBookIcon}>📖</Text>
-              <View style={styles.emptyBookText}>
-                <Text style={styles.curLabel}>Currently reading</Text>
-                <Text style={styles.curTitle}>Nothing yet</Text>
-                <Text style={styles.curAuthor}>Add a book and mark it as Reading to track your progress.</Text>
-              </View>
+            <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" style={{ marginBottom: 10 }}>
+              <Path d="M12 4H5a1 1 0 00-1 1v13a1 1 0 001 1h7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.3} strokeLinejoin="round" />
+              <Path d="M12 4h7a1 1 0 011 1v13a1 1 0 01-1 1h-7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.3} strokeLinejoin="round" />
+              <Path d="M12 4v15" stroke={colors.terracotta} strokeWidth={1.3} />
+              <Path d="M6 8h4M6 11h4M6 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
+              <Path d="M14 8h4M14 11h4M14 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
+            </Svg>
+            <Text style={styles.emptyReadTitle}>What are you reading?</Text>
+            <Text style={styles.emptyReadSub}>Add a book to your library and mark it as Reading to track your progress here.</Text>
+            <View style={styles.emptyReadBtn}>
+              <Text style={styles.emptyReadBtnText}>Browse library →</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -711,9 +715,28 @@ const styles = StyleSheet.create({
   addPlus: { fontSize: 26, color: colors.terra2 },
 
   // Empty currently reading
-  emptyBook: { flexDirection: "row", gap: 14, alignItems: "center" },
-  emptyBookIcon: { fontSize: 40 },
-  emptyBookText: { flex: 1 },
+  curCardEmpty: {
+    marginHorizontal: 16, marginTop: 16,
+    backgroundColor: colors.parchment,
+    borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 16, paddingVertical: 28, paddingHorizontal: 24,
+    alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12,
+    elevation: 3,
+  },
+  emptyReadTitle: {
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 17,
+    color: colors.espresso, marginBottom: 6, textAlign: "center",
+  },
+  emptyReadSub: {
+    fontSize: 12, color: colors.char3, textAlign: "center",
+    lineHeight: 18, marginBottom: 16, paddingHorizontal: 8,
+  },
+  emptyReadBtn: {
+    backgroundColor: colors.terracotta,
+    borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20,
+  },
+  emptyReadBtnText: { fontSize: 13, color: "#fff", fontWeight: "600" },
 
   // Reading goal card
   goalCard: {

@@ -44,6 +44,26 @@ const FILTERS: { label: string; value: Filter }[] = [
   { label: "Abandoned",    value: "abandoned" },
 ];
 
+const EMPTY_COPY: Record<Filter, { title: string; sub: string; btn: string | null; action: "add" | "browse" | null }> = {
+  all:          { title: "Your library awaits",        sub: "Every great reader starts with one book.\nSearch above or tap \"Add\" to begin.",       btn: "Add your first book", action: "add"    },
+  reading:      { title: "Nothing in progress",         sub: "Find a book in your library, open it,\nand mark it as Reading.",                         btn: "Browse all books",    action: "browse" },
+  read:         { title: "No finished books yet",       sub: "Books you complete will live here.\nKeep going — every page counts.",                    btn: "See all books",       action: "browse" },
+  want_to_read: { title: "Your reading list is empty",  sub: "Add books you're curious about.\nFuture you will be very grateful.",                     btn: "Find a book",         action: "add"    },
+  abandoned:    { title: "No abandoned books",          sub: "Sometimes a book just isn't the right fit,\nand that's perfectly okay.",                 btn: null,                  action: null     },
+};
+
+function BookOpenSvg() {
+  return (
+    <Svg width={72} height={72} viewBox="0 0 24 24" fill="none" style={{ marginBottom: 18 }}>
+      <Path d="M12 4H5a1 1 0 00-1 1v13a1 1 0 001 1h7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.2} strokeLinejoin="round" />
+      <Path d="M12 4h7a1 1 0 011 1v13a1 1 0 01-1 1h-7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.2} strokeLinejoin="round" />
+      <Path d="M12 4v15" stroke={colors.terracotta} strokeWidth={1.2} />
+      <Path d="M6 8h4M6 11h4M6 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
+      <Path d="M14 8h4M14 11h4M14 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 const BADGE: Record<string, { label: string; bg: string; text: string }> = {
   reading:      { label: "Reading", bg: "rgba(127,119,221,0.2)",  text: "#9b95e8" },
   read:         { label: "Read",    bg: "rgba(91,191,170,0.2)",   text: "#5bbfaa" },
@@ -354,18 +374,27 @@ export default function LibraryScreen() {
             </View>
           ) : filtered.length === 0 && librarySearch.trim().length > 0 ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>🔍</Text>
+              <Svg width={52} height={52} viewBox="0 0 24 24" fill="none" style={{ marginBottom: 16 }}>
+                <Path d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" stroke={colors.char3} strokeWidth={1.4} strokeLinecap="round" />
+              </Svg>
               <Text style={styles.emptyTitle}>No matches</Text>
-              <Text style={styles.emptySub}>No books matching "{librarySearch}" in your library.</Text>
+              <Text style={styles.emptySub}>No books matching "{librarySearch}" in your library. Try a different title or author.</Text>
             </View>
-          ) : filtered.length === 0 && filter === "all" ? (
+          ) : filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>📚</Text>
-              <Text style={styles.emptyTitle}>Your library is empty</Text>
-              <Text style={styles.emptySub}>Tap "+ Add" to find your first book.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => openModal()}>
-                <Text style={styles.emptyBtnText}>Add a book</Text>
-              </TouchableOpacity>
+              <BookOpenSvg />
+              <Text style={styles.emptyTitle}>{EMPTY_COPY[filter].title}</Text>
+              <Text style={styles.emptySub}>{EMPTY_COPY[filter].sub}</Text>
+              {EMPTY_COPY[filter].action === "add" && (
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => openModal()}>
+                  <Text style={styles.emptyBtnText}>{EMPTY_COPY[filter].btn}</Text>
+                </TouchableOpacity>
+              )}
+              {EMPTY_COPY[filter].action === "browse" && (
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => setFilter("all")}>
+                  <Text style={styles.emptyBtnText}>{EMPTY_COPY[filter].btn}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <FlatList
@@ -537,18 +566,19 @@ const styles = StyleSheet.create({
   // Loading / empty states
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: { fontSize: 13, color: colors.char3 },
-  emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
-  emptyIcon: { fontSize: 52, marginBottom: 16 },
+  emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 44, paddingBottom: 40 },
   emptyTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
-    color: colors.espresso, textAlign: "center", marginBottom: 8,
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 22,
+    color: colors.espresso, textAlign: "center", marginBottom: 10,
   },
-  emptySub: { fontSize: 14, color: colors.char3, textAlign: "center", lineHeight: 20, marginBottom: 24 },
+  emptySub: { fontSize: 14, color: colors.char3, textAlign: "center", lineHeight: 21, marginBottom: 28 },
   emptyBtn: {
-    backgroundColor: colors.terracotta, borderRadius: 20,
-    paddingVertical: 12, paddingHorizontal: 28,
+    backgroundColor: colors.terracotta, borderRadius: 24,
+    paddingVertical: 13, paddingHorizontal: 32,
+    shadowColor: colors.terracotta, shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 4,
   },
-  emptyBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  emptyBtnText: { color: "#fff", fontSize: 14, fontWeight: "600", letterSpacing: 0.3 },
 
   // Full-screen modal
   modalScreen: {
