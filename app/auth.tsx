@@ -80,7 +80,7 @@ export default function AuthScreen() {
           // Email confirmation disabled — session returned immediately
           setUserId(data.session.user.id);
           setUserName(data.session.user.user_metadata?.name ?? name.trim());
-          router.replace("/(tabs)/home");
+          router.replace("/onboarding");
         } else {
           Alert.alert(
             "Check your email ✉️",

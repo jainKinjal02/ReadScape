@@ -1,96 +1,66 @@
-import React, { useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  Animated,
+  ActivityIndicator,
+  Dimensions,
 } from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { supabase } from "../src/lib/supabase";
+import Svg, { Path } from "react-native-svg";
 import { colors } from "../src/design/tokens";
+import { supabase } from "../src/lib/supabase";
+import { useAppStore } from "../src/store";
+
+const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
+const { width: SW } = Dimensions.get("window");
+
+const GOALS = [
+  { value: 6,  label: "Casual",    books: "6 books",  freq: "~1 every 2 months" },
+  { value: 12, label: "Regular",   books: "12 books", freq: "~1 per month"       },
+  { value: 24, label: "Avid",      books: "24 books", freq: "~2 per month"       },
+  { value: 52, label: "Committed", books: "52 books", freq: "~1 per week"        },
+];
 
 const GENRES = [
   "Fiction", "Fantasy", "Mystery", "Romance", "Sci-Fi",
   "Non-Fiction", "Biography", "History", "Self-Help", "Horror",
-  "Thriller", "Literary", "Poetry", "Graphic Novel", "Young Adult",
+  "Thriller", "Literary Fiction", "Poetry", "Graphic Novel", "Young Adult",
 ];
 
-const GOALS = [6, 12, 24, 52];
-
-type Step = "auth" | "profile" | "goals";
-
 export default function OnboardingScreen() {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>("auth");
-  const [isSignIn, setIsSignIn] = useState(false);
+  const insets = useSafeAreaInsets();
+  const router  = useRouter();
+  const setReadingGoal = useAppStore((s) => s.setReadingGoal);
+  const userName       = useAppStore((s) => s.userName);
 
-  // Auth fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  // Profile fields
-  const [name, setName] = useState("");
-  const [goal, setGoal] = useState(12);
+  const [step, setStep]                     = useState<0 | 1>(0);
+  const [goal, setGoal]                     = useState(12);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [loading, setLoading]               = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  // Store the user ID from signUp — Supabase won't have an active session
-  // until email is confirmed, so we can't call getUser() in handleFinish.
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  // Fade + subtle slide-up transition between steps
+  const stepOpacity = useRef(new Animated.Value(1)).current;
+  const stepY       = useRef(new Animated.Value(0)).current;
 
-  const handleAuth = async () => {
-    if (!email || !password) return;
-    setLoading(true);
-    try {
-      if (isSignIn) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.replace("/(tabs)/home");
-      } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        // data.user is populated even before email confirmation
-        setPendingUserId(data.user?.id ?? null);
-        setStep("profile");
-      }
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFinish = async () => {
-    setLoading(true);
-    try {
-      // Try active session first (sign-in path), fall back to pendingUserId (sign-up path)
-      const { data: { user: sessionUser } } = await supabase.auth.getUser();
-      const uid = sessionUser?.id ?? pendingUserId;
-
-      if (!uid) {
-        Alert.alert("Error", "Could not identify user. Please try signing in.");
-        return;
-      }
-
-      const { error } = await supabase.from("user_profiles").upsert({
-        user_id: uid,
-        name: name || email.split("@")[0],
-        reading_goal: goal,
-        favorite_genres: selectedGenres,
-      });
-
-      if (error) throw error;
-      router.replace("/(tabs)/home");
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
-    } finally {
-      setLoading(false);
-    }
+  const transitionToGenres = () => {
+    Animated.parallel([
+      Animated.timing(stepOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(stepY,       { toValue: -24, duration: 200, useNativeDriver: true }),
+    ]).start(() => {
+      setStep(1);
+      stepY.setValue(28);
+      Animated.parallel([
+        Animated.timing(stepOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+        Animated.spring(stepY,       { toValue: 0, useNativeDriver: true, damping: 16, stiffness: 120 }),
+      ]).start();
+    });
   };
 
   const toggleGenre = (genre: string) => {
@@ -99,210 +69,322 @@ export default function OnboardingScreen() {
     );
   };
 
-  if (step === "auth") {
-    return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.content}>
-          <Text style={styles.headline}>
-            {isSignIn ? "Welcome back" : "Begin your journey"}
-          </Text>
-          <Text style={styles.subheadline}>
-            {isSignIn
-              ? "Sign in to continue reading"
-              : "Create your personal reading sanctuary"}
-          </Text>
+  const handleFinish = async () => {
+    setLoading(true);
+    try {
+      await supabase.auth.updateUser({
+        data: { reading_goal: goal, favorite_genres: selectedGenres },
+      });
+      setReadingGoal(goal);
+    } catch {
+      // Non-fatal — still enter the app
+    } finally {
+      router.replace("/(tabs)/home");
+    }
+  };
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email address"
-            placeholderTextColor={colors.inkMuted}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={colors.inkMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity
-            style={[styles.primaryBtn, loading && styles.btnDisabled]}
-            onPress={handleAuth}
-            disabled={loading}
-          >
-            <Text style={styles.primaryBtnText}>
-              {loading ? "..." : isSignIn ? "Sign In" : "Create Account"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.switchLink}
-            onPress={() => setIsSignIn(!isSignIn)}
-          >
-            <Text style={styles.switchText}>
-              {isSignIn
-                ? "New here? Create an account"
-                : "Already have an account? Sign in"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  if (step === "profile") {
-    return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.headline}>What should we call you?</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Your name"
-            placeholderTextColor={colors.inkMuted}
-            value={name}
-            onChangeText={setName}
-          />
-
-          <Text style={styles.sectionLabel}>Reading goal (books/year)</Text>
-          <View style={styles.goalRow}>
-            {GOALS.map((g) => (
-              <TouchableOpacity
-                key={g}
-                style={[styles.goalChip, goal === g && styles.goalChipSelected]}
-                onPress={() => setGoal(g)}
-              >
-                <Text
-                  style={[
-                    styles.goalChipText,
-                    goal === g && styles.goalChipTextSelected,
-                  ]}
-                >
-                  {g}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("goals")}>
-            <Text style={styles.primaryBtnText}>Continue →</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
+  const firstName = userName ? userName.split(" ")[0] : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.headline}>What do you love to read?</Text>
-        <Text style={styles.subheadline}>Pick your favorite genres</Text>
-        <ScrollView contentContainerStyle={styles.genreGrid}>
-          {GENRES.map((genre) => (
-            <TouchableOpacity
-              key={genre}
-              style={[
-                styles.genreChip,
-                selectedGenres.includes(genre) && styles.genreChipSelected,
-              ]}
-              onPress={() => toggleGenre(genre)}
-            >
-              <Text
-                style={[
-                  styles.genreChipText,
-                  selectedGenres.includes(genre) && styles.genreChipTextSelected,
-                ]}
-              >
-                {genre}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <TouchableOpacity
-          style={[styles.primaryBtn, loading && styles.btnDisabled]}
-          onPress={handleFinish}
-          disabled={loading}
-        >
-          <Text style={styles.primaryBtnText}>
-            {loading ? "Setting up your library..." : "Enter ReadScape →"}
-          </Text>
-        </TouchableOpacity>
+      {/* Atmospheric background */}
+      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+      <LinearGradient
+        colors={["rgba(15,25,35,0.55)", "rgba(15,25,35,0.97)"]}
+        locations={[0, 0.5]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Progress bar */}
+      <View style={[styles.progressWrap, { paddingTop: insets.top + 18 }]}>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: step === 0 ? "50%" : "100%" }]} />
+        </View>
+        <Text style={styles.progressLabel}>{step + 1} of 2</Text>
       </View>
+
+      {/* Step content */}
+      <Animated.View
+        style={[styles.stepWrap, { opacity: stepOpacity, transform: [{ translateY: stepY }] }]}
+      >
+        {step === 0 ? (
+          /* ─── STEP 1: Reading Goal ─── */
+          <View style={styles.stepInner}>
+            <View style={styles.stepHeader}>
+              <Text style={styles.stepTitle}>
+                {firstName
+                  ? `How many books\nthis year, ${firstName}?`
+                  : "How many books\ndo you want to read?"}
+              </Text>
+              <Text style={styles.stepSub}>
+                Set your reading goal. You can always adjust this later.
+              </Text>
+            </View>
+
+            <View style={styles.goalGrid}>
+              {GOALS.map((g) => {
+                const selected = goal === g.value;
+                return (
+                  <TouchableOpacity
+                    key={g.value}
+                    style={[styles.goalCard, selected && styles.goalCardSelected]}
+                    onPress={() => setGoal(g.value)}
+                    activeOpacity={0.8}
+                  >
+                    {selected && (
+                      <View style={styles.goalCheck}>
+                        <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
+                          <Path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                    )}
+                    <Text style={[styles.goalBooks, selected && styles.goalBooksSelected]}>
+                      {g.books}
+                    </Text>
+                    <Text style={[styles.goalLabel, selected && styles.goalLabelSelected]}>
+                      {g.label}
+                    </Text>
+                    <Text style={[styles.goalFreq, selected && styles.goalFreqSelected]}>
+                      {g.freq}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity style={styles.nextBtn} onPress={transitionToGenres} activeOpacity={0.87}>
+              <Text style={styles.nextBtnText}>Continue</Text>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path d="M5 12h14M12 5l7 7-7 7" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          /* ─── STEP 2: Genres ─── */
+          <View style={styles.stepInner}>
+            <View style={styles.stepHeader}>
+              <Text style={styles.stepTitle}>{"What do you\nlove to read?"}</Text>
+              <Text style={styles.stepSub}>
+                Pick your favourites — helps personalise your recommendations.
+              </Text>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.genreGrid}
+              showsVerticalScrollIndicator={false}
+              style={styles.genreScroll}
+            >
+              {GENRES.map((genre) => {
+                const selected = selectedGenres.includes(genre);
+                return (
+                  <TouchableOpacity
+                    key={genre}
+                    style={[styles.genreChip, selected && styles.genreChipSelected]}
+                    onPress={() => toggleGenre(genre)}
+                    activeOpacity={0.8}
+                  >
+                    {selected && (
+                      <Svg width={11} height={11} viewBox="0 0 24 24" fill="none" style={{ marginRight: 5 }}>
+                        <Path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    )}
+                    <Text style={[styles.genreChipText, selected && styles.genreChipTextSelected]}>
+                      {genre}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.nextBtn, loading && { opacity: 0.7 }]}
+              onPress={handleFinish}
+              disabled={loading}
+              activeOpacity={0.87}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.nextBtnText}>Enter ReadScape</Text>
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                    <Path d="M5 12h14M12 5l7 7-7 7" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.skipLink} onPress={handleFinish} disabled={loading}>
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
+
+      <View style={{ height: insets.bottom + 16 }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { flex: 1, padding: 32, justifyContent: "center" },
-  headline: {
-    fontFamily: "CormorantGaramond_700Bold",
-    fontSize: 32,
-    color: colors.inkPrimary,
+  container: { flex: 1, backgroundColor: "#0f1923" },
+
+  // Progress bar
+  progressWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 28,
+    gap: 12,
     marginBottom: 8,
   },
-  subheadline: {
-    fontSize: 15,
-    color: colors.inkMuted,
-    marginBottom: 32,
-    lineHeight: 22,
-  },
-  input: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: colors.inkPrimary,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.bgSurface,
-  },
-  primaryBtn: {
-    backgroundColor: colors.roseAccent,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  btnDisabled: { opacity: 0.6 },
-  primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  switchLink: { alignItems: "center", marginTop: 16 },
-  switchText: { color: colors.inkMuted, fontSize: 13 },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.inkPrimary,
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  goalRow: { flexDirection: "row", gap: 12 },
-  goalChip: {
+  progressTrack: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.bgSurface,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 3,
+    backgroundColor: colors.terracotta,
+    borderRadius: 2,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "500",
+    minWidth: 32,
+    textAlign: "right",
+  },
+
+  // Step container
+  stepWrap:  { flex: 1 },
+  stepInner: { flex: 1, paddingHorizontal: 28 },
+  stepHeader: { paddingTop: 28, marginBottom: 28 },
+  stepTitle: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 36,
+    color: "#f0eef8",
+    lineHeight: 44,
+    marginBottom: 12,
+  },
+  stepSub: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    lineHeight: 21,
+  },
+
+  // Goal cards — 2 × 2 grid
+  goalGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 32,
+  },
+  goalCard: {
+    width: (SW - 56 - 12) / 2,
+    backgroundColor: "rgba(22,32,48,0.88)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    padding: 16,
+    position: "relative",
+  },
+  goalCardSelected: {
+    borderColor: colors.terracotta,
+    backgroundColor: "rgba(127,119,221,0.15)",
+  },
+  goalCheck: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.terracotta,
     alignItems: "center",
+    justifyContent: "center",
   },
-  goalChipSelected: { backgroundColor: colors.roseSoft, borderWidth: 1.5, borderColor: colors.roseAccent },
-  goalChipText: { fontSize: 18, fontWeight: "600", color: colors.inkMuted },
-  goalChipTextSelected: { color: colors.roseAccent },
-  genreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 8 },
+  goalBooks: {
+    fontFamily: "CormorantGaramond_700Bold",
+    fontSize: 22,
+    color: "rgba(255,255,255,0.45)",
+    marginBottom: 4,
+  },
+  goalBooksSelected: { color: "#f0eef8" },
+  goalLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.38)",
+    marginBottom: 4,
+  },
+  goalLabelSelected: { color: colors.terra2 },
+  goalFreq: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.28)",
+    lineHeight: 16,
+  },
+  goalFreqSelected: { color: "rgba(255,255,255,0.52)" },
+
+  // Genre chips
+  genreScroll: { flex: 1, marginBottom: 24 },
+  genreGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingBottom: 8,
+  },
   genreChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: colors.bgSurface,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: "rgba(22,32,48,0.88)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  genreChipSelected: { backgroundColor: colors.roseSoft, borderWidth: 1.5, borderColor: colors.roseAccent },
-  genreChipText: { fontSize: 13, color: colors.inkPrimary },
-  genreChipTextSelected: { color: colors.roseAccent, fontWeight: "600" },
+  genreChipSelected: {
+    backgroundColor: "rgba(127,119,221,0.2)",
+    borderColor: colors.terracotta,
+  },
+  genreChipText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+    fontWeight: "500",
+  },
+  genreChipTextSelected: {
+    color: "#f0eef8",
+    fontWeight: "600",
+  },
+
+  // Buttons
+  nextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.terracotta,
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: colors.terracotta,
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  nextBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  skipLink: {
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  skipText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.3)",
+  },
 });
