@@ -29,6 +29,8 @@ import { supabase } from "../../src/lib/supabase";
 
 const { width: SW } = Dimensions.get("window");
 const PANEL_W = SW * 0.78;
+// Currently-reading carousel card width — leaves a sliver of the next card peeking
+const CUR_CARD_W = SW * 0.82;
 
 // Atmospheric header background images
 const HEADER_IMGS = [
@@ -60,7 +62,7 @@ export default function HomeScreen() {
   const { books } = useBooks();
 
   // Derive real data from Supabase books
-  const currentBook = books.find((b) => b.status === "reading") ?? null;
+  const readingBooks = books.filter((b) => b.status === "reading");
   const wantToRead = books.filter((b) => b.status === "want_to_read").slice(0, 5);
   const readCount = books.filter((b) => b.status === "read").length;
   const currentYear = new Date().getFullYear();
@@ -70,10 +72,6 @@ export default function HomeScreen() {
     return new Date(b.date_finished).getFullYear() === currentYear;
   }).length;
   const goalPct = readingGoal > 0 ? Math.min(100, Math.round((booksReadThisYear / readingGoal) * 100)) : 0;
-  const progress =
-    currentBook && currentBook.total_pages && currentBook.total_pages > 0
-      ? Math.min(100, Math.round((currentBook.current_page / currentBook.total_pages) * 100))
-      : 0;
 
   // Derive initials from the real user name (first letter of each word, max 2)
   const initials = userName
@@ -225,27 +223,34 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Currently Reading ── */}
-        {currentBook ? (
-          <TouchableOpacity
-            style={styles.curCard}
-            onPress={() => router.push(`/book/${currentBook.id}`)}
-            activeOpacity={0.88}
-          >
-            <View style={styles.curCoverWrap}>
-              <CoverImage uri={currentBook.cover_url ?? ""} title={currentBook.title} style={styles.curCoverImg} />
+        {readingBooks.length === 1 ? (
+          <CurrentlyReadingCard
+            book={readingBooks[0]}
+            onPress={() => router.push(`/book/${readingBooks[0].id}`)}
+          />
+        ) : readingBooks.length > 1 ? (
+          <>
+            <View style={styles.curSectionHdr}>
+              <Text style={styles.secTitle}>Currently reading</Text>
+              <Text style={styles.curSectionCount}>{readingBooks.length} books</Text>
             </View>
-            <View style={styles.curInfo}>
-              <Text style={styles.curLabel}>Continue reading</Text>
-              <Text style={styles.curTitle} numberOfLines={2}>{currentBook.title}</Text>
-              <Text style={styles.curAuthor}>{currentBook.author ?? ""}</Text>
-              <View style={styles.progBg}>
-                <View style={[styles.progFill, { width: `${progress}%` }]} />
-              </View>
-              <Text style={styles.progLbl}>
-                Page {currentBook.current_page} of {currentBook.total_pages ?? "?"} · {progress}%
-              </Text>
-            </View>
-          </TouchableOpacity>
+            <FlatList
+              data={readingBooks}
+              horizontal
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.curShelfRow}
+              snapToInterval={CUR_CARD_W + 12}
+              decelerationRate="fast"
+              renderItem={({ item }) => (
+                <CurrentlyReadingCard
+                  book={item}
+                  horizontal
+                  onPress={() => router.push(`/book/${item.id}`)}
+                />
+              )}
+            />
+          </>
         ) : (
           <TouchableOpacity
             style={styles.curCardEmpty}
@@ -602,6 +607,43 @@ export default function HomeScreen() {
   );
 }
 
+function CurrentlyReadingCard({
+  book,
+  onPress,
+  horizontal,
+}: {
+  book: Book;
+  onPress: () => void;
+  horizontal?: boolean;
+}) {
+  const progress =
+    book.total_pages && book.total_pages > 0
+      ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100))
+      : 0;
+  return (
+    <TouchableOpacity
+      style={[styles.curCard, horizontal && styles.curCardH]}
+      onPress={onPress}
+      activeOpacity={0.88}
+    >
+      <View style={styles.curCoverWrap}>
+        <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.curCoverImg} />
+      </View>
+      <View style={styles.curInfo}>
+        <Text style={styles.curLabel}>Continue reading</Text>
+        <Text style={styles.curTitle} numberOfLines={2}>{book.title}</Text>
+        <Text style={styles.curAuthor}>{book.author ?? ""}</Text>
+        <View style={styles.progBg}>
+          <View style={[styles.progFill, { width: `${progress}%` }]} />
+        </View>
+        <Text style={styles.progLbl}>
+          Page {book.current_page} of {book.total_pages ?? "?"} · {progress}%
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function PanelRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.panelRow} onPress={onPress} activeOpacity={0.7}>
@@ -648,6 +690,18 @@ const styles = StyleSheet.create({
   streakText: { fontSize: 12, color: "#faf6f0", fontWeight: "500" },
 
   // Currently reading card
+  curSectionHdr: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "baseline",
+    paddingHorizontal: 20, marginTop: 16, marginBottom: -4,
+  },
+  curSectionCount: { fontSize: 12, color: colors.char3, fontWeight: "500" },
+  curShelfRow: { paddingLeft: 16, paddingRight: 4, paddingTop: 12 },
+  curCardH: {
+    width: CUR_CARD_W,
+    marginHorizontal: 0,
+    marginRight: 12,
+    marginTop: 0,
+  },
   curCard: {
     marginHorizontal: 16, marginTop: 16,
     backgroundColor: colors.parchment,
