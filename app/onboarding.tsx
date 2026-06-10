@@ -3,12 +3,15 @@ import React, { useState, useRef } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   Animated,
   ActivityIndicator,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,6 +46,8 @@ export default function OnboardingScreen() {
   const [step, setStep]                     = useState<0 | 1>(0);
   const [goal, setGoal]                     = useState(12);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [customGenres, setCustomGenres]     = useState<string[]>([]);
+  const [draft, setDraft]                   = useState("");
   const [loading, setLoading]               = useState(false);
 
   // Fade + subtle slide-up transition between steps
@@ -67,6 +72,24 @@ export default function OnboardingScreen() {
     setSelectedGenres((prev) =>
       prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
     );
+  };
+
+  // Add a user-typed genre. Normalises whitespace and dedupes case-insensitively
+  // against both the presets and previously-added custom genres, so we don't end
+  // up with "sci-fi" / "Sci-Fi" duplicates fragmenting the Insights breakdown.
+  const addCustomGenre = () => {
+    const cleaned = draft.trim().replace(/\s+/g, " ");
+    if (!cleaned) return;
+    const lower = cleaned.toLowerCase();
+    const match =
+      GENRES.find((g) => g.toLowerCase() === lower) ??
+      customGenres.find((g) => g.toLowerCase() === lower);
+    const canonical = match ?? cleaned;
+    if (!match) setCustomGenres((prev) => [...prev, canonical]);
+    setSelectedGenres((prev) =>
+      prev.some((g) => g.toLowerCase() === lower) ? prev : [...prev, canonical]
+    );
+    setDraft("");
   };
 
   const handleFinish = async () => {
@@ -161,11 +184,15 @@ export default function OnboardingScreen() {
           </View>
         ) : (
           /* ─── STEP 2: Genres ─── */
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
           <View style={styles.stepInner}>
             <View style={styles.stepHeader}>
               <Text style={styles.stepTitle}>{"What do you\nlove to read?"}</Text>
               <Text style={styles.stepSub}>
-                Pick your favourites — helps personalise your recommendations.
+                Pick your favourites — or add your own. Helps personalise your recommendations.
               </Text>
             </View>
 
@@ -173,8 +200,9 @@ export default function OnboardingScreen() {
               contentContainerStyle={styles.genreGrid}
               showsVerticalScrollIndicator={false}
               style={styles.genreScroll}
+              keyboardShouldPersistTaps="handled"
             >
-              {GENRES.map((genre) => {
+              {[...GENRES, ...customGenres].map((genre) => {
                 const selected = selectedGenres.includes(genre);
                 return (
                   <TouchableOpacity
@@ -195,6 +223,30 @@ export default function OnboardingScreen() {
                 );
               })}
             </ScrollView>
+
+            {/* Add your own genre */}
+            <View style={styles.addRow}>
+              <TextInput
+                style={styles.addInput}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Add your own…"
+                placeholderTextColor="rgba(255,255,255,0.32)"
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={addCustomGenre}
+              />
+              <TouchableOpacity
+                style={[styles.addBtn, !draft.trim() && { opacity: 0.4 }]}
+                onPress={addCustomGenre}
+                disabled={!draft.trim()}
+                activeOpacity={0.8}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
+                </Svg>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.nextBtn, loading && { opacity: 0.7 }]}
@@ -218,6 +270,7 @@ export default function OnboardingScreen() {
               <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         )}
       </Animated.View>
 
@@ -356,6 +409,35 @@ const styles = StyleSheet.create({
   genreChipTextSelected: {
     color: "#f0eef8",
     fontWeight: "600",
+  },
+
+  // Add-your-own genre row
+  addRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  addInput: {
+    flex: 1,
+    backgroundColor: "rgba(22,32,48,0.88)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 14,
+    color: "#f0eef8",
+  },
+  addBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(127,119,221,0.25)",
+    borderWidth: 1.5,
+    borderColor: colors.terracotta,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Buttons
