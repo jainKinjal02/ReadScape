@@ -475,11 +475,19 @@ export default function BookDetailScreen() {
             </View>
           </View>
 
-          {/* Mark as Finished CTA */}
+          {/* Reading-session CTAs */}
           {book.status === "reading" && (
-            <TouchableOpacity style={styles.finishBtn} onPress={handleMarkFinished}>
-              <Text style={styles.finishBtnText}>✓ Mark as Finished</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.logSessionBtn}
+                onPress={() => router.push(`/session/${book.id}`)}
+              >
+                <Text style={styles.logSessionBtnText}>✦ Log reading session</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.finishBtn} onPress={handleMarkFinished}>
+                <Text style={styles.finishBtnText}>✓ Mark as Finished</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -1062,9 +1070,17 @@ const styles = StyleSheet.create({
     paddingVertical: 0, minWidth: 36, textAlign: "center",
   },
 
+  // Log reading session
+  logSessionBtn: {
+    marginTop: 12, backgroundColor: colors.terracotta,
+    borderRadius: 20, paddingVertical: 10, paddingHorizontal: 24,
+    alignSelf: "center",
+  },
+  logSessionBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+
   // Mark as Finished
   finishBtn: {
-    marginTop: 12, backgroundColor: "#5bbfaa",
+    marginTop: 10, backgroundColor: "#5bbfaa",
     borderRadius: 20, paddingVertical: 10, paddingHorizontal: 24,
     alignSelf: "center",
   },

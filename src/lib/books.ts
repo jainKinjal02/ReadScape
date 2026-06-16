@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Book, BookStatus, GoogleBook } from "../types";
+import { Book, BookStatus, GoogleBook, Mood } from "../types";
 
 // ─── Supabase ────────────────────────────────────────────────────────────────
 
@@ -103,6 +103,21 @@ export async function markBookFinished(
       date_finished: new Date().toISOString(),
     })
     .eq("id", bookId);
+  if (error) throw error;
+}
+
+// ─── Mood logs ─────────────────────────────────────────────────────────────
+
+export async function logMood(
+  userId: string,
+  bookId: string,
+  mood: Mood,
+  page: number | null = null,
+  note: string | null = null
+): Promise<void> {
+  const { error } = await supabase
+    .from("mood_logs")
+    .insert({ user_id: userId, book_id: bookId, mood, page, note });
   if (error) throw error;
 }
 

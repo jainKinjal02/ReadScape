@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet as RNStyleSheet,
@@ -14,47 +15,93 @@ import {
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
-import { CURRENT_BOOK } from "../../src/data/mockData";
+import { useAppStore } from "../../src/store";
+import { updateCurrentPage, logMood, addQuote } from "../../src/lib/books";
+import type { Mood } from "../../src/types";
 
-type Mood = "loving_it" | "getting_into_it" | "struggling" | "taking_a_break" | "finished";
 const MOODS: Mood[] = ["loving_it", "getting_into_it", "struggling", "taking_a_break", "finished"];
 const QUICK_TAGS = ["Plot twist", "Beautiful writing", "Slow chapter", "Favourite scene", "Confusing part"];
 
 export default function ReadingSessionScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const userId = useAppStore((s) => s.userId);
+  const books = useAppStore((s) => s.books);
+  const updateBook = useAppStore((s) => s.updateBook);
+  const book = books.find((b) => b.id === id) ?? null;
+
+  const totalPages = book?.total_pages ?? 0;
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
-  const [currentPage, setCurrentPage] = useState(CURRENT_BOOK.currentPage);
+  const [currentPage, setCurrentPage] = useState(book?.current_page ?? 0);
   const [note, setNote] = useState("");
   const [quoteText, setQuoteText] = useState("");
   const [showQuoteInput, setShowQuoteInput] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const adjustPage = (delta: number) => {
-    setCurrentPage((p) => Math.max(0, Math.min(CURRENT_BOOK.totalPages, p + delta)));
+    setCurrentPage((p) => {
+      const next = p + delta;
+      if (next < 0) return 0;
+      if (totalPages > 0 && next > totalPages) return totalPages;
+      return next;
+    });
   };
 
-  const progress = Math.round((currentPage / CURRENT_BOOK.totalPages) * 100);
+  const progress = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
 
-  const saveSession = () => {
+  // Book may not be in the store yet (e.g. deep-link before books load)
+  if (!book) {
+    return (
+      <View style={styles.notFound}>
+        <Text style={styles.notFoundText}>Book not found.</Text>
+        <TouchableOpacity style={styles.notFoundBtn} onPress={() => router.back()}>
+          <Text style={styles.notFoundBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const saveSession = async () => {
     if (!selectedMood) {
       Alert.alert("Pick a mood", "Let us know how you're feeling about this book.");
       return;
     }
-    Alert.alert(
-      "Session saved!",
-      `Page ${currentPage} logged. Great reading session!`,
-      [{ text: "OK", onPress: () => router.back() }]
-    );
+    if (!userId) {
+      Alert.alert("Not signed in", "Please sign in again to log your session.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const trimmedNote = note.trim();
+      const trimmedQuote = quoteText.trim();
+      await Promise.all([
+        updateCurrentPage(id, currentPage),
+        logMood(userId, id, selectedMood, currentPage, trimmedNote || null),
+        ...(trimmedQuote ? [addQuote(userId, id, trimmedQuote, currentPage)] : []),
+      ]);
+      // Keep the store (and Home / Book Detail) in sync with the new progress
+      updateBook({ ...book, current_page: currentPage });
+      Alert.alert(
+        "Session saved!",
+        `Page ${currentPage} logged. Great reading session!`,
+        [{ text: "OK", onPress: () => router.back() }]
+      );
+    } catch (err: any) {
+      Alert.alert("Couldn't save", err?.message ?? "Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <View style={{ flex: 1 }}>
       {/* Atmospheric blurred book cover background */}
       <Image
-        source={{ uri: CURRENT_BOOK.cover }}
+        source={{ uri: book.cover_url ?? "" }}
         style={[RNStyleSheet.absoluteFill, { opacity: 0.35 }]}
         contentFit="cover"
       />
@@ -85,10 +132,12 @@ export default function ReadingSessionScreen() {
             <Text style={styles.backTxt}>Back</Text>
           </TouchableOpacity>
           <View style={styles.sessBookRow}>
-            <CoverImage uri={CURRENT_BOOK.cover} title={CURRENT_BOOK.title} style={styles.sessCover} />
+            <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.sessCover} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.sessTitle} numberOfLines={1}>{CURRENT_BOOK.title}</Text>
-              <Text style={styles.sessAuthor}>{CURRENT_BOOK.author} · Reading session</Text>
+              <Text style={styles.sessTitle} numberOfLines={1}>{book.title}</Text>
+              <Text style={styles.sessAuthor}>
+                {book.author ? `${book.author} · ` : ""}Reading session
+              </Text>
             </View>
           </View>
         </View>
@@ -105,7 +154,7 @@ export default function ReadingSessionScreen() {
             <View style={styles.pageRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pageNum}>{currentPage}</Text>
-                <Text style={styles.pageOf}>of {CURRENT_BOOK.totalPages} pages</Text>
+                <Text style={styles.pageOf}>of {totalPages > 0 ? totalPages : "?"} pages</Text>
               </View>
               <View style={styles.pageBtns}>
                 <TouchableOpacity style={styles.pageBtn} onPress={() => adjustPage(10)}>
@@ -198,8 +247,17 @@ export default function ReadingSessionScreen() {
           )}
 
           {/* Save */}
-          <TouchableOpacity style={styles.saveBtn} onPress={saveSession} activeOpacity={0.85}>
-            <Text style={styles.saveBtnText}>Save check-in</Text>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            onPress={saveSession}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.cream} size="small" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save check-in</Text>
+            )}
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />
@@ -210,6 +268,17 @@ export default function ReadingSessionScreen() {
 }
 
 const styles = StyleSheet.create({
+  notFound: {
+    flex: 1, alignItems: "center", justifyContent: "center",
+    backgroundColor: colors.cream, padding: 32, gap: 16,
+  },
+  notFoundText: { fontSize: 15, color: colors.espresso2 },
+  notFoundBtn: {
+    backgroundColor: colors.espresso, borderRadius: 20,
+    paddingVertical: 10, paddingHorizontal: 24,
+  },
+  notFoundBtnText: { color: colors.cream, fontSize: 13, fontWeight: "600" },
+
   sessHdr: {
     backgroundColor: "rgba(22,32,48,0.92)",
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
