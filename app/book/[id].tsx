@@ -477,17 +477,17 @@ export default function BookDetailScreen() {
 
           {/* Reading-session CTAs */}
           {book.status === "reading" && (
-            <>
+            <View style={styles.bdCtaRow}>
               <TouchableOpacity
                 style={styles.logSessionBtn}
                 onPress={() => router.push(`/session/${book.id}`)}
               >
-                <Text style={styles.logSessionBtnText}>✦ Log reading session</Text>
+                <Text style={styles.logSessionBtnText}>✦ Log session</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.finishBtn} onPress={handleMarkFinished}>
-                <Text style={styles.finishBtnText}>✓ Mark as Finished</Text>
+                <Text style={styles.finishBtnText}>✓ Mark Finished</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
         </View>
 
@@ -1020,7 +1020,7 @@ function PhotosTab({
 
 const styles = StyleSheet.create({
   // Hero
-  bdHero: { height: 300 },
+  bdHero: { height: 234 },
   bdTopRow: {
     flexDirection: "row", justifyContent: "space-between",
     paddingHorizontal: 16, paddingTop: 8,
@@ -1070,19 +1070,18 @@ const styles = StyleSheet.create({
     paddingVertical: 0, minWidth: 36, textAlign: "center",
   },
 
-  // Log reading session
+  // Reading-session CTAs — side by side
+  bdCtaRow: { flexDirection: "row", gap: 10, marginTop: 14 },
   logSessionBtn: {
-    marginTop: 12, backgroundColor: colors.terracotta,
-    borderRadius: 20, paddingVertical: 10, paddingHorizontal: 24,
-    alignSelf: "center",
+    flex: 1, backgroundColor: colors.terracotta,
+    borderRadius: 20, paddingVertical: 11, alignItems: "center",
   },
   logSessionBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
   // Mark as Finished
   finishBtn: {
-    marginTop: 10, backgroundColor: "#5bbfaa",
-    borderRadius: 20, paddingVertical: 10, paddingHorizontal: 24,
-    alignSelf: "center",
+    flex: 1, backgroundColor: "#5bbfaa",
+    borderRadius: 20, paddingVertical: 11, alignItems: "center",
   },
   finishBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
