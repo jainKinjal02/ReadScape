@@ -24,6 +24,7 @@ import { colors } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
+import { useReadingStreak } from "../../src/hooks/useReadingStreak";
 import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
 
@@ -58,8 +59,8 @@ export default function HomeScreen() {
   const setUserName = useAppStore((s) => s.setUserName);
   const setReadingGoal = useAppStore((s) => s.setReadingGoal);
   const setUserBio = useAppStore((s) => s.setUserBio);
-  const setStreak = useAppStore((s) => s.setStreak);
   const { books } = useBooks();
+  useReadingStreak(); // keeps `streak` derived from real reading activity
 
   // Derive real data from Supabase books
   const readingBooks = books.filter((b) => b.status === "reading");
@@ -115,7 +116,6 @@ export default function HomeScreen() {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editGoal, setEditGoal] = useState("");
-  const [editStreak, setEditStreak] = useState("");
   const [editBio, setEditBio] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [editFocused, setEditFocused] = useState<string | null>(null);
@@ -123,7 +123,6 @@ export default function HomeScreen() {
   const openEditProfile = () => {
     setEditName(userName);
     setEditGoal(readingGoal > 0 ? String(readingGoal) : "");
-    setEditStreak(streak > 0 ? String(streak) : "");
     setEditBio(userBio);
     closePanel(() => setEditProfileOpen(true));
   };
@@ -139,14 +138,12 @@ export default function HomeScreen() {
         data: {
           name: editName.trim(),
           reading_goal: Number(editGoal) || 0,
-          reading_streak: Number(editStreak) || 0,
           bio: editBio.trim(),
         },
       });
       if (error) throw error;
       setUserName(editName.trim());
       setReadingGoal(Number(editGoal) || 0);
-      setStreak(Number(editStreak) || 0);
       setUserBio(editBio.trim());
       setEditProfileOpen(false);
     } catch (err: any) {
@@ -541,22 +538,6 @@ export default function HomeScreen() {
                     placeholderTextColor={colors.char3}
                     keyboardType="number-pad"
                     onFocus={() => setEditFocused("goal")}
-                    onBlur={() => setEditFocused(null)}
-                  />
-                </View>
-
-                {/* Reading streak */}
-                <View style={styles.editField}>
-                  <Text style={styles.editLabel}>READING STREAK</Text>
-                  <Text style={styles.editLabelSub}>Current consecutive days you've been reading</Text>
-                  <TextInput
-                    style={[styles.editInput, editFocused === "streak" && styles.editInputFocused]}
-                    value={editStreak}
-                    onChangeText={setEditStreak}
-                    placeholder="e.g. 7"
-                    placeholderTextColor={colors.char3}
-                    keyboardType="number-pad"
-                    onFocus={() => setEditFocused("streak")}
                     onBlur={() => setEditFocused(null)}
                   />
                 </View>

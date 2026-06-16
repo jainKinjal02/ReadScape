@@ -33,7 +33,6 @@ export default function RootLayout() {
   const setUserName = useAppStore((s) => s.setUserName);
   const setReadingGoal = useAppStore((s) => s.setReadingGoal);
   const setUserBio = useAppStore((s) => s.setUserBio);
-  const setStreak = useAppStore((s) => s.setStreak);
 
   const [shouldRedirectHome, setShouldRedirectHome] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -47,7 +46,6 @@ export default function RootLayout() {
         setUserId(session.user.id);
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
-        setStreak(Number(meta.reading_streak) || 0);
         setUserBio(meta.bio ?? "");
         setShouldRedirectHome(true);
       }
@@ -60,7 +58,6 @@ export default function RootLayout() {
         const meta = session.user.user_metadata ?? {};
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
-        setStreak(Number(meta.reading_streak) || 0);
         setUserBio(meta.bio ?? "");
       }
     });

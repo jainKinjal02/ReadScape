@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Book, BookStatus, GoogleBook, Mood } from "../types";
+import { Book, BookStatus, GoogleBook, Mood, MoodLog } from "../types";
 
 // ─── Supabase ────────────────────────────────────────────────────────────────
 
@@ -107,6 +107,16 @@ export async function markBookFinished(
 }
 
 // ─── Mood logs ─────────────────────────────────────────────────────────────
+
+export async function fetchMoodLogs(userId: string): Promise<MoodLog[]> {
+  const { data, error } = await supabase
+    .from("mood_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
 
 export async function logMood(
   userId: string,
