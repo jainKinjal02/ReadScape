@@ -20,6 +20,7 @@ import Svg, { Path } from "react-native-svg";
 import { colors } from "../src/design/tokens";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
+import { GENRE_PRESETS as GENRES } from "../src/data/genres";
 
 const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
 const { width: SW } = Dimensions.get("window");
@@ -31,11 +32,6 @@ const GOALS = [
   { value: 52, label: "Committed", books: "52 books", freq: "~1 per week"        },
 ];
 
-const GENRES = [
-  "Fiction", "Fantasy", "Mystery", "Romance", "Sci-Fi",
-  "Non-Fiction", "Biography", "History", "Self-Help", "Horror",
-  "Thriller", "Literary Fiction", "Poetry", "Graphic Novel", "Young Adult",
-];
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();

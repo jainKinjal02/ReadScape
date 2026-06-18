@@ -30,6 +30,7 @@ import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
   updateBookRating,
+  updateBookGenre,
   updateBookStatus,
   updateCurrentPage,
   markBookFinished,
@@ -49,6 +50,7 @@ import {
   type PersistedPhoto,
 } from "../../src/lib/gallery";
 import { BookStatus } from "../../src/types";
+import { GENRE_PRESETS } from "../../src/data/genres";
 
 type Tab = "quotes" | "notes" | "photos";
 
@@ -87,6 +89,12 @@ export default function BookDetailScreen() {
   // Current page editing
   const [pageEditing, setPageEditing] = useState(false);
   const [pageInput, setPageInput] = useState(String(book?.current_page ?? 0));
+
+  // Genre editing
+  const [showGenreEditor, setShowGenreEditor] = useState(false);
+  const [draftGenres, setDraftGenres] = useState<string[]>([]);
+  const [genreDraft, setGenreDraft] = useState("");
+  const [savingGenre, setSavingGenre] = useState(false);
 
   // Photos state
   const [bookPhotos, setBookPhotos] = useState<PersistedPhoto[]>([]);
@@ -127,6 +135,48 @@ export default function BookDetailScreen() {
     setRating(star);
     updateBook({ ...book, rating: star });
     if (id) await updateBookRating(id, star).catch(() => {});
+  };
+
+  // ── Genre editing ──────────────────────────────────────────────────────────
+  const openGenreEditor = () => {
+    if (!book) return;
+    setDraftGenres(book.genre ?? []);
+    setGenreDraft("");
+    setShowGenreEditor(true);
+  };
+
+  const toggleDraftGenre = (g: string) => {
+    setDraftGenres((prev) =>
+      prev.some((x) => x.toLowerCase() === g.toLowerCase())
+        ? prev.filter((x) => x.toLowerCase() !== g.toLowerCase())
+        : [...prev, g]
+    );
+  };
+
+  // Add a typed genre, deduped case-insensitively against presets + current draft
+  const addDraftGenre = () => {
+    const cleaned = genreDraft.trim().replace(/\s+/g, " ");
+    if (!cleaned) return;
+    const lower = cleaned.toLowerCase();
+    const canonical = GENRE_PRESETS.find((g) => g.toLowerCase() === lower) ?? cleaned;
+    setDraftGenres((prev) =>
+      prev.some((x) => x.toLowerCase() === lower) ? prev : [...prev, canonical]
+    );
+    setGenreDraft("");
+  };
+
+  const saveGenres = async () => {
+    if (!book) return;
+    setSavingGenre(true);
+    try {
+      await updateBookGenre(book.id, draftGenres);
+      updateBook({ ...book, genre: draftGenres });
+      setShowGenreEditor(false);
+    } catch (err: any) {
+      Alert.alert("Couldn't save genres", err?.message ?? "Please try again.");
+    } finally {
+      setSavingGenre(false);
+    }
   };
 
   const handleStatusChange = async (status: BookStatus) => {
@@ -396,6 +446,11 @@ export default function BookDetailScreen() {
                 <Text style={styles.bdTagText}>{g}</Text>
               </View>
             ))}
+            <TouchableOpacity style={styles.bdGenreEditChip} onPress={openGenreEditor}>
+              <Text style={styles.bdGenreEditText}>
+                {(book.genre?.length ?? 0) > 0 ? "✎ Edit" : "＋ Add genre"}
+              </Text>
+            </TouchableOpacity>
             {!!book.total_pages && (
               <View style={styles.bdTag}>
                 <Text style={styles.bdTagText}>{book.total_pages} pages</Text>
@@ -564,6 +619,82 @@ export default function BookDetailScreen() {
               {isSavingPhoto
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={photoStyles.saveBtnText}>Save photo</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Genre editor ── */}
+      <Modal transparent visible={showGenreEditor} animationType="slide" onRequestClose={() => setShowGenreEditor(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowGenreEditor(false)} />
+          <View style={[styles.genreSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={photoStyles.sheetPill} />
+            <Text style={styles.genreSheetTitle}>Edit genres</Text>
+
+            <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* Selected genres (tap to remove) */}
+              {draftGenres.length > 0 ? (
+                <View style={styles.genreChipWrap}>
+                  {draftGenres.map((g) => (
+                    <TouchableOpacity key={g} style={styles.genreSelChip} onPress={() => toggleDraftGenre(g)}>
+                      <Text style={styles.genreSelChipText}>{g}</Text>
+                      <Text style={styles.genreSelChipX}>×</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.genreEmptyHint}>No genres yet — pick some below or add your own.</Text>
+              )}
+
+              {/* Preset suggestions */}
+              <Text style={styles.genreSectionLbl}>SUGGESTIONS</Text>
+              <View style={styles.genreChipWrap}>
+                {GENRE_PRESETS.map((g) => {
+                  const sel = draftGenres.some((x) => x.toLowerCase() === g.toLowerCase());
+                  return (
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.genrePresetChip, sel && styles.genrePresetChipSel]}
+                      onPress={() => toggleDraftGenre(g)}
+                    >
+                      <Text style={[styles.genrePresetText, sel && styles.genrePresetTextSel]}>{g}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Add your own */}
+            <View style={styles.genreAddRow}>
+              <TextInput
+                style={styles.genreAddInput}
+                value={genreDraft}
+                onChangeText={setGenreDraft}
+                placeholder="Add your own…"
+                placeholderTextColor={colors.char3}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={addDraftGenre}
+              />
+              <TouchableOpacity
+                style={[styles.genreAddBtn, !genreDraft.trim() && { opacity: 0.4 }]}
+                onPress={addDraftGenre}
+                disabled={!genreDraft.trim()}
+              >
+                <Text style={styles.genreAddBtnText}>＋</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Save */}
+            <TouchableOpacity
+              style={[styles.genreSaveBtn, savingGenre && { opacity: 0.6 }]}
+              onPress={saveGenres}
+              disabled={savingGenre}
+            >
+              {savingGenre
+                ? <ActivityIndicator color={colors.cream} size="small" />
+                : <Text style={styles.genreSaveText}>Save genres</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1053,6 +1184,56 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.cream2,
   },
   bdTagText: { fontSize: 11, color: colors.espresso2, fontWeight: "500" },
+
+  // Genre edit affordance + editor sheet
+  bdGenreEditChip: {
+    paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.terracotta, borderStyle: "dashed",
+  },
+  bdGenreEditText: { fontSize: 11, color: colors.terracotta, fontWeight: "600" },
+  genreSheet: {
+    backgroundColor: colors.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 12, paddingHorizontal: 20, gap: 12,
+  },
+  genreSheetTitle: {
+    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
+    color: colors.espresso, textAlign: "center",
+  },
+  genreEmptyHint: { fontSize: 12, color: colors.char3, textAlign: "center", paddingVertical: 4 },
+  genreSectionLbl: {
+    fontSize: 11, fontWeight: "700", color: colors.espresso2,
+    letterSpacing: 0.6, marginTop: 14, marginBottom: 8,
+  },
+  genreChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  genreSelChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
+    backgroundColor: colors.terracotta,
+  },
+  genreSelChipText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  genreSelChipX: { color: "#fff", fontSize: 16, lineHeight: 16, marginTop: -1 },
+  genrePresetChip: {
+    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
+    borderWidth: 1.5, borderColor: colors.cream3, backgroundColor: colors.cream2,
+  },
+  genrePresetChipSel: { borderColor: colors.terracotta, backgroundColor: "rgba(127,119,221,0.12)" },
+  genrePresetText: { fontSize: 12, color: colors.char3, fontWeight: "500" },
+  genrePresetTextSel: { color: colors.terracotta, fontWeight: "700" },
+  genreAddRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  genreAddInput: {
+    flex: 1, backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: colors.espresso,
+  },
+  genreAddBtn: {
+    width: 44, height: 44, borderRadius: 12, backgroundColor: colors.terracotta,
+    alignItems: "center", justifyContent: "center",
+  },
+  genreAddBtnText: { color: "#fff", fontSize: 22, lineHeight: 24 },
+  genreSaveBtn: {
+    backgroundColor: colors.espresso, borderRadius: 12,
+    paddingVertical: 13, alignItems: "center", marginTop: 4,
+  },
+  genreSaveText: { color: colors.cream, fontSize: 14, fontWeight: "600" },
 
   // Status chips
   statusChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 },

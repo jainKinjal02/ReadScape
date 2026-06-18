@@ -69,6 +69,17 @@ export async function updateBookStatus(
   if (error) throw error;
 }
 
+export async function updateBookGenre(
+  bookId: string,
+  genre: string[]
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update({ genre })
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
 export async function updateBookRating(
   bookId: string,
   rating: number
