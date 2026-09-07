@@ -101,6 +101,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storage,
     autoRefreshToken: true,
     persistSession: true,
+    // PKCE over the implicit flow for OAuth: the redirect carries a one-time
+    // code instead of the tokens themselves, so an access/refresh token never
+    // lands in a URL that could be logged or kept in browser history. The code
+    // verifier is held in `storage` above, so it inherits the same protection.
+    flowType: "pkce",
     // On web the OAuth redirect returns tokens in the URL fragment and
     // supabase-js must consume them. On native the redirect arrives as a deep
     // link into the `readscape://` scheme, which the app handles explicitly.
