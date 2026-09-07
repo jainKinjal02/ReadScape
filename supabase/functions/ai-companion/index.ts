@@ -1,28 +1,93 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 // This Edge Function runs on Supabase's servers (Deno runtime).
-// The ANTHROPIC_API_KEY environment variable is set in the Supabase dashboard
-// (Project Settings → Edge Functions → Environment Variables).
-// It NEVER gets sent to the mobile app — this is the key security benefit.
+// ANTHROPIC_API_KEY is set with `supabase secrets set` and is never bundled
+// into the mobile app — that is the whole point of routing through here.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS: native apps send no Origin header and are unaffected by this. It only
+// constrains browsers, i.e. the web build. Set ALLOWED_WEB_ORIGINS to a
+// comma-separated list once the web build has a domain.
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_WEB_ORIGINS") ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? "");
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    Vary: "Origin",
+  };
+}
+
+const DAILY_MESSAGE_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") ?? "20");
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsFor(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // ── Authentication ────────────────────────────────────────────────────
+    // The Supabase gateway accepts the *anon* key, which ships inside the app
+    // bundle and can be extracted by anyone. It is therefore NOT proof of a
+    // signed-in user. Verify the caller's JWT explicitly, or this function is
+    // an open endpoint billed to our Anthropic account.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+    const {
+      data: { user },
+      error: authError,
+    } = await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    }).auth.getUser();
+
+    if (authError || !user) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    // Fail loudly rather than with an opaque 500 when the secret is missing.
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+      console.error("ANTHROPIC_API_KEY is not set");
+      return json({ error: "The AI companion is not configured yet." }, 503);
+    }
+
     const { message, mode, bookContext } = await req.json();
 
     if (!message) {
-      return new Response(
-        JSON.stringify({ error: "message is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return json({ error: "message is required" }, 400);
+    }
+
+    // ── Rate limit ────────────────────────────────────────────────────────
+    // Atomic per-user daily counter. Uses the service role because ai_usage is
+    // deliberately closed to end users (RLS on, no policies).
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: withinLimit, error: rateError } = await admin.rpc("increment_ai_usage", {
+      p_user_id: user.id,
+      p_limit: DAILY_MESSAGE_LIMIT,
+    });
+
+    if (rateError) {
+      // Fail closed: if we cannot count it, we do not spend on it.
+      console.error("Rate limit check failed:", rateError.message);
+      return json({ error: "Could not verify your usage allowance. Please try again." }, 503);
+    }
+    if (withinLimit === false) {
+      return json(
+        { error: `You have reached today's limit of ${DAILY_MESSAGE_LIMIT} messages. See you tomorrow!` },
+        429
       );
     }
 
@@ -115,20 +180,9 @@ Never guess at names, quotes, or plot details you're not sure about.`;
 
     const reply = response.content[0].type === "text" ? response.content[0].text : "";
 
-    return new Response(
-      JSON.stringify({ reply }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return json({ reply });
   } catch (error) {
     console.error("AI Companion error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return json({ error: "Internal server error" }, 500);
   }
 });

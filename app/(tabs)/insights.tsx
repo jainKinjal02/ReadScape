@@ -30,6 +30,7 @@ import {
   deleteGalleryPhoto,
   type PersistedPhoto,
 } from "../../src/lib/gallery";
+import { devLog } from "../../src/lib/log";
 
 type GalleryPhoto = PersistedPhoto;
 
@@ -577,14 +578,14 @@ export default function InsightsScreen() {
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === "camera") {
-        console.log("[Gallery] Requesting camera permission...");
+        devLog("[Gallery] Requesting camera permission...");
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        console.log("[Gallery] Camera permission status:", perm.status);
+        devLog("[Gallery] Camera permission status:", perm.status);
         if (perm.status !== "granted") {
           Alert.alert("Camera access needed", "Allow camera access in Settings to take photos.");
           return;
         }
-        console.log("[Gallery] Launching camera...");
+        devLog("[Gallery] Launching camera...");
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ["images"],
           quality: 0.85,
@@ -592,14 +593,14 @@ export default function InsightsScreen() {
           aspect: [4, 5],
         });
       } else {
-        console.log("[Gallery] Requesting media library permission...");
+        devLog("[Gallery] Requesting media library permission...");
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log("[Gallery] Media library permission status:", perm.status);
+        devLog("[Gallery] Media library permission status:", perm.status);
         if (perm.status !== "granted" && perm.status !== "limited") {
           Alert.alert("Photos access needed", "Allow photo library access in Settings.");
           return;
         }
-        console.log("[Gallery] Launching image library...");
+        devLog("[Gallery] Launching image library...");
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
           quality: 0.85,
@@ -607,9 +608,9 @@ export default function InsightsScreen() {
           aspect: [4, 5],
         });
       }
-      console.log("[Gallery] Picker result — canceled:", result.canceled, "assets:", result.assets?.length);
+      devLog("[Gallery] Picker result — canceled:", result.canceled, "assets:", result.assets?.length);
       if (!result.canceled && result.assets[0]) {
-        console.log("[Gallery] Photo selected, URI:", result.assets[0].uri);
+        devLog("[Gallery] Photo selected, URI:", result.assets[0].uri);
         setPendingUri(result.assets[0].uri);
         setCaptionInput("");
         setShowCaptionSheet(true);

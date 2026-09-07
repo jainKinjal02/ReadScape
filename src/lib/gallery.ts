@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
+import { devLog } from "./log";
 
 const BUCKET = "book-photos";
 
@@ -58,20 +59,20 @@ async function readAndUpload(
 
   // Step 0 — verify auth session
   const { data: { session } } = await supabase.auth.getSession();
-  console.log("[Upload] session user:", session?.user?.id ?? "NO SESSION");
+  devLog("[Upload] session user:", session?.user?.id ?? "NO SESSION");
 
   // Step 1 — read file
-  console.log("[Upload] reading file:", localUri, "storagePath:", storagePath);
+  devLog("[Upload] reading file:", localUri, "storagePath:", storagePath);
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: "base64" });
-  console.log("[Upload] file read OK, base64 length:", base64.length);
+  devLog("[Upload] file read OK, base64 length:", base64.length);
 
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-  console.log("[Upload] bytes length:", bytes.length, "storagePath:", storagePath);
+  devLog("[Upload] bytes length:", bytes.length, "storagePath:", storagePath);
 
   // Step 2 — storage upload
-  console.log("[Upload] uploading to bucket:", BUCKET, "path:", storagePath);
+  devLog("[Upload] uploading to bucket:", BUCKET, "path:", storagePath);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
@@ -80,7 +81,7 @@ async function readAndUpload(
     console.error("[Upload] storage error — name:", uploadError.name, "message:", uploadError.message, "status:", (uploadError as any).statusCode);
     throw uploadError;
   }
-  console.log("[Upload] storage upload OK");
+  devLog("[Upload] storage upload OK");
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
@@ -96,7 +97,7 @@ async function readAndUpload(
     await supabase.storage.from(BUCKET).remove([storagePath]);
     throw dbError;
   }
-  console.log("[Upload] DB insert OK, id:", data.id);
+  devLog("[Upload] DB insert OK, id:", data.id);
 
   return {
     id: data.id,
