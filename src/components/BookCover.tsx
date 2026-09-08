@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { Image } from "expo-image";
-import { colors } from "../design/tokens";
+import { colors, fonts } from "../design/tokens";
 
 interface Props {
   uri: string | null;
@@ -36,7 +36,7 @@ export function BookCover({
             color: colors.inkMuted,
             fontSize: 11,
             textAlign: "center",
-            fontFamily: "CormorantGaramond_400Regular_Italic",
+            fontFamily: fonts.readingItalic,
           }}
           numberOfLines={4}
         >

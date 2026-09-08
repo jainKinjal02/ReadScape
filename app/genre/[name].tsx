@@ -12,13 +12,13 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useBooks } from "../../src/hooks/useBooks";
 
 const GENRE_META: Record<string, { emoji: string; gradient: readonly [string, string]; image: any }> = {
-  Fiction:    { emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: require("../../assets/genres/fiction.png") },
-  Fantasy:    { emoji: "🌟", gradient: ["#5bbfaa", "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
+  Fiction:    { emoji: "📚", gradient: [colors.ink, colors.ink], image: require("../../assets/genres/fiction.png") },
+  Fantasy:    { emoji: "🌟", gradient: [colors.sage, "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
   "Sci-Fi":   { emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: require("../../assets/genres/scifi.png") },
   Thriller:   { emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: require("../../assets/genres/thriller.png") },
   "Self-Help":{ emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: require("../../assets/genres/selfhelp.png") },
@@ -29,13 +29,13 @@ const GENRE_META: Record<string, { emoji: string; gradient: readonly [string, st
   Dystopian:  { emoji: "🔮", gradient: ["#4a5078", "#222440"], image: require("../../assets/genres/dystopian.png") },
 };
 
-const DEFAULT_META = { emoji: "📖", gradient: ["#7F77DD", "#4a40a8"] as const, image: null };
+const DEFAULT_META = { emoji: "📖", gradient: [colors.ink, colors.ink] as const, image: null };
 
 const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  reading:      { label: "Reading",  bg: "rgba(127,119,221,0.2)",  text: "#9b95e8" },
-  read:         { label: "Read",     bg: "rgba(91,191,170,0.2)",   text: "#5bbfaa" },
-  want_to_read: { label: "Want",     bg: "rgba(184,180,212,0.12)", text: "#b8b4d4" },
-  abandoned:    { label: "Stopped",  bg: "rgba(122,122,154,0.12)", text: "#7a7a9a" },
+  reading:      { label: "Reading",  bg: colors.rule,  text: colors.blushInk },
+  read:         { label: "Read",     bg: colors.rule,   text: colors.sage },
+  want_to_read: { label: "Want",     bg: colors.rule, text: colors.pencil },
+  abandoned:    { label: "Stopped",  bg: colors.rule, text: colors.pencil2 },
 };
 
 export default function GenreScreen() {
@@ -67,11 +67,6 @@ export default function GenreScreen() {
           />
         )}
         {/* Dark gradient so back button and text stay legible */}
-        <LinearGradient
-          colors={["rgba(0,0,0,0.35)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.72)"]}
-          locations={[0, 0.4, 1]}
-          style={StyleSheet.absoluteFill}
-        />
         <SafeAreaView>
           <View style={styles.heroTop}>
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -154,17 +149,17 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: colors.rule,
     alignItems: "center", justifyContent: "center",
   },
   heroContent: { paddingHorizontal: 24, paddingTop: 8 },
   heroEmoji: { fontSize: 44, marginBottom: 10 },
   heroTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
-    fontSize: 34, color: "#ffffff",
+    fontFamily: fonts.display,
+    fontSize: 34, color: colors.ink,
     marginBottom: 6,
   },
-  heroSub: { fontSize: 14, color: "rgba(255,255,255,0.75)" },
+  heroSub: { fontSize: 14, color: colors.pencil },
 
   // Books
   list: { padding: 20, gap: 14 },
@@ -183,7 +178,7 @@ const styles = StyleSheet.create({
   cover: { width: 64, height: 94, borderRadius: 8 },
   bookInfo: { flex: 1, justifyContent: "center" },
   bookTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 15, color: colors.espresso, marginBottom: 4,
   },
   bookAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
@@ -200,7 +195,7 @@ const styles = StyleSheet.create({
   },
   emptyEmoji: { fontSize: 52, marginBottom: 16 },
   emptyTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 20, color: colors.espresso,
     textAlign: "center", marginBottom: 8,
   },

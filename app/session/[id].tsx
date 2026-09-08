@@ -17,7 +17,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { colors, moodConfig } from "../../src/design/tokens";
+import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { updateCurrentPage, logMood, addQuote } from "../../src/lib/books";
@@ -107,7 +107,7 @@ export default function ReadingSessionScreen() {
       />
       <BlurView intensity={60} style={RNStyleSheet.absoluteFill} />
       <LinearGradient
-        colors={["rgba(15,25,35,0.55)", colors.cream]}
+        colors={[colors.paper, colors.cream]}
         locations={[0, 0.55]}
         style={RNStyleSheet.absoluteFill}
       />
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   notFoundBtnText: { color: colors.cream, fontSize: 13, fontWeight: "600" },
 
   sessHdr: {
-    backgroundColor: "rgba(22,32,48,0.92)",
+    backgroundColor: colors.card,
     borderBottomWidth: 1, borderBottomColor: colors.cream3,
     paddingHorizontal: 20, paddingVertical: 14,
     paddingTop: 52,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   backTxt: { fontSize: 13, color: colors.char3 },
   sessBookRow: { flexDirection: "row", gap: 12, alignItems: "center" },
   sessCover: { width: 40, height: 58, borderRadius: 4 },
-  sessTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso },
+  sessTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.espresso },
   sessAuthor: { fontSize: 12, color: colors.char3, marginTop: 2 },
 
   body: { padding: 20 },
@@ -301,10 +301,10 @@ const styles = StyleSheet.create({
 
   pageRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(22,32,48,0.9)", borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, gap: 12,
   },
-  pageNum: { fontFamily: "CormorantGaramond_700Bold", fontSize: 32, color: colors.espresso },
+  pageNum: { fontFamily: fonts.display, fontSize: 32, color: colors.espresso },
   pageOf: { fontSize: 12, color: colors.char3 },
   pageBtns: { flexDirection: "column", gap: 6 },
   pageBtn: {
@@ -320,31 +320,31 @@ const styles = StyleSheet.create({
   moodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   moodOpt: {
     width: "30.5%",
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.3)",
+    backgroundColor: colors.rule,
+    borderWidth: 1.5, borderColor: colors.ruleStrong,
     borderRadius: 12, paddingVertical: 12, paddingHorizontal: 6, alignItems: "center",
   },
-  moodOptSel: { backgroundColor: "rgba(127,119,221,0.22)", borderColor: colors.terracotta },
+  moodOptSel: { backgroundColor: colors.rule, borderColor: colors.terracotta },
   moodEmoji: { fontSize: 20, marginBottom: 4, color: colors.espresso2 },
   moodName: { fontSize: 11, color: colors.espresso2, fontWeight: "500", textAlign: "center" },
   moodNameSel: { color: colors.terracotta },
 
   noteBox: {
-    backgroundColor: "rgba(22,32,48,0.9)", borderWidth: 1, borderColor: colors.cream3,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, minHeight: 80,
   },
   noteInput: { fontSize: 13, color: colors.espresso, minHeight: 60 },
   quickTags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   qtag: {
     paddingVertical: 5, paddingHorizontal: 11, borderRadius: 14,
-    borderWidth: 1, borderColor: colors.cream3, backgroundColor: "rgba(22,32,48,0.9)",
+    borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.card,
   },
   qtagText: { fontSize: 11, color: colors.char3 },
 
   quoteToggle: { paddingVertical: 8, marginBottom: 12 },
   quoteToggleText: { fontSize: 13, color: colors.terracotta, fontWeight: "600" },
   quoteSection: {
-    backgroundColor: "rgba(22,32,48,0.9)", borderRadius: 12,
+    backgroundColor: colors.card, borderRadius: 12,
     padding: 14, marginBottom: 20, borderWidth: 1, borderColor: colors.cream3,
   },
   quoteInput: { fontSize: 14, color: colors.espresso, minHeight: 80 },

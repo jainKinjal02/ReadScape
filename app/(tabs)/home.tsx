@@ -20,7 +20,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
@@ -34,11 +34,7 @@ const PANEL_W = SW * 0.78;
 const CUR_CARD_W = SW * 0.82;
 
 // Atmospheric header background images
-const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=800&q=80",
-  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800&q=80",
-  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800&q=80",
-];
+
 
 function FireIcon() {
   return (
@@ -153,49 +149,14 @@ export default function HomeScreen() {
     }
   };
 
-  // ── Hero crossfade ────────────────────────────────────────────────────────
-  const opacities = useRef(
-    HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))
-  ).current;
-  const currentIdx = useRef(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cur = currentIdx.current;
-      const nxt = (cur + 1) % HEADER_IMGS.length;
-      Animated.parallel([
-        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
-        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ]).start(() => { currentIdx.current = nxt; });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const greeting = getGreeting();
 
   return (
     <View style={styles.root}>
-      {/* Full-screen background image */}
-      <Image
-        source={{ uri: "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80" }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-      />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.72)" }]} />
 
       {/* ── Atmospheric header — fixed, outside ScrollView ── */}
       <View style={styles.heroHeader}>
-        {HEADER_IMGS.map((src, i) => (
-          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </Animated.View>
-        ))}
-        <LinearGradient
-          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
-          locations={[0, 0.4, 1]}
-          style={StyleSheet.absoluteFill}
-        />
         <View style={styles.heroContent}>
           <View style={styles.topRow}>
             <View>
@@ -379,7 +340,7 @@ export default function HomeScreen() {
         <Animated.View style={[styles.panel, { transform: [{ translateX: panelAnim }] }]}>
           {/* Header area with gradient */}
           <LinearGradient
-            colors={["#1a2a40", "#0f1923"]}
+            colors={[colors.card, colors.paper]}
             style={styles.panelHeader}
           >
             {/* Close button */}
@@ -444,13 +405,13 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             {loggingOut ? (
-              <ActivityIndicator color="#e88080" size="small" />
+              <ActivityIndicator color={colors.danger} size="small" />
             ) : (
               <>
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    stroke="#e88080"
+                    stroke={colors.danger}
                     strokeWidth={1.8}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -653,22 +614,22 @@ const styles = StyleSheet.create({
   heroHeader: { height: 165, justifyContent: "flex-end", overflow: "hidden" },
   heroContent: { padding: 20, paddingBottom: 16 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
-  greeting: { fontSize: 13, color: "rgba(247,242,235,0.8)", marginBottom: 2 },
-  name: { fontFamily: "CormorantGaramond_700Bold", fontSize: 26, color: "#faf6f0" },
+  greeting: { fontSize: 13, color: colors.ink, marginBottom: 2 },
+  name: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
   avatar: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(127,119,221,0.35)",
-    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.7)",
+    backgroundColor: colors.ruleStrong,
+    borderWidth: 1.5, borderColor: colors.blush,
     alignItems: "center", justifyContent: "center",
   },
-  avatarText: { fontSize: 15, fontWeight: "700", color: "#faf6f0" },
+  avatarText: { fontSize: 15, fontWeight: "700", color: colors.ink },
   streakPill: {
     flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
-    backgroundColor: "rgba(247,242,235,0.18)",
-    borderWidth: 1, borderColor: "rgba(247,242,235,0.3)",
+    backgroundColor: colors.rule,
+    borderWidth: 1, borderColor: colors.pencil2,
     borderRadius: 12, paddingVertical: 5, paddingHorizontal: 11,
   },
-  streakText: { fontSize: 12, color: "#faf6f0", fontWeight: "500" },
+  streakText: { fontSize: 12, color: colors.ink, fontWeight: "500" },
 
   // Currently reading card
   curSectionHdr: {
@@ -703,14 +664,14 @@ const styles = StyleSheet.create({
     fontSize: 10, color: colors.terracotta,
     textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4,
   },
-  curTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso, marginBottom: 2 },
+  curTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.espresso, marginBottom: 2 },
   curAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
   progBg: { backgroundColor: colors.cream3, borderRadius: 4, height: 4 },
   progFill: { backgroundColor: colors.terracotta, height: 4, borderRadius: 4 },
   progLbl: { fontSize: 11, color: colors.char3, marginTop: 4 },
   moodTag: {
     alignSelf: "flex-start", marginTop: 6,
-    backgroundColor: "rgba(127,119,221,0.12)", borderWidth: 1, borderColor: "rgba(127,119,221,0.25)",
+    backgroundColor: colors.blushSoft, borderWidth: 1, borderColor: colors.rule,
     borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9,
   },
   moodTagText: { fontSize: 11, color: colors.terracotta },
@@ -722,7 +683,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 12, alignItems: "center",
   },
-  statV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 20, color: colors.espresso },
+  statV: { fontFamily: fonts.display, fontSize: 20, color: colors.espresso },
   statL: { fontSize: 10, color: colors.char3, marginTop: 2, textAlign: "center", lineHeight: 13 },
 
   // Want to read
@@ -730,7 +691,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 20, marginTop: 14, marginBottom: 8,
   },
-  secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
+  secTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso },
   secAll: { fontSize: 12, color: colors.terracotta, fontWeight: "500" },
   shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
   shelfItem: { width: 95, marginRight: 10 },
@@ -743,9 +704,9 @@ const styles = StyleSheet.create({
   shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
   addCard: {
     width: 95, height: 138, borderRadius: 8,
-    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
+    borderWidth: 1.5, borderColor: colors.blush, borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", marginRight: 10,
-    backgroundColor: "rgba(127,119,221,0.08)",
+    backgroundColor: colors.blushSoft,
   },
   addPlus: { fontSize: 26, color: colors.terra2 },
 
@@ -760,7 +721,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   emptyReadTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 17,
+    fontFamily: fonts.display, fontSize: 17,
     color: colors.espresso, marginBottom: 6, textAlign: "center",
   },
   emptyReadSub: {
@@ -787,9 +748,9 @@ const styles = StyleSheet.create({
     fontSize: 10, color: colors.terracotta,
     textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 3,
   },
-  goalTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 15, color: colors.espresso },
+  goalTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.espresso },
   goalCount: { alignItems: "flex-end" },
-  goalCountBig: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
+  goalCountBig: { fontFamily: fonts.display, fontSize: 22, color: colors.espresso },
   goalCountOf: { fontSize: 11, color: colors.char3 },
   goalBarBg: { height: 6, borderRadius: 4, backgroundColor: colors.cream3, overflow: "hidden" },
   goalBarFill: { height: "100%", borderRadius: 4, backgroundColor: colors.terracotta },
@@ -843,7 +804,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: colors.rule,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -851,7 +812,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "rgba(127,119,221,0.25)",
+    backgroundColor: colors.rule,
     borderWidth: 2.5,
     borderColor: colors.terracotta,
     alignItems: "center",
@@ -861,19 +822,19 @@ const styles = StyleSheet.create({
   panelAvatarText: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#f0eef8",
+    color: colors.ink,
   },
   panelName: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 20,
     color: colors.espresso,
     marginBottom: 8,
     textAlign: "center",
   },
   panelBadge: {
-    backgroundColor: "rgba(127,119,221,0.15)",
+    backgroundColor: colors.blushSoft,
     borderWidth: 1,
-    borderColor: "rgba(127,119,221,0.3)",
+    borderColor: colors.ruleStrong,
     borderRadius: 20,
     paddingVertical: 4,
     paddingHorizontal: 12,
@@ -898,7 +859,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   panelStatV: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 22,
     color: colors.espresso,
   },
@@ -954,16 +915,16 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: "rgba(180,60,60,0.1)",
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
-    borderColor: "rgba(180,60,60,0.25)",
+    borderColor: colors.dangerSoft,
     borderRadius: 12,
     justifyContent: "center",
   },
   logoutText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#e88080",
+    color: colors.danger,
   },
 
   // ── Edit Profile ────────────────────────────────────────────────────────
@@ -989,7 +950,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   editTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 20,
     color: colors.espresso,
   },
@@ -1001,7 +962,7 @@ const styles = StyleSheet.create({
   },
   editAvatar: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: "rgba(127,119,221,0.18)",
+    backgroundColor: colors.rule,
     borderWidth: 2.5, borderColor: colors.terracotta,
     alignItems: "center", justifyContent: "center",
     marginBottom: 10,
@@ -1047,7 +1008,7 @@ const styles = StyleSheet.create({
   },
   editInputFocused: {
     borderColor: colors.terracotta,
-    backgroundColor: "rgba(127,119,221,0.06)",
+    backgroundColor: colors.blushSoft,
   },
   editBioInput: {
     height: 100,

@@ -21,7 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useRouter } from "expo-router";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { useAppStore } from "../../src/store";
 import { Book } from "../../src/types";
 import {
@@ -41,13 +41,9 @@ const { width: SW } = Dimensions.get("window");
 // Card is 47% of (screen - 40px padding - 12px gap)
 const CARD_W = (SW - 40 - 12) / 2;
 
-const BG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80";
 
-const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80",
-  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800&q=80",
-  "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=800&q=80",
-];
+
+
 
 // ─── Genre configuration ─────────────────────────────────────────────────────
 // Add a local `image` require() for each genre as you generate the images.
@@ -58,8 +54,8 @@ const GENRES: {
   gradient: readonly [string, string];
   image: any;
 }[] = [
-  { name: "Fiction",    emoji: "📚", gradient: ["#7F77DD", "#4a40a8"], image: require("../../assets/genres/fiction.png") },
-  { name: "Fantasy",    emoji: "🌟", gradient: ["#5bbfaa", "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
+  { name: "Fiction",    emoji: "📚", gradient: [colors.ink, colors.ink], image: require("../../assets/genres/fiction.png") },
+  { name: "Fantasy",    emoji: "🌟", gradient: [colors.sage, "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
   { name: "Sci-Fi",     emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: require("../../assets/genres/scifi.png") },
   { name: "Thriller",   emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: require("../../assets/genres/thriller.png") },
   { name: "Self-Help",  emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: require("../../assets/genres/selfhelp.png") },
@@ -174,11 +170,6 @@ function GenreCard({
         )}
 
         {/* Dark gradient overlay at bottom — keeps text legible over photos */}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.72)"]}
-          locations={[0.3, 1]}
-          style={StyleSheet.absoluteFill}
-        />
 
         {/* Shimmer beam — a narrow translucent band that sweeps left→right */}
         <Animated.View
@@ -188,8 +179,8 @@ function GenreCard({
           <LinearGradient
             colors={[
               "transparent",
-              "rgba(255,255,255,0.18)",
-              "rgba(255,255,255,0.08)",
+              colors.rule,
+              colors.rule,
               "transparent",
             ]}
             start={{ x: 0, y: 0 }}
@@ -335,7 +326,7 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
       >
         {/* Header gradient */}
         <LinearGradient
-          colors={["rgba(127,119,221,0.35)", "rgba(127,119,221,0.08)", "transparent"]}
+          colors={[colors.ruleStrong, colors.blushSoft, "transparent"]}
           style={wrapStyles.sheetGrad}
           pointerEvents="none"
         />
@@ -665,43 +656,11 @@ export default function InsightsScreen() {
     ]);
   };
 
-  // Crossfading header images
-  const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-  const currentIdx = useRef(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cur = currentIdx.current;
-      const nxt = (cur + 1) % HEADER_IMGS.length;
-      Animated.parallel([
-        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
-        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ]).start(() => { currentIdx.current = nxt; });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <View style={{ flex: 1 }}>
-      <Image
-        source={{ uri: BG }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-      />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
 
       {/* ── Atmospheric hero header ── */}
       <View style={styles.heroHeader}>
-        {HEADER_IMGS.map((src, i) => (
-          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </Animated.View>
-        ))}
-        <LinearGradient
-          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
-          locations={[0, 0.4, 1]}
-          style={StyleSheet.absoluteFill}
-        />
         <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
           <View style={styles.heroRow}>
             <View>
@@ -784,10 +743,6 @@ export default function InsightsScreen() {
             ) : photos.length === 0 ? (
               /* Empty state */
               <TouchableOpacity style={styles.galleryEmpty} activeOpacity={0.8} onPress={() => handleAddPhoto()}>
-                <LinearGradient
-                  colors={["rgba(127,119,221,0.08)", "rgba(127,119,221,0.04)"]}
-                  style={StyleSheet.absoluteFill}
-                />
                 <Svg width={32} height={32} viewBox="0 0 24 24" fill="none">
                   <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.char3} strokeWidth={1.4} strokeLinejoin="round" />
                   <Circle cx={12} cy={13} r={4} stroke={colors.char3} strokeWidth={1.4} />
@@ -975,7 +930,7 @@ export default function InsightsScreen() {
                 onPress={() => deletePhoto(viewingPhoto.id)}
               >
                 <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke={colors.danger} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
                 <Text style={galStyles.viewerDeleteText}>Delete</Text>
               </TouchableOpacity>
@@ -994,16 +949,16 @@ const styles = StyleSheet.create({
   heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
   heroContent: { paddingHorizontal: 20, paddingBottom: 16 },
   heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
-  heroSub: { fontSize: 13, color: "rgba(247,242,235,0.75)", marginTop: 3 },
+  heroTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
+  heroSub: { fontSize: 13, color: colors.pencil, marginTop: 3 },
   wrapIconBtn: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: colors.rule,
+    borderWidth: 1, borderColor: colors.pencil2,
     borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
   },
-  wrapIconEmoji: { fontSize: 16, color: "#faf6f0" },
-  wrapIconLabel: { fontSize: 10, color: "rgba(247,242,235,0.85)", fontWeight: "600", marginTop: 3, letterSpacing: 0.5 },
+  wrapIconEmoji: { fontSize: 16, color: colors.ink },
+  wrapIconLabel: { fontSize: 10, color: colors.ink, fontWeight: "600", marginTop: 3, letterSpacing: 0.5 },
 
   body: { paddingTop: 16 },
 
@@ -1017,7 +972,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 14,
   },
   statItem: { flex: 1, alignItems: "center" },
-  statItemV: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso },
+  statItemV: { fontFamily: fonts.display, fontSize: 22, color: colors.espresso },
   statItemL: { fontSize: 10, color: colors.char3, marginTop: 2 },
   statDivider: { width: 1, height: 32, backgroundColor: colors.cream3 },
 
@@ -1026,7 +981,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, marginBottom: 14,
   },
-  secTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso },
+  secTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso },
   secSub: { fontSize: 12, color: colors.char3, marginTop: 3 },
 
   cameraBtn: {
@@ -1039,10 +994,10 @@ const styles = StyleSheet.create({
   // Gallery empty state
   galleryEmpty: {
     marginHorizontal: 20, marginBottom: 24,
-    borderWidth: 1, borderColor: "rgba(127,119,221,0.2)", borderRadius: 18,
+    borderWidth: 1, borderColor: colors.rule, borderRadius: 18,
     alignItems: "center", padding: 32, gap: 10, overflow: "hidden",
   },
-  galleryEmptyTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: colors.espresso, textAlign: "center" },
+  galleryEmptyTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso, textAlign: "center" },
   galleryEmptySub: { fontSize: 12, color: colors.char3, textAlign: "center", lineHeight: 18 },
   galleryEmptyBtn: {
     marginTop: 6, backgroundColor: colors.terracotta,
@@ -1064,12 +1019,12 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   polaroidImg: { width: 148, height: 148, borderRadius: 2 },
-  polaroidCaption: { fontFamily: "CormorantGaramond_700Bold", fontSize: 11, color: "#444", marginTop: 6, textAlign: "center" },
+  polaroidCaption: { fontFamily: fonts.display, fontSize: 11, color: "#444", marginTop: 6, textAlign: "center" },
   polaroidAdd: {
     width: 164,
     height: 192,
     backgroundColor: colors.cream2,
-    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.35)", borderStyle: "dashed",
+    borderWidth: 1.5, borderColor: colors.ruleStrong, borderStyle: "dashed",
     borderRadius: 4,
     alignItems: "center", justifyContent: "center", gap: 6,
   },
@@ -1115,14 +1070,14 @@ const styles = StyleSheet.create({
   },
   genreEmoji: { fontSize: 34, marginBottom: 8 },
   genreName: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 16,
     color: "#ffffff",
     marginBottom: 3,
   },
   genreCount: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.72)",
+    color: colors.pencil,
     fontWeight: "500",
   },
 
@@ -1187,7 +1142,7 @@ const wrapStyles = StyleSheet.create({
   fanCoverImg: { width: "100%", height: "100%" },
 
   yearLabel: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 56,
     color: colors.terracotta,
     opacity: 0.22,
@@ -1196,7 +1151,7 @@ const wrapStyles = StyleSheet.create({
     letterSpacing: 6,
   },
   wrapHeading: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 26,
     color: colors.espresso,
     textAlign: "center",
@@ -1207,7 +1162,7 @@ const wrapStyles = StyleSheet.create({
   // Empty state
   emptyState: { alignItems: "center", paddingVertical: 48 },
   emptyEmoji: { fontSize: 52, marginBottom: 16 },
-  emptyTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.espresso, marginBottom: 8 },
+  emptyTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.espresso, marginBottom: 8 },
   emptySub: { fontSize: 13, color: colors.char3, textAlign: "center", lineHeight: 20 },
 
   // Stats row
@@ -1221,15 +1176,15 @@ const wrapStyles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-  statBig: { fontFamily: "CormorantGaramond_700Bold", fontSize: 36, color: colors.espresso },
+  statBig: { fontFamily: fonts.display, fontSize: 36, color: colors.espresso },
   statLabel: { fontSize: 11, color: colors.char3, marginTop: 2, textAlign: "center" },
   statNote: { fontSize: 10, color: colors.terracotta, marginTop: 6, textAlign: "center", fontWeight: "500" },
 
   // Top genre badge
   genreBadge: {
-    backgroundColor: "rgba(127,119,221,0.12)",
+    backgroundColor: colors.blushSoft,
     borderWidth: 1,
-    borderColor: "rgba(127,119,221,0.3)",
+    borderColor: colors.ruleStrong,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -1237,11 +1192,11 @@ const wrapStyles = StyleSheet.create({
     marginBottom: 24,
   },
   genreBadgeLabel: { fontSize: 11, color: colors.char3, marginBottom: 4, letterSpacing: 0.5 },
-  genreBadgeValue: { fontFamily: "CormorantGaramond_700Bold", fontSize: 22, color: colors.terracotta },
+  genreBadgeValue: { fontFamily: fonts.display, fontSize: 22, color: colors.terracotta },
 
   // Books timeline
   timelineTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 17,
     color: colors.espresso,
     marginBottom: 16,
@@ -1249,7 +1204,7 @@ const wrapStyles = StyleSheet.create({
   timelineRow: { flexDirection: "row", marginBottom: 20 },
   timelineLeft: { width: 32, alignItems: "center" },
   timelineNum: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 13,
     color: colors.terracotta,
     opacity: 0.7,
@@ -1285,7 +1240,7 @@ const wrapStyles = StyleSheet.create({
   },
   timelineInfo: { flex: 1, justifyContent: "center" },
   timelineBookTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 15,
     color: colors.espresso,
     lineHeight: 20,
@@ -1317,7 +1272,7 @@ const galStyles = StyleSheet.create({
     backgroundColor: colors.cream3, alignSelf: "center", marginBottom: 18,
   },
   sheetHeading: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
+    fontFamily: fonts.display, fontSize: 20,
     color: colors.espresso, marginBottom: 8,
   },
   sourceRow: {
@@ -1326,7 +1281,7 @@ const galStyles = StyleSheet.create({
   },
   sourceIcon: {
     width: 46, height: 46, borderRadius: 23,
-    backgroundColor: "rgba(127,119,221,0.12)",
+    backgroundColor: colors.blushSoft,
     alignItems: "center", justifyContent: "center",
   },
   sourceLabel: { fontSize: 15, color: colors.espresso, fontWeight: "600" },
@@ -1377,7 +1332,7 @@ const galStyles = StyleSheet.create({
     position: "absolute", right: 16, zIndex: 10,
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: "rgba(0,0,0,0.55)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1, borderColor: colors.rule,
     alignItems: "center", justifyContent: "center",
   },
   viewerBottom: {
@@ -1388,20 +1343,20 @@ const galStyles = StyleSheet.create({
   captionBlock: { alignItems: "center", gap: 10, width: "100%" },
   captionRule: {
     width: 36, height: 1,
-    backgroundColor: "rgba(255,255,255,0.35)",
+    backgroundColor: colors.pencil2,
   },
   viewerCaption: {
-    fontFamily: "CormorantGaramond_400Regular_Italic",
-    color: "rgba(255,255,255,0.92)",
+    fontFamily: fonts.readingItalic,
+    color: colors.ink,
     fontSize: 19, textAlign: "center", lineHeight: 27,
     letterSpacing: 0.3,
   },
   viewerDeleteBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
     paddingVertical: 8, paddingHorizontal: 18,
-    backgroundColor: "rgba(255,107,107,0.1)",
-    borderWidth: 1, borderColor: "rgba(255,107,107,0.3)",
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1, borderColor: colors.dangerSoft,
     borderRadius: 22,
   },
-  viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
+  viewerDeleteText: { color: colors.danger, fontSize: 13, fontWeight: "500" },
 });

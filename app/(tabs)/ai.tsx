@@ -14,20 +14,14 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { supabase } from "../../src/lib/supabase";
 import { useAppStore } from "../../src/store";
 
-const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
 
-const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=800&q=80",
-  "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&q=80",
-  "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80",
-];
+
+
 
 type Tab = "Chat" | "Recommend" | "Define" | "Themes";
 const TABS: Tab[] = ["Chat", "Recommend", "Define", "Themes"];
@@ -171,19 +165,6 @@ export default function AIScreen() {
     : null;
 
   // Crossfading header images
-  const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-  const currentIdx = useRef(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cur = currentIdx.current;
-      const nxt = (cur + 1) % HEADER_IMGS.length;
-      Animated.parallel([
-        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
-        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ]).start(() => { currentIdx.current = nxt; });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Keyboard listeners — reliable alternative to KeyboardAvoidingView inside tab navigators
   useEffect(() => {
@@ -260,21 +241,9 @@ export default function AIScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.72)" }]} />
 
       {/* ── Atmospheric hero header ── */}
       <View style={styles.heroHeader}>
-        {HEADER_IMGS.map((src, i) => (
-          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </Animated.View>
-        ))}
-        <LinearGradient
-          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", "rgba(15,25,35,0.85)"]}
-          locations={[0, 0.4, 1]}
-          style={StyleSheet.absoluteFill}
-        />
         <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.heroTitle}>Reading Companion</Text>
           {bookContext ? (
@@ -378,23 +347,23 @@ const styles = StyleSheet.create({
   // Atmospheric hero header
   heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
   heroContent: { paddingHorizontal: 20, paddingBottom: 16 },
-  heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
-  heroSub: { fontSize: 13, color: "rgba(247,242,235,0.75)", marginTop: 3 },
+  heroTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
+  heroSub: { fontSize: 13, color: colors.pencil, marginTop: 3 },
 
   // Tab bar — frosted glass on dark background
   tabsRow: {
     flexDirection: "row", gap: 6,
     paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: "rgba(15,25,35,0.6)",
-    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)",
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1, borderBottomColor: colors.rule,
   },
   tab: {
     paddingVertical: 6, paddingHorizontal: 14,
-    borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 16, borderWidth: 1, borderColor: colors.rule,
+    backgroundColor: colors.rule,
   },
   tabActive: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
-  tabText: { fontSize: 12, fontWeight: "500", color: "rgba(255,255,255,0.65)" },
+  tabText: { fontSize: 12, fontWeight: "500", color: colors.pencil },
   tabTextActive: { color: "#fff" },
 
   // Messages

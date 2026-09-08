@@ -13,26 +13,20 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Animated,
 } from "react-native";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
 import { searchBooks, addBookToLibrary, toggleFavorite } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
-const BG = "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80";
 
-const HEADER_IMGS = [
-  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
-  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80",
-  "https://images.unsplash.com/photo-1524578271613-d550eacf6090?w=800&q=80",
-];
+
+
 
 type Filter = "all" | "reading" | "read" | "want_to_read" | "abandoned";
 
@@ -65,10 +59,10 @@ function BookOpenSvg() {
 }
 
 const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  reading:      { label: "Reading", bg: "rgba(127,119,221,0.2)",  text: "#9b95e8" },
-  read:         { label: "Read",    bg: "rgba(91,191,170,0.2)",   text: "#5bbfaa" },
-  want_to_read: { label: "Want",    bg: "rgba(184,180,212,0.12)", text: "#b8b4d4" },
-  abandoned:    { label: "Stopped", bg: "rgba(122,122,154,0.12)", text: "#7a7a9a" },
+  reading:      { label: "Reading", bg: colors.rule,  text: colors.blushInk },
+  read:         { label: "Read",    bg: colors.rule,   text: colors.sage },
+  want_to_read: { label: "Want",    bg: colors.rule, text: colors.pencil },
+  abandoned:    { label: "Stopped", bg: colors.rule, text: colors.pencil2 },
 };
 
 const ADD_STATUS: { label: string; value: BookStatus }[] = [
@@ -77,7 +71,7 @@ const ADD_STATUS: { label: string; value: BookStatus }[] = [
   { label: "Read",    value: "read" },
 ];
 
-function SearchIcon({ color = "rgba(255,255,255,0.5)" }: { color?: string }) {
+function SearchIcon({ color = colors.pencil }: { color?: string }) {
   return (
     <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
       <Circle cx={11} cy={11} r={8} stroke={color} strokeWidth={1.8} />
@@ -91,8 +85,8 @@ function HeartIcon({ filled }: { filled: boolean }) {
     <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
       <Path
         d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-        fill={filled ? "#e05c5c" : "none"}
-        stroke={filled ? "#e05c5c" : "rgba(255,255,255,0.85)"}
+        fill={filled ? colors.danger : "none"}
+        stroke={filled ? colors.danger : colors.ink}
         strokeWidth={1.8}
         strokeLinejoin="round"
       />
@@ -108,19 +102,6 @@ export default function LibraryScreen() {
   const setBooks = useAppStore((s) => s.setBooks);
 
   // Crossfading header images
-  const opacities = useRef(HEADER_IMGS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-  const currentIdx = useRef(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cur = currentIdx.current;
-      const nxt = (cur + 1) % HEADER_IMGS.length;
-      Animated.parallel([
-        Animated.timing(opacities[cur], { toValue: 0, duration: 1800, useNativeDriver: true }),
-        Animated.timing(opacities[nxt], { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ]).start(() => { currentIdx.current = nxt; });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
@@ -298,21 +279,9 @@ export default function LibraryScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,25,35,0.7)" }]} />
 
       {/* ── Atmospheric hero header ── */}
       <View style={styles.heroHeader}>
-        {HEADER_IMGS.map((src, i) => (
-          <Animated.View key={src} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-            <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </Animated.View>
-        ))}
-        <LinearGradient
-          colors={["rgba(44,31,20,0.55)", "rgba(44,31,20,0.35)", colors.cream]}
-          locations={[0, 0.4, 1]}
-          style={StyleSheet.absoluteFill}
-        />
         <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.heroTitle}>My Library</Text>
           <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
@@ -355,7 +324,7 @@ export default function LibraryScreen() {
               value={librarySearch}
               onChangeText={setLibrarySearch}
               placeholder="Search your library…"
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholderTextColor={colors.pencil2}
               returnKeyType="search"
               autoCorrect={false}
             />
@@ -499,10 +468,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end",
     paddingHorizontal: 20, paddingBottom: 16,
   },
-  heroTitle: { fontFamily: "CormorantGaramond_700Bold", fontSize: 28, color: "#faf6f0" },
+  heroTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
   addBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.45)",
+    backgroundColor: colors.rule,
+    borderWidth: 1, borderColor: colors.pencil,
     borderRadius: 16, paddingVertical: 6, paddingHorizontal: 14,
   },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
@@ -512,7 +481,7 @@ const styles = StyleSheet.create({
   pill: {
     paddingVertical: 7, paddingHorizontal: 14,
     borderRadius: 20, borderWidth: 1, borderColor: colors.cream3,
-    backgroundColor: "rgba(22,32,48,0.95)",
+    backgroundColor: colors.card,
   },
   pillActive: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
   pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
@@ -522,14 +491,14 @@ const styles = StyleSheet.create({
   libSearchWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 20, marginBottom: 10,
-    backgroundColor: "rgba(22,32,48,0.75)",
-    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.card,
+    borderRadius: 10, borderWidth: 1, borderColor: colors.rule,
     paddingHorizontal: 12, paddingVertical: 9,
   },
   libSearchInput: {
     flex: 1, fontSize: 13, color: "#fff",
   },
-  libClearBtn: { fontSize: 13, color: "rgba(255,255,255,0.5)", paddingHorizontal: 2 },
+  libClearBtn: { fontSize: 13, color: colors.pencil, paddingHorizontal: 2 },
 
   grid: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 },
   gridRow: { gap: 12, marginBottom: 16 },
@@ -549,9 +518,9 @@ const styles = StyleSheet.create({
   },
   coverAdd: {
     width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
-    borderWidth: 1.5, borderColor: "rgba(127,119,221,0.55)", borderStyle: "dashed",
+    borderWidth: 1.5, borderColor: colors.blush, borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: "rgba(127,119,221,0.08)",
+    backgroundColor: colors.blushSoft,
   },
   addPlus: { fontSize: 22, color: colors.terra2 },
   addLabel: { fontSize: 9, color: colors.terra2 },
@@ -568,7 +537,7 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 13, color: colors.char3 },
   emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 44, paddingBottom: 40 },
   emptyTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 22,
+    fontFamily: fonts.display, fontSize: 22,
     color: colors.espresso, textAlign: "center", marginBottom: 10,
   },
   emptySub: { fontSize: 14, color: colors.char3, textAlign: "center", lineHeight: 21, marginBottom: 28 },
@@ -592,7 +561,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment,
   },
   modalTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 22,
     color: colors.espresso,
   },
@@ -627,7 +596,7 @@ const styles = StyleSheet.create({
   resultCover: { width: 52, height: 76, borderRadius: 6, backgroundColor: colors.cream3 },
   resultInfo: { flex: 1 },
   resultTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 14,
+    fontFamily: fonts.display, fontSize: 14,
     color: colors.espresso, marginBottom: 3,
   },
   resultAuthor: { fontSize: 12, color: colors.char3, marginBottom: 2 },
@@ -635,8 +604,8 @@ const styles = StyleSheet.create({
   addChips: { flexDirection: "row", gap: 6, marginTop: 4 },
   addChip: {
     paddingVertical: 5, paddingHorizontal: 10,
-    backgroundColor: "rgba(127,119,221,0.12)",
-    borderWidth: 1, borderColor: "rgba(127,119,221,0.3)",
+    backgroundColor: colors.blushSoft,
+    borderWidth: 1, borderColor: colors.ruleStrong,
     borderRadius: 10, minWidth: 56, alignItems: "center",
   },
   addChipText: { fontSize: 11, fontWeight: "600", color: colors.terracotta },

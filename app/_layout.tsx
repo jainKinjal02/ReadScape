@@ -1,12 +1,23 @@
 import "../global.css";
 import React, { useEffect, useRef, useState } from "react";
 import { Stack, useRouter } from "expo-router";
+import { useFonts } from "expo-font";
 import {
-  useFonts,
-  CormorantGaramond_400Regular,
-  CormorantGaramond_700Bold,
-  CormorantGaramond_400Regular_Italic,
-} from "@expo-google-fonts/cormorant-garamond";
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+  Fraunces_700Bold,
+  Fraunces_500Medium_Italic,
+} from "@expo-google-fonts/fraunces";
+import {
+  Archivo_400Regular,
+  Archivo_500Medium,
+  Archivo_600SemiBold,
+} from "@expo-google-fonts/archivo";
+import {
+  Literata_400Regular,
+  Literata_500Medium,
+  Literata_400Regular_Italic,
+} from "@expo-google-fonts/literata";
 import * as SplashScreen from "expo-splash-screen";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
@@ -17,15 +28,26 @@ import {
   Text,
   View,
 } from "react-native";
+import { colors, fonts } from "../src/design/tokens";
 
 // Keep the native splash visible until we're ready
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    CormorantGaramond_400Regular,
-    CormorantGaramond_700Bold,
-    CormorantGaramond_400Regular_Italic,
+    // Display / numerals
+    Fraunces_500Medium,
+    Fraunces_600SemiBold,
+    Fraunces_700Bold,
+    Fraunces_500Medium_Italic,
+    // Interface
+    Archivo_400Regular,
+    Archivo_500Medium,
+    Archivo_600SemiBold,
+    // Long-form reading: quotes, notes, synopses
+    Literata_400Regular,
+    Literata_500Medium,
+    Literata_400Regular_Italic,
   });
 
   const router = useRouter();
@@ -122,7 +144,7 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   splash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0D1B2A",
+    backgroundColor: colors.paper,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -134,14 +156,14 @@ const styles = StyleSheet.create({
   appName: {
     color: "#F7F4EF",
     fontSize: 42,
-    fontFamily: "Georgia",
+    fontFamily: fonts.reading,
     marginTop: 28,
     letterSpacing: 2,
   },
   tagline: {
     color: "#E8C5CF",
     fontSize: 16,
-    fontFamily: "Georgia",
+    fontFamily: fonts.reading,
     marginTop: 10,
     letterSpacing: 1.5,
     opacity: 0.85,

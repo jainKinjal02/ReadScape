@@ -1,19 +1,9 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../../src/design/tokens";
-
-// Prefetch every background used across tabs so images are in memory
-// before the user first visits each screen — eliminates the load flash.
-const BG_URLS = [
-  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80",
-  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80",
-  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=1200&q=80",
-  "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&q=80",
-];
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -67,10 +57,6 @@ function TabLabel({ label, color }: { label: string; color: string }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    BG_URLS.forEach((url) => Image.prefetch(url));
-  }, []);
 
   return (
     <Tabs

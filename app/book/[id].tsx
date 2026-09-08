@@ -24,7 +24,7 @@ import * as ImagePicker from "expo-image-picker";
 import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../../src/design/tokens";
+import { colors, fonts } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
@@ -62,10 +62,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  reading:      "#9b95e8",
-  read:         "#5bbfaa",
-  want_to_read: "#b8b4d4",
-  abandoned:    "#7a7a9a",
+  reading:      colors.blushInk,
+  read:         colors.sage,
+  want_to_read: colors.pencil,
+  abandoned:    colors.pencil2,
 };
 
 export default function BookDetailScreen() {
@@ -376,7 +376,7 @@ export default function BookDetailScreen() {
             ) : null}
             <BlurView intensity={50} style={StyleSheet.absoluteFill} />
             <LinearGradient
-              colors={["rgba(15,25,35,0.05)", colors.cream]}
+              colors={[colors.rule, colors.cream]}
               locations={[0, 1]}
               style={[StyleSheet.absoluteFill, { top: "35%" }]}
             />
@@ -397,14 +397,14 @@ export default function BookDetailScreen() {
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
-                style={[styles.bdCircleBtn, book.is_favorite && { backgroundColor: "rgba(224,92,92,0.18)" }]}
+                style={[styles.bdCircleBtn, book.is_favorite && { backgroundColor: colors.dangerSoft }]}
                 onPress={handleToggleFavorite}
               >
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-                    fill={book.is_favorite ? "#e05c5c" : "none"}
-                    stroke={book.is_favorite ? "#e05c5c" : colors.espresso}
+                    fill={book.is_favorite ? colors.danger : "none"}
+                    stroke={book.is_favorite ? colors.danger : colors.espresso}
                     strokeWidth={1.8}
                     strokeLinejoin="round"
                   />
@@ -414,7 +414,7 @@ export default function BookDetailScreen() {
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
-                    stroke="#c0392b"
+                    stroke={colors.danger}
                     strokeWidth={1.8}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -730,14 +730,14 @@ export default function BookDetailScreen() {
           >
             {viewingPhoto?.caption ? (
               <View style={{ alignItems: "center", gap: 10, width: "100%" }}>
-                <View style={{ width: 36, height: 1, backgroundColor: "rgba(255,255,255,0.35)" }} />
+                <View style={{ width: 36, height: 1, backgroundColor: colors.pencil2 }} />
                 <Text style={photoStyles.viewerCaption}>{viewingPhoto.caption}</Text>
               </View>
             ) : null}
             {viewingPhoto && (
               <TouchableOpacity style={photoStyles.viewerDeleteBtn} onPress={() => deleteBookPhoto(viewingPhoto.id)}>
                 <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#ff6b6b" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke={colors.danger} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
                 <Text style={photoStyles.viewerDeleteText}>Delete</Text>
               </TouchableOpacity>
@@ -804,7 +804,7 @@ export default function BookDetailScreen() {
 // ── Confetti animation ────────────────────────────────────────────────────────
 
 const { width: SW, height: SH } = Dimensions.get("window");
-const CONFETTI_COLORS = ["#e07b6b", "#9b95e8", "#5bbfaa", "#f5c842", "#e8a0bf", "#7fd4b8"];
+const CONFETTI_COLORS = ["#e07b6b", colors.blushInk, colors.sage, colors.mark, colors.blush, colors.sage];
 const PIECES = 28;
 
 function Confetti() {
@@ -943,7 +943,7 @@ function QuotesTab({
 
           {/* The card that gets captured */}
           <ViewShot ref={cardRef} options={{ format: "png", quality: 1 }} style={shareStyles.cardWrap}>
-            <LinearGradient colors={["#1a1025", "#2c1f14"]} style={shareStyles.card}>
+            <LinearGradient colors={[colors.card, "#2c1f14"]} style={shareStyles.card}>
               <Text style={shareStyles.bigQuote}>"</Text>
               <Text style={shareStyles.quoteText}>{sharingQuote?.text}</Text>
               <View style={shareStyles.divider} />
@@ -1158,7 +1158,7 @@ const styles = StyleSheet.create({
   },
   bdCircleBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(22,32,48,0.9)",
+    backgroundColor: colors.card,
     alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
     elevation: 2,
@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
   // Info
   bdInfo: { paddingTop: 44, paddingHorizontal: 20, alignItems: "center", paddingBottom: 16 },
   bdTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 22,
+    fontFamily: fonts.display, fontSize: 22,
     color: colors.espresso, textAlign: "center", marginBottom: 4,
   },
   bdAuthor: { fontSize: 13, color: colors.char3, marginBottom: 12 },
@@ -1196,7 +1196,7 @@ const styles = StyleSheet.create({
     paddingTop: 12, paddingHorizontal: 20, gap: 12,
   },
   genreSheetTitle: {
-    fontFamily: "CormorantGaramond_700Bold", fontSize: 20,
+    fontFamily: fonts.display, fontSize: 20,
     color: colors.espresso, textAlign: "center",
   },
   genreEmptyHint: { fontSize: 12, color: colors.char3, textAlign: "center", paddingVertical: 4 },
@@ -1216,7 +1216,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
     borderWidth: 1.5, borderColor: colors.cream3, backgroundColor: colors.cream2,
   },
-  genrePresetChipSel: { borderColor: colors.terracotta, backgroundColor: "rgba(127,119,221,0.12)" },
+  genrePresetChipSel: { borderColor: colors.terracotta, backgroundColor: colors.blushSoft },
   genrePresetText: { fontSize: 12, color: colors.char3, fontWeight: "500" },
   genrePresetTextSel: { color: colors.terracotta, fontWeight: "700" },
   genreAddRow: { flexDirection: "row", gap: 10, alignItems: "center" },
@@ -1261,7 +1261,7 @@ const styles = StyleSheet.create({
 
   // Mark as Finished
   finishBtn: {
-    flex: 1, backgroundColor: "#5bbfaa",
+    flex: 1, backgroundColor: colors.sage,
     borderRadius: 20, paddingVertical: 11, alignItems: "center",
   },
   finishBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
@@ -1323,7 +1323,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "flex-end", gap: 14, marginBottom: 6,
   },
   quoteText: {
-    fontFamily: "CormorantGaramond_400Regular_Italic",
+    fontFamily: fonts.readingItalic,
     fontSize: 13, color: colors.espresso, lineHeight: 20, marginBottom: 6,
   },
   quotePage: { fontSize: 11, color: colors.char3 },
@@ -1399,16 +1399,16 @@ const photoStyles = StyleSheet.create({
   // Source picker sheet
   sourceSheet: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    backgroundColor: "#0f1923", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    backgroundColor: colors.paper, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingTop: 12, paddingHorizontal: 20, gap: 10,
   },
-  sheetPill: { width: 36, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "center", marginBottom: 8 },
-  sheetHeading: { fontFamily: "CormorantGaramond_700Bold", fontSize: 18, color: "#faf6f0", marginBottom: 4 },
+  sheetPill: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.rule, alignSelf: "center", marginBottom: 8 },
+  sheetHeading: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, marginBottom: 4 },
   sourceBtn: {
-    backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.rule, borderWidth: 1, borderColor: colors.rule,
     borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16,
   },
-  sourceBtnText: { fontSize: 14, color: "#faf6f0" },
+  sourceBtnText: { fontSize: 14, color: colors.ink },
 
   // Caption sheet
   captionSheet: {
@@ -1440,18 +1440,18 @@ const photoStyles = StyleSheet.create({
     paddingTop: 48, paddingHorizontal: 32, alignItems: "center", gap: 18,
   },
   viewerCaption: {
-    fontFamily: "CormorantGaramond_400Regular_Italic",
-    color: "rgba(255,255,255,0.92)", fontSize: 19,
+    fontFamily: fonts.readingItalic,
+    color: colors.ink, fontSize: 19,
     textAlign: "center", lineHeight: 27, letterSpacing: 0.3,
   },
   viewerDeleteBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
     paddingVertical: 8, paddingHorizontal: 18,
-    backgroundColor: "rgba(255,107,107,0.15)",
-    borderWidth: 1, borderColor: "rgba(255,107,107,0.3)",
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1, borderColor: colors.dangerSoft,
     borderRadius: 20,
   },
-  viewerDeleteText: { color: "#ff6b6b", fontSize: 13, fontWeight: "500" },
+  viewerDeleteText: { color: colors.danger, fontSize: 13, fontWeight: "500" },
 
 });
 
@@ -1460,7 +1460,7 @@ const photoStyles = StyleSheet.create({
 const celebStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15,25,35,0.88)",
+    backgroundColor: colors.paper,
     alignItems: "center",
     justifyContent: "flex-end",
   },
@@ -1482,11 +1482,11 @@ const celebStyles = StyleSheet.create({
   },
   emoji: { fontSize: 36, marginBottom: 8 },
   headline: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 30, color: colors.espresso, marginBottom: 4,
   },
   bookTitle: {
-    fontFamily: "CormorantGaramond_400Regular_Italic",
+    fontFamily: fonts.readingItalic,
     fontSize: 18, color: colors.espresso2,
     textAlign: "center", lineHeight: 24,
   },
@@ -1516,23 +1516,23 @@ const shareStyles = StyleSheet.create({
     borderRadius: 20,
   },
   bigQuote: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 72, color: colors.terracotta,
     lineHeight: 60, marginBottom: 8, alignSelf: "flex-start",
   },
   quoteText: {
-    fontFamily: "CormorantGaramond_400Regular_Italic",
-    fontSize: 20, color: "#faf6f0", lineHeight: 30,
+    fontFamily: fonts.readingItalic,
+    fontSize: 20, color: colors.ink, lineHeight: 30,
     textAlign: "center", marginBottom: 24,
   },
-  divider: { width: 40, height: 1, backgroundColor: "rgba(247,242,235,0.3)", marginBottom: 20 },
+  divider: { width: 40, height: 1, backgroundColor: colors.pencil2, marginBottom: 20 },
   bookTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
-    fontSize: 14, color: "#faf6f0", textAlign: "center",
+    fontFamily: fonts.display,
+    fontSize: 14, color: colors.ink, textAlign: "center",
   },
-  bookAuthor: { fontSize: 12, color: "rgba(247,242,235,0.6)", marginTop: 3, textAlign: "center" },
+  bookAuthor: { fontSize: 12, color: colors.pencil, marginTop: 3, textAlign: "center" },
   brand: {
-    fontSize: 10, color: "rgba(247,242,235,0.35)",
+    fontSize: 10, color: colors.pencil2,
     letterSpacing: 2, textTransform: "uppercase", marginTop: 24,
   },
   shareBtn: {
@@ -1540,5 +1540,5 @@ const shareStyles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 15, alignItems: "center",
   },
   shareBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  cancelText: { fontSize: 13, color: "rgba(255,255,255,0.5)" },
+  cancelText: { fontSize: 13, color: colors.pencil },
 });

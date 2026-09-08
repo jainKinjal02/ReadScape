@@ -5,18 +5,11 @@ import {
   TouchableOpacity,
   StatusBar,
   StyleSheet,
-  Animated,
 } from "react-native";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { colors, fonts } from "../src/design/tokens";
 
-const BG_IMAGES = [
-  "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=800",
-  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800",
-  "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800",
-  "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800",
-];
+
 
 const FEATURES = [
   { icon: "📚", title: "Your Library", desc: "Track every book you've read, are reading, or want to read." },
@@ -27,41 +20,9 @@ const FEATURES = [
 export default function LandingScreen() {
   const router = useRouter();
 
-  // One opacity per image — cross-fade without any source swapping
-  const opacities = useRef(
-    BG_IMAGES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))
-  ).current;
-  const currentIdx = useRef(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cur = currentIdx.current;
-      const nxt = (cur + 1) % BG_IMAGES.length;
-      Animated.parallel([
-        Animated.timing(opacities[cur], { toValue: 0, duration: 1000, useNativeDriver: true }),
-        Animated.timing(opacities[nxt], { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ]).start(() => { currentIdx.current = nxt; });
-    }, 4500);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* All images pre-rendered as layers — only opacity animates, no source swap */}
-      {BG_IMAGES.map((uri, i) => (
-        <Animated.View key={uri} style={[StyleSheet.absoluteFill, { opacity: opacities[i] }]}>
-          <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        </Animated.View>
-      ))}
-
-      {/* Gradient overlay — darker at bottom so text is legible */}
-      <LinearGradient
-        colors={["rgba(0,0,0,0.25)", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.82)"]}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      <StatusBar barStyle="dark-content" />
 
       {/* All content in one centred flex column */}
       <View style={styles.content}>
@@ -69,8 +30,8 @@ export default function LandingScreen() {
         <View style={styles.titleBlock}>
           <Text style={styles.tagline}>Your reading life,</Text>
           <Text style={styles.appName}>
-            <Text style={{ color: "#f0eef8" }}>Read</Text>
-            <Text style={{ color: "#7F77DD" }}>Scape</Text>
+            <Text style={{ color: colors.ink }}>Read</Text>
+            <Text style={{ color: colors.blushInk }}>Scape</Text>
           </Text>
           <Text style={styles.subtitle}>
             Track your journey. Capture your mood.{"\n"}Discover your next read.
@@ -110,7 +71,7 @@ export default function LandingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D0A08" },
+  container: { flex: 1, backgroundColor: colors.paper },
 
   content: {
     flex: 1,
@@ -122,22 +83,22 @@ const styles = StyleSheet.create({
 
   titleBlock: { alignItems: "flex-start" },
   tagline: {
-    color: "rgba(255,255,255,0.65)",
+    color: colors.pencil,
     fontSize: 14,
     letterSpacing: 2.5,
     textTransform: "uppercase",
     marginBottom: 6,
   },
   appName: {
-    color: "#FFFFFF",
+    color: colors.ink,
     fontSize: 54,
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     letterSpacing: 0.5,
     lineHeight: 60,
     marginBottom: 14,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.72)",
+    color: colors.pencil,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -151,16 +112,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(127,119,221,0.12)",
+    backgroundColor: colors.blushSoft,
     borderWidth: 1,
-    borderColor: "rgba(127,119,221,0.35)",
+    borderColor: colors.ruleStrong,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
   featureIcon: { fontSize: 14 },
   featureTitle: {
-    color: "rgba(255,255,255,0.85)",
+    color: colors.ink,
     fontSize: 11,
     fontWeight: "600",
     flexShrink: 1,
@@ -168,7 +129,7 @@ const styles = StyleSheet.create({
 
   ctaBlock: { gap: 12, alignItems: "center" },
   ctaButton: {
-    backgroundColor: "#7F77DD",
+    backgroundColor: colors.ink,
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 999,
@@ -176,11 +137,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaText: {
-    color: "#FFFFFF",
+    color: colors.ink,
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 0.3,
   },
   signInLink: { paddingVertical: 4 },
-  signInText: { color: "rgba(255,255,255,0.5)", fontSize: 13 },
+  signInText: { color: colors.pencil, fontSize: 13 },
 });

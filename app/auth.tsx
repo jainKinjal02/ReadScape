@@ -13,16 +13,12 @@ import {
   Alert,
   
 } from "react-native";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../src/design/tokens";
+import { colors, fonts } from "../src/design/tokens";
 import { supabase } from "../src/lib/supabase";
 import { signInWithGoogle, OAuthCancelledError } from "../src/lib/auth";
 import { useAppStore } from "../src/store";
-
-const BG = "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=1200&q=80";
 
 type Mode = "signup" | "signin";
 
@@ -171,14 +167,7 @@ export default function AuthScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      {/* Background image */}
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <LinearGradient
-        colors={["rgba(15,25,35,0.55)", "rgba(15,25,35,0.96)"]}
-        locations={[0, 0.5]}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
@@ -196,7 +185,7 @@ export default function AuthScreen() {
               <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M19 12H5M12 5l-7 7 7 7"
-                  stroke="rgba(255,255,255,0.8)"
+                  stroke={colors.ink}
                   strokeWidth={1.8}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -207,8 +196,8 @@ export default function AuthScreen() {
             {/* Logo */}
             <View style={styles.logoBlock}>
               <Text style={styles.appName}>
-                <Text style={{ color: "#f0eef8" }}>Read</Text>
-                <Text style={{ color: "#7F77DD" }}>Scape</Text>
+                <Text style={{ color: colors.ink }}>Read</Text>
+                <Text style={{ color: colors.blushInk }}>Scape</Text>
               </Text>
               <Text style={styles.tagline}>
                 {mode === "signup"
@@ -364,10 +353,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
 
   logoBlock: {
@@ -375,51 +362,49 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   appName: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 42,
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   tagline: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 0.2,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.pencil,
+    letterSpacing: 0.1,
   },
 
   // Tab toggle
   toggle: {
     flexDirection: "row",
-    backgroundColor: "rgba(22,32,48,0.85)",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.cream3,
-    padding: 4,
-    marginBottom: 20,
+    gap: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
+    marginBottom: 22,
   },
   toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 11,
-    alignItems: "center",
+    paddingBottom: 9,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   toggleBtnActive: {
-    backgroundColor: colors.terracotta,
+    borderBottomColor: colors.ink,
   },
   toggleText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.char3,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13.5,
+    color: colors.pencil,
   },
   toggleTextActive: {
-    color: "#ffffff",
+    color: colors.ink,
   },
 
   // Form card
   card: {
-    backgroundColor: "rgba(19,30,44,0.88)",
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: "rgba(127,119,221,0.2)",
+    borderColor: colors.rule,
     padding: 22,
     marginBottom: 20,
   },
@@ -427,46 +412,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.espresso2,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10.5,
+    color: colors.pencil,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 8,
+    letterSpacing: 0.7,
+    marginBottom: 7,
   },
+  // Underline inputs rather than boxes: less chrome, more notebook.
   input: {
-    backgroundColor: colors.cream2,
-    borderWidth: 1.5,
-    borderColor: colors.cream3,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: colors.espresso,
+    backgroundColor: "transparent",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
+    paddingHorizontal: 0,
+    paddingVertical: 9,
+    fontFamily: fonts.body,
+    fontSize: 15.5,
+    color: colors.ink,
   },
   inputFocused: {
-    borderColor: colors.terracotta,
-    backgroundColor: "rgba(127,119,221,0.08)",
+    borderBottomColor: colors.ink,
   },
 
   errorBox: {
-    backgroundColor: "rgba(180,60,60,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(180,60,60,0.35)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 3,
+    paddingHorizontal: 13,
     paddingVertical: 10,
     marginBottom: 16,
   },
   errorText: {
-    color: "#e88080",
+    fontFamily: fonts.body,
+    color: colors.danger,
     fontSize: 13,
     lineHeight: 18,
   },
 
   submitBtn: {
-    backgroundColor: colors.terracotta,
-    borderRadius: 14,
+    backgroundColor: colors.ink,
+    borderRadius: 3,
     paddingVertical: 15,
     alignItems: "center",
     marginTop: 4,
@@ -487,10 +471,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(127,119,221,0.18)",
+    backgroundColor: colors.rule,
   },
   dividerText: {
-    color: "rgba(255,255,255,0.4)",
+    fontFamily: fonts.body,
+    color: colors.pencil,
     fontSize: 12,
     marginHorizontal: 12,
     letterSpacing: 0.5,
@@ -500,26 +485,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 14,
-    paddingVertical: 15,
+    borderColor: colors.ruleStrong,
+    borderRadius: 3,
+    paddingVertical: 14,
   },
   googleText: {
-    color: colors.inkPrimary,
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    fontFamily: fonts.bodySemi,
+    color: colors.ink,
+    fontSize: 14.5,
+    letterSpacing: 0.1,
   },
 
   hint: {
     textAlign: "center",
+    fontFamily: fonts.body,
     fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
+    color: colors.pencil,
   },
   hintLink: {
-    color: colors.terra2,
-    fontWeight: "600",
+    fontFamily: fonts.bodySemi,
+    color: colors.ink,
+    textDecorationLine: "underline",
   },
 });

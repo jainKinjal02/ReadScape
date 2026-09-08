@@ -13,16 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { colors } from "../src/design/tokens";
+import { colors, fonts } from "../src/design/tokens";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
 import { GENRE_PRESETS as GENRES } from "../src/data/genres";
 
-const BG = "https://images.unsplash.com/photo-1476275466078-4cdc48d9e56f?w=1200&q=80";
+
 const { width: SW } = Dimensions.get("window");
 
 const GOALS = [
@@ -107,12 +105,6 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       {/* Atmospheric background */}
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-      <LinearGradient
-        colors={["rgba(15,25,35,0.55)", "rgba(15,25,35,0.97)"]}
-        locations={[0, 0.5]}
-        style={StyleSheet.absoluteFill}
-      />
 
       {/* Progress bar */}
       <View style={[styles.progressWrap, { paddingTop: insets.top + 18 }]}>
@@ -276,7 +268,7 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f1923" },
+  container: { flex: 1, backgroundColor: colors.paper },
 
   // Progress bar
   progressWrap: {
@@ -289,7 +281,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: 3,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.rule,
     borderRadius: 2,
     overflow: "hidden",
   },
@@ -300,7 +292,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
+    color: colors.pencil2,
     fontWeight: "500",
     minWidth: 32,
     textAlign: "right",
@@ -311,15 +303,15 @@ const styles = StyleSheet.create({
   stepInner: { flex: 1, paddingHorizontal: 28 },
   stepHeader: { paddingTop: 28, marginBottom: 28 },
   stepTitle: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 36,
-    color: "#f0eef8",
+    color: colors.ink,
     lineHeight: 44,
     marginBottom: 12,
   },
   stepSub: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
+    color: colors.pencil,
     lineHeight: 21,
   },
 
@@ -332,16 +324,16 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     width: (SW - 56 - 12) / 2,
-    backgroundColor: "rgba(22,32,48,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: colors.rule,
     borderRadius: 16,
     padding: 16,
     position: "relative",
   },
   goalCardSelected: {
     borderColor: colors.terracotta,
-    backgroundColor: "rgba(127,119,221,0.15)",
+    backgroundColor: colors.blushSoft,
   },
   goalCheck: {
     position: "absolute",
@@ -355,25 +347,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   goalBooks: {
-    fontFamily: "CormorantGaramond_700Bold",
+    fontFamily: fonts.display,
     fontSize: 22,
-    color: "rgba(255,255,255,0.45)",
+    color: colors.pencil,
     marginBottom: 4,
   },
-  goalBooksSelected: { color: "#f0eef8" },
+  goalBooksSelected: { color: colors.ink },
   goalLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.38)",
+    color: colors.pencil2,
     marginBottom: 4,
   },
   goalLabelSelected: { color: colors.terra2 },
   goalFreq: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.28)",
+    color: colors.pencil2,
     lineHeight: 16,
   },
-  goalFreqSelected: { color: "rgba(255,255,255,0.52)" },
+  goalFreqSelected: { color: colors.pencil },
 
   // Genre chips
   genreScroll: { flex: 1, marginBottom: 24 },
@@ -389,21 +381,21 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 16,
     borderRadius: 24,
-    backgroundColor: "rgba(22,32,48,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: colors.rule,
   },
   genreChipSelected: {
-    backgroundColor: "rgba(127,119,221,0.2)",
+    backgroundColor: colors.rule,
     borderColor: colors.terracotta,
   },
   genreChipText: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.55)",
+    color: colors.pencil,
     fontWeight: "500",
   },
   genreChipTextSelected: {
-    color: "#f0eef8",
+    color: colors.ink,
     fontWeight: "600",
   },
 
@@ -416,20 +408,20 @@ const styles = StyleSheet.create({
   },
   addInput: {
     flex: 1,
-    backgroundColor: "rgba(22,32,48,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: colors.rule,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 13,
     fontSize: 14,
-    color: "#f0eef8",
+    color: colors.ink,
   },
   addBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "rgba(127,119,221,0.25)",
+    backgroundColor: colors.rule,
     borderWidth: 1.5,
     borderColor: colors.terracotta,
     alignItems: "center",
@@ -463,6 +455,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.3)",
+    color: colors.pencil2,
   },
 });
