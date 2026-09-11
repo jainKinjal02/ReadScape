@@ -750,7 +750,7 @@ export default function BookDetailScreen() {
       <Modal visible={showCelebration} transparent animationType="fade" onRequestClose={handleCelebrationDone}>
         <View style={celebStyles.overlay}>
           <Confetti />
-          <View style={[celebStyles.card, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={celebStyles.card}>
             {/* Book cover */}
             {book?.cover_url ? (
               <Image
@@ -1462,23 +1462,22 @@ const celebStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.paper,
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
+  // This was a bottom sheet when it sat over a dark scrim. On paper there is
+  // no scrim to rise from, so it is simply a centred full-screen moment —
+  // no top radii, no sheet background, no bottom anchoring.
   card: {
     width: "100%",
-    backgroundColor: colors.cream,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: 32,
     paddingHorizontal: 32,
     alignItems: "center",
   },
   cover: {
     width: 100, height: 148,
-    borderRadius: 10,
+    borderRadius: 3,
     marginBottom: 6,
-    shadowColor: "#2c1f14", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 10 }, shadowRadius: 20,
-    elevation: 10,
+    shadowColor: colors.ink, shadowOpacity: 0.18, shadowOffset: { width: 0, height: 8 }, shadowRadius: 16,
+    elevation: 6,
   },
   emoji: { fontSize: 36, marginBottom: 8 },
   headline: {
