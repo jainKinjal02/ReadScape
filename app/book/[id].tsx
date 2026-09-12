@@ -1030,14 +1030,26 @@ function QuotesTab({
 
           {/* The card that gets captured */}
           <ViewShot ref={cardRef} options={{ format: "png", quality: 1 }} style={shareStyles.cardWrap}>
-            <LinearGradient colors={[colors.card, "#2c1f14"]} style={shareStyles.card}>
-              <Text style={shareStyles.bigQuote}>"</Text>
-              <Text style={shareStyles.quoteText}>{sharingQuote?.text}</Text>
+            <View style={shareStyles.card}>
+              <Text style={shareStyles.bigQuote}>{"\u201C"}</Text>
+              {(() => {
+                // Same derived range as the list, so a shared card marks the
+                // passage the reader already sees marked in the app.
+                const clean = stripQuoteMarks(sharingQuote?.text ?? "");
+                const [from, to] = markRange(clean);
+                return (
+                  <Text style={shareStyles.quoteText}>
+                    {clean.slice(0, from)}
+                    <Text style={shareStyles.quoteMark}>{clean.slice(from, to)}</Text>
+                    {clean.slice(to)}
+                  </Text>
+                );
+              })()}
               <View style={shareStyles.divider} />
               <Text style={shareStyles.bookTitle}>{book?.title}</Text>
               {!!book?.author && <Text style={shareStyles.bookAuthor}>{book.author}</Text>}
               <Text style={shareStyles.brand}>ReadScape</Text>
-            </LinearGradient>
+            </View>
           </ViewShot>
 
           <TouchableOpacity
@@ -1590,38 +1602,39 @@ const celebStyles = StyleSheet.create({
 // ── Share quote styles ────────────────────────────────────────────────────────
 const shareStyles = StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.82)",
-    alignItems: "center", justifyContent: "center", gap: 20, padding: 24,
+    flex: 1, backgroundColor: "rgba(27,26,34,0.6)",
+    alignItems: "center", justifyContent: "center", gap: 18, padding: 24,
   },
-  cardWrap: { width: "100%", borderRadius: 20, overflow: "hidden" },
+  // The captured image is a page torn out of the app: paper, ink, one mark.
+  cardWrap: { width: "100%", borderRadius: 3, overflow: "hidden" },
   card: {
-    padding: 32, alignItems: "center",
-    borderRadius: 20,
+    backgroundColor: colors.paper,
+    paddingHorizontal: 30, paddingTop: 26, paddingBottom: 30,
+    borderRadius: 3,
   },
   bigQuote: {
     fontFamily: fonts.display,
-    fontSize: 72, color: colors.terracotta,
-    lineHeight: 60, marginBottom: 8, alignSelf: "flex-start",
+    fontSize: 56, color: colors.ink,
+    lineHeight: 56, marginBottom: 2, alignSelf: "flex-start",
   },
+  // Left-aligned: a quote is a passage from a page, not a poster slogan.
   quoteText: {
-    fontFamily: fonts.readingItalic,
-    fontSize: 20, color: colors.ink, lineHeight: 30,
-    textAlign: "center", marginBottom: 24,
+    fontFamily: fonts.reading,
+    fontSize: 18, color: colors.ink, lineHeight: 29,
+    textAlign: "left", marginBottom: 26,
   },
-  divider: { width: 40, height: 1, backgroundColor: colors.pencil2, marginBottom: 20 },
-  bookTitle: {
-    fontFamily: fonts.display,
-    fontSize: 14, color: colors.ink, textAlign: "center",
-  },
-  bookAuthor: { fontSize: 12, color: colors.pencil, marginTop: 3, textAlign: "center" },
+  quoteMark: { backgroundColor: colors.mark, color: colors.ink },
+  divider: { width: "100%", height: 1, backgroundColor: colors.rule, marginBottom: 16 },
+  bookTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
+  bookAuthor: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil, marginTop: 3 },
   brand: {
-    fontSize: 10, color: colors.pencil2,
-    letterSpacing: 2, textTransform: "uppercase", marginTop: 24,
+    fontFamily: fonts.bodyMedium, fontSize: 9.5, color: colors.pencil2,
+    letterSpacing: 2.4, textTransform: "uppercase", marginTop: 22,
   },
   shareBtn: {
-    width: "100%", backgroundColor: colors.terracotta,
-    borderRadius: 14, paddingVertical: 15, alignItems: "center",
+    width: "100%", backgroundColor: colors.ink,
+    borderRadius: 2, paddingVertical: 15, alignItems: "center",
   },
-  shareBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  cancelText: { fontSize: 13, color: colors.pencil },
+  shareBtnText: { fontFamily: fonts.bodySemi, color: colors.paper, fontSize: 14.5 },
+  cancelText: { fontFamily: fonts.body, fontSize: 13, color: colors.rule },
 });
