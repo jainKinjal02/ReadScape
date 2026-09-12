@@ -1,6 +1,7 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
+  useWindowDimensions,
   View,
   Text,
   ScrollView,
@@ -17,18 +18,18 @@ import {
   Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
-import { colors, fonts } from "../../src/design/tokens";
+import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
+  fetchMoodLogs,
   updateBookRating,
   updateBookGenre,
   updateBookStatus,
@@ -57,16 +58,19 @@ type Tab = "quotes" | "notes" | "photos";
 const STATUS_LABELS: Record<string, string> = {
   reading:      "Reading",
   read:         "Read",
-  want_to_read: "Want to Read",
-  abandoned:    "Abandoned",
+  want_to_read: "Waiting",
+  abandoned:    "Put down",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  reading:      colors.blushInk,
-  read:         colors.sage,
-  want_to_read: colors.pencil,
-  abandoned:    colors.pencil2,
+// Ratings read as words next to the marks, the way you would say them aloud.
+const RATING_WORDS: Record<number, string> = {
+  1: "one",
+  2: "two",
+  3: "three",
+  4: "four",
+  5: "five",
 };
+
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -78,6 +82,12 @@ export default function BookDetailScreen() {
   const removeBook = useAppStore((s) => s.removeBook);
 
   const book = books.find((b) => b.id === id) ?? null;
+
+  const { width: winW } = useWindowDimensions();
+  const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
+
+  // Moods logged against this book, newest first, de-duplicated.
+  const [moods, setMoods] = useState<string[]>([]);
 
   const [activeTab, setActiveTab] = useState<Tab>("quotes");
   const [rating, setRating] = useState(book?.rating ?? 0);
@@ -111,6 +121,50 @@ export default function BookDetailScreen() {
   const [celebrationRating, setCelebrationRating] = useState(0);
   const [celebrationNote, setCelebrationNote] = useState("");
   const [savingCelebration, setSavingCelebration] = useState(false);
+
+  // Refetch on focus, not on mount. Logging a session pushes /session/[id] and
+  // returns with router.back(), which never unmounts this screen — so a
+  // mount-time effect would leave "How it felt" permanently empty.
+  const bookId = book?.id;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId || !bookId) return;
+      let cancelled = false;
+      fetchMoodLogs(userId)
+        .then((logs) => {
+          if (cancelled) return;
+          const seen: string[] = [];
+          for (const l of logs) {
+            if (l.book_id === bookId && !seen.includes(l.mood)) seen.push(l.mood);
+          }
+          setMoods(seen);
+        })
+        .catch(() => {
+          // Non-fatal — the section simply offers "+ add".
+        });
+      return () => { cancelled = true; };
+    }, [userId, bookId])
+  );
+
+  // "336 pages · nine days · August" — only the parts we actually know.
+  const facts = (() => {
+    if (!book) return "";
+    const out: string[] = [];
+    if (book.total_pages) out.push(`${book.total_pages} pages`);
+    if (book.date_started && book.date_finished) {
+      const d = Math.max(
+        1,
+        Math.round(
+          (new Date(book.date_finished).getTime() - new Date(book.date_started).getTime()) / 86400000
+        )
+      );
+      out.push(d === 1 ? "one day" : `${d} days`);
+    }
+    if (book.date_finished) {
+      out.push(new Date(book.date_finished).toLocaleString(undefined, { month: "long" }));
+    }
+    return out.join("  ·  ");
+  })();
 
   const progress =
     book && book.total_pages && book.total_pages > 0
@@ -359,200 +413,197 @@ export default function BookDetailScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
+        stickyHeaderIndices={[1]}
         keyboardShouldPersistTaps="handled"
       >
 
-        {/* ── Hero blurred background ── */}
-        <View style={[styles.bdHero, { paddingTop: insets.top + 8 }]}>
-          {/* Clip only the background layers, not the floating cover */}
-          <View style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}>
-            {book.cover_url ? (
-              <Image
-                source={{ uri: book.cover_url }}
-                style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]}
-                contentFit="cover"
-              />
-            ) : null}
-            <BlurView intensity={50} style={StyleSheet.absoluteFill} />
-            <LinearGradient
-              colors={[colors.rule, colors.cream]}
-              locations={[0, 1]}
-              style={[StyleSheet.absoluteFill, { top: "35%" }]}
-            />
-          </View>
-
-          {/* Back / Favourite / Delete buttons */}
-          <View style={styles.bdTopRow}>
-            <TouchableOpacity style={styles.bdCircleBtn} onPress={() => router.back()}>
-              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M19 12H5M12 5l-7 7 7 7"
-                  stroke={colors.espresso}
-                  strokeWidth={1.8}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+        {/* Everything above the tabs lives in one child so the sticky index
+            stays fixed even when the progress section is absent. */}
+        <View>
+          {/* ── Top row ── */}
+          <View style={[styles.bdTop, { paddingTop: insets.top + 8, paddingHorizontal: gutter }]}>
+            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path d="M19 12H5M12 5l-7 7 7 7" stroke={colors.ink} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </TouchableOpacity>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
-                style={[styles.bdCircleBtn, book.is_favorite && { backgroundColor: colors.dangerSoft }]}
-                onPress={handleToggleFavorite}
-              >
-                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+            <View style={{ flexDirection: "row", gap: 18 }}>
+              <TouchableOpacity onPress={handleToggleFavorite} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-                    fill={book.is_favorite ? colors.danger : "none"}
-                    stroke={book.is_favorite ? colors.danger : colors.espresso}
-                    strokeWidth={1.8}
+                    fill={book.is_favorite ? colors.blush : "none"}
+                    stroke={book.is_favorite ? colors.blush : colors.ink}
+                    strokeWidth={1.5}
                     strokeLinejoin="round"
                   />
                 </Svg>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.bdCircleBtn} onPress={handleDeleteBook}>
-                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
-                    stroke={colors.danger}
-                    strokeWidth={1.8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+              <TouchableOpacity onPress={handleDeleteBook} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke={colors.pencil} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Floating cover */}
-          <View style={styles.bdCoverWrap}>
-            <View style={styles.bdCoverShadow}>
-              <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.bdCoverImg} />
+          {/* ── Hero cover ── */}
+          <View style={styles.hero}>
+            <View style={styles.heroCover}>
+              <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.heroCoverImg} />
             </View>
           </View>
-        </View>
 
-        {/* ── Book info ── */}
-        <View style={styles.bdInfo}>
-          <Text style={styles.bdTitle}>{book.title}</Text>
-          {!!book.author && (
-            <Text style={styles.bdAuthor}>by {book.author}</Text>
-          )}
+          {/* ── Title block ── */}
+          <View style={[styles.ctr, { paddingHorizontal: gutter }]}>
+            <Text style={styles.bdTitle}>{book.title}</Text>
+            {!!book.author && <Text style={styles.bdAuthor}>{book.author}</Text>}
+            {!!facts && <Text style={styles.bdFacts}>{facts}</Text>}
 
-          {/* Genre + page count tags */}
-          <View style={styles.bdTags}>
-            {(book.genre ?? []).map((g) => (
-              <View key={g} style={styles.bdTag}>
-                <Text style={styles.bdTagText}>{g}</Text>
-              </View>
-            ))}
-            <TouchableOpacity style={styles.bdGenreEditChip} onPress={openGenreEditor}>
-              <Text style={styles.bdGenreEditText}>
-                {(book.genre?.length ?? 0) > 0 ? "✎ Edit" : "＋ Add genre"}
-              </Text>
-            </TouchableOpacity>
-            {!!book.total_pages && (
-              <View style={styles.bdTag}>
-                <Text style={styles.bdTagText}>{book.total_pages} pages</Text>
-              </View>
-            )}
+            {/* Genres stay — they are editable per book and the reference has
+                no equivalent, so they sit quietly under the facts line. */}
+            <View style={styles.genreRow}>
+              {(book.genre ?? []).map((g) => (
+                <View key={g} style={styles.chip}>
+                  <Text style={styles.chipText}>{g}</Text>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.chipDash} onPress={openGenreEditor} activeOpacity={0.7}>
+                <Text style={styles.chipDashText}>
+                  {(book.genre?.length ?? 0) > 0 ? "edit" : "+ genre"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Tappable status chips */}
-          <View style={styles.statusChips}>
-            {(["reading", "read", "want_to_read", "abandoned"] as BookStatus[]).map((s) => (
+          {/* ── Status, as one segmented control ── */}
+          <View style={[styles.seg, { marginHorizontal: gutter }]}>
+            {(["reading", "read", "want_to_read", "abandoned"] as BookStatus[]).map((st, i) => (
               <TouchableOpacity
-                key={s}
-                style={[styles.statusChip, book.status === s && { backgroundColor: STATUS_COLORS[s], borderColor: STATUS_COLORS[s] }]}
-                onPress={() => handleStatusChange(s)}
+                key={st}
+                style={[
+                  styles.segBtn,
+                  i > 0 && styles.segBtnDivider,
+                  book.status === st && styles.segBtnActive,
+                ]}
+                onPress={() => handleStatusChange(st)}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.statusChipText, book.status === s && styles.statusChipTextActive]}>
-                  {STATUS_LABELS[s]}
+                <Text style={[styles.segText, book.status === st && styles.segTextActive]}>
+                  {STATUS_LABELS[st]}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* Star rating */}
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <TouchableOpacity key={s} onPress={() => handleRating(s)}>
-                <Text style={[styles.star, s <= rating && styles.starFilled]}>★</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Synopsis */}
-          {!!book.synopsis && (
-            <Text style={styles.synopsis} numberOfLines={4}>{book.synopsis}</Text>
-          )}
-        </View>
-
-        {/* ── Progress section ── */}
-        <View style={styles.bdProgSection}>
-          <View style={styles.bdProgRow}>
-            <Text style={styles.bdProgLabel}>Reading progress</Text>
-            <Text style={styles.bdProgPct}>{progress}%</Text>
-          </View>
-          <View style={styles.progBg}>
-            <View style={[styles.progFill, { width: `${progress}%` }]} />
-          </View>
-          <View style={styles.bdStatsMini}>
-            {/* Editable current page */}
-            <TouchableOpacity
-              style={styles.bdStatMini}
-              onPress={() => { setPageEditing(true); setPageInput(String(book.current_page)); }}
-              activeOpacity={0.7}
-            >
-              {pageEditing ? (
-                <TextInput
-                  style={styles.pageEditInput}
-                  value={pageInput}
-                  onChangeText={setPageInput}
-                  keyboardType="number-pad"
-                  autoFocus
-                  onBlur={handlePageSave}
-                  onSubmitEditing={handlePageSave}
-                  selectTextOnFocus
-                />
-              ) : (
-                <Text style={[styles.bdStatV, { color: colors.terracotta }]}>{book.current_page}</Text>
-              )}
-              <Text style={styles.bdStatL}>Tap to edit page</Text>
-            </TouchableOpacity>
-            <View style={[styles.bdStatMini, styles.bdStatMiniMid]}>
-              <Text style={styles.bdStatV}>{book.total_pages ?? "—"}</Text>
-              <Text style={styles.bdStatL}>Total pages</Text>
+          {/* ── Rating, as marks rather than stars ── */}
+          <View style={[styles.rate, { paddingHorizontal: gutter }]}>
+            <View style={styles.rateSquares}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <TouchableOpacity key={n} onPress={() => handleRating(n)} activeOpacity={0.7}>
+                  <View style={[styles.rateSq, n <= rating && styles.rateSqOn]} />
+                </TouchableOpacity>
+              ))}
             </View>
-            <View style={styles.bdStatMini}>
-              <Text style={styles.bdStatV}>{progress}%</Text>
-              <Text style={styles.bdStatL}>Complete</Text>
-            </View>
+            <Text style={styles.xs}>
+              {rating > 0 ? RATING_WORDS[rating] : "not rated yet"}
+            </Text>
           </View>
 
-          {/* Reading-session CTAs */}
+          {/* ── Where you are — only while the book is actually being read ── */}
           {book.status === "reading" && (
-            <View style={styles.bdCtaRow}>
+            <View style={[styles.divide, { marginHorizontal: gutter }]}>
+              <View style={styles.head}>
+                <Text style={styles.h2}>Where you are</Text>
+                <Text style={styles.xs}>{progress}%</Text>
+              </View>
+              <View style={styles.prog}>
+                <View style={[styles.progFill, { width: `${progress}%` }]} />
+              </View>
               <TouchableOpacity
-                style={styles.logSessionBtn}
-                onPress={() => router.push(`/session/${book.id}`)}
+                style={styles.pageRow}
+                onPress={() => { setPageEditing(true); setPageInput(String(book.current_page)); }}
+                activeOpacity={0.7}
               >
-                <Text style={styles.logSessionBtnText}>✦ Log session</Text>
+                {pageEditing ? (
+                  <TextInput
+                    style={styles.pageEditInput}
+                    value={pageInput}
+                    onChangeText={setPageInput}
+                    keyboardType="number-pad"
+                    autoFocus
+                    onBlur={handlePageSave}
+                    onSubmitEditing={handlePageSave}
+                    selectTextOnFocus
+                  />
+                ) : (
+                  <Text style={styles.pageText}>
+                    page {book.current_page}
+                    {book.total_pages ? ` of ${book.total_pages}` : ""}
+                    <Text style={styles.pageHint}>   tap to change</Text>
+                  </Text>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.finishBtn} onPress={handleMarkFinished}>
-                <Text style={styles.finishBtnText}>✓ Mark Finished</Text>
+
+              <View style={styles.ctaRow}>
+                <TouchableOpacity
+                  style={styles.ctaPrimary}
+                  onPress={() => router.push(`/session/${book.id}`)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.ctaPrimaryText}>Log a session</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ctaGhost} onPress={handleMarkFinished} activeOpacity={0.8}>
+                  <Text style={styles.ctaGhostText}>Mark finished</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ── How it felt ── */}
+          <View style={[styles.divide, { marginHorizontal: gutter }]}>
+            <Text style={[styles.h2, { marginBottom: 11 }]}>How it felt</Text>
+            <View style={styles.chipsRow}>
+              {moods.map((m, i) => {
+                const label = moodConfig[m]?.label ?? m.replace(/_/g, " ");
+                return (
+                  <View key={m} style={[styles.chip, i === 0 && styles.chipLead]}>
+                    <Text style={[styles.chipText, i === 0 && styles.chipLeadText]}>
+                      {label.toLowerCase()}
+                    </Text>
+                  </View>
+                );
+              })}
+              {/* Moods are logged as part of a reading session, so this goes there. */}
+              <TouchableOpacity
+                style={styles.chipDash}
+                onPress={() => router.push(`/session/${book.id}`)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.chipDashText}>+ add</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {!!book.synopsis && (
+            <View style={[styles.divide, { marginHorizontal: gutter }]}>
+              <Text style={styles.synopsis} numberOfLines={6}>{book.synopsis}</Text>
             </View>
           )}
         </View>
 
-        {/* ── Tabs header (sticky) ── */}
-        <View style={styles.tabRow}>
+        {/* ── Tabs (sticky) ──
+            The sticky wrapper takes this outer View's style and hands the child
+            `flex: 1`, which wipes out any flexDirection set on it. So the row
+            lives one level deeper, where React Native leaves it alone. */}
+        <View style={styles.tabSticky}>
+        <View style={[styles.tabRow, { marginHorizontal: gutter }]}>
           {(["quotes", "notes", "photos"] as Tab[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
               onPress={() => setActiveTab(tab)}
+              activeOpacity={0.7}
             >
               <Text style={[styles.tabItemText, activeTab === tab && styles.tabItemTextActive]}>
                 {tab === "quotes" ? "Quotes" : tab === "notes" ? "Notes" : "Photos"}
@@ -560,8 +611,10 @@ export default function BookDetailScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        </View>
 
         {/* ── Tab content ── */}
+        <View style={{ paddingHorizontal: gutter }}>
         {loadingData ? (
           <View style={{ padding: 32, alignItems: "center" }}>
             <ActivityIndicator color={colors.terracotta} />
@@ -573,6 +626,7 @@ export default function BookDetailScreen() {
         ) : (
           <PhotosTab photos={bookPhotos} onAdd={() => setShowSourcePicker(true)} onView={setViewingPhoto} isUploading={isSavingPhoto} />
         )}
+        </View>
 
         <View style={{ height: insets.bottom + 20 }} />
       </ScrollView>
@@ -1150,47 +1204,77 @@ function PhotosTab({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // ── Paper & Ink book screen ──
+  bdTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 6 },
+
+  hero: { alignItems: "center", paddingTop: 14, paddingBottom: 20 },
+  heroCover: {
+    width: 122, aspectRatio: 2 / 3, borderRadius: 3,
+    shadowColor: colors.ink, shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 14 }, shadowRadius: 26, elevation: 9,
+  },
+  heroCoverImg: { width: "100%", height: "100%", borderRadius: 3 },
+
+  ctr: { alignItems: "center" },
+  bdTitle: {
+    fontFamily: fonts.display, fontSize: 23, lineHeight: 27,
+    letterSpacing: -0.3, color: colors.ink, textAlign: "center",
+  },
+  bdAuthor: { fontFamily: fonts.body, fontSize: 13, color: colors.pencil, marginTop: 6, textAlign: "center" },
+  bdFacts: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil2, marginTop: 3, textAlign: "center" },
+  genreRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 5, marginTop: 12 },
+
+  // One control, four segments — reads as a single decision rather than four chips.
+  seg: {
+    flexDirection: "row", borderWidth: 1.2, borderColor: colors.ink,
+    borderRadius: 2, overflow: "hidden", marginTop: 18, marginBottom: 16,
+  },
+  segBtn: { flex: 1, paddingVertical: 9, alignItems: "center", backgroundColor: "transparent" },
+  segBtnDivider: { borderLeftWidth: 1, borderLeftColor: colors.rule },
+  segBtnActive: { backgroundColor: colors.ink },
+  segText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: colors.ink },
+  segTextActive: { color: colors.paper },
+
+  rate: { flexDirection: "row", alignItems: "center", gap: 9 },
+  rateSquares: { flexDirection: "row", gap: 4 },
+  rateSq: { width: 16, height: 16, borderRadius: 1, backgroundColor: colors.rule },
+  rateSqOn: { backgroundColor: colors.mark },
+
+  divide: { borderTopWidth: 1, borderTopColor: colors.rule, marginTop: 19, paddingTop: 18 },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 },
+  h2: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
+  xs: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil },
+
+  prog: { height: 2, backgroundColor: colors.rule },
+  pageRow: { paddingTop: 10 },
+  pageText: { fontFamily: fonts.body, fontSize: 12.5, color: colors.ink },
+  pageHint: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil2 },
+
+  ctaRow: { flexDirection: "row", gap: 9, marginTop: 16 },
+  ctaPrimary: { flex: 1, backgroundColor: colors.ink, borderRadius: 2, paddingVertical: 12, alignItems: "center" },
+  ctaPrimaryText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.paper },
+  ctaGhost: {
+    flex: 1, borderRadius: 2, paddingVertical: 12, alignItems: "center",
+    borderWidth: 1, borderColor: colors.ruleStrong,
+  },
+  ctaGhostText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.ink },
+
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  chip: { backgroundColor: colors.rule, borderRadius: 2, paddingHorizontal: 9, paddingVertical: 4 },
+  chipText: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: colors.pencil },
+  chipLead: { backgroundColor: colors.mark },
+  chipLeadText: { color: colors.markInk },
+  chipDash: {
+    borderWidth: 1, borderStyle: "dashed", borderColor: colors.ruleStrong,
+    borderRadius: 2, paddingHorizontal: 9, paddingVertical: 4,
+  },
+  chipDashText: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil2 },
+
   // Hero
-  bdHero: { height: 234 },
-  bdTopRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingTop: 8,
-  },
-  bdCircleBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.card,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
-    elevation: 2,
-  },
-  bdCoverWrap: { position: "absolute", bottom: -30, left: 0, right: 0, alignItems: "center" },
-  bdCoverShadow: {
-    borderRadius: 10, overflow: "hidden",
-    shadowColor: "#2c1f14", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 10 }, shadowRadius: 24,
-    elevation: 10,
-  },
-  bdCoverImg: { width: 110, height: 160, borderRadius: 10 },
 
   // Info
-  bdInfo: { paddingTop: 44, paddingHorizontal: 20, alignItems: "center", paddingBottom: 16 },
-  bdTitle: {
-    fontFamily: fonts.display, fontSize: 22,
-    color: colors.espresso, textAlign: "center", marginBottom: 4,
-  },
-  bdAuthor: { fontSize: 13, color: colors.char3, marginBottom: 12 },
-  bdTags: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 },
-  bdTag: {
-    paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.cream3, backgroundColor: colors.cream2,
-  },
-  bdTagText: { fontSize: 11, color: colors.espresso2, fontWeight: "500" },
 
   // Genre edit affordance + editor sheet
-  bdGenreEditChip: {
-    paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.terracotta, borderStyle: "dashed",
-  },
-  bdGenreEditText: { fontSize: 11, color: colors.terracotta, fontWeight: "600" },
   genreSheet: {
     backgroundColor: colors.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingTop: 12, paddingHorizontal: 20, gap: 12,
@@ -1236,123 +1320,85 @@ const styles = StyleSheet.create({
   genreSaveText: { color: colors.cream, fontSize: 14, fontWeight: "600" },
 
   // Status chips
-  statusChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 },
-  statusChip: {
-    paddingVertical: 5, paddingHorizontal: 14, borderRadius: 20,
-    borderWidth: 1.5, borderColor: colors.cream3, backgroundColor: colors.cream2,
-  },
-  statusChipText: { fontSize: 11, color: colors.char3, fontWeight: "500" },
-  statusChipTextActive: { color: "#fff", fontWeight: "700" },
 
   // Page edit
   pageEditInput: {
-    fontSize: 13, fontWeight: "600", color: colors.terracotta,
-    borderBottomWidth: 1.5, borderBottomColor: colors.terracotta,
-    paddingVertical: 0, minWidth: 36, textAlign: "center",
+    fontFamily: fonts.body, fontSize: 13, color: colors.ink,
+    borderBottomWidth: 1.5, borderBottomColor: colors.ink,
+    paddingVertical: 0, minWidth: 50,
   },
 
   // Reading-session CTAs — side by side
-  bdCtaRow: { flexDirection: "row", gap: 10, marginTop: 14 },
-  logSessionBtn: {
-    flex: 1, backgroundColor: colors.terracotta,
-    borderRadius: 20, paddingVertical: 11, alignItems: "center",
-  },
-  logSessionBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
   // Mark as Finished
-  finishBtn: {
-    flex: 1, backgroundColor: colors.sage,
-    borderRadius: 20, paddingVertical: 11, alignItems: "center",
-  },
-  finishBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
-  starsRow: { flexDirection: "row", gap: 3, marginBottom: 12 },
-  star: { fontSize: 18, color: colors.cream3 },
-  starFilled: { color: colors.terracotta },
-  synopsis: { fontSize: 12, color: colors.char3, lineHeight: 18, textAlign: "center" },
+  synopsis: { fontFamily: fonts.reading, fontSize: 13.5, color: colors.pencil, lineHeight: 21 },
 
   // Progress
-  bdProgSection: {
-    marginHorizontal: 20, marginBottom: 8,
-    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 14, padding: 14,
-  },
-  bdProgRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  bdProgLabel: { fontSize: 12, fontWeight: "500", color: colors.espresso },
-  bdProgPct: { fontSize: 12, color: colors.terracotta, fontWeight: "600" },
-  progBg: { height: 4, backgroundColor: colors.cream3, borderRadius: 4 },
-  progFill: { height: 4, backgroundColor: colors.terracotta, borderRadius: 4 },
-  bdStatsMini: {
-    flexDirection: "row", marginTop: 12,
-    borderRadius: 8, overflow: "hidden",
-    borderWidth: 1, borderColor: colors.cream3,
-  },
-  bdStatMini: { flex: 1, backgroundColor: colors.parchment, padding: 8, alignItems: "center" },
-  bdStatMiniMid: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.cream3 },
-  bdStatV: { fontSize: 13, fontWeight: "600", color: colors.espresso },
-  bdStatL: { fontSize: 9, color: colors.char3, marginTop: 1 },
+  progFill: { height: 2, backgroundColor: colors.ink },
 
   // Tabs
+  // Text tabs, left-aligned and only as wide as their labels — the same
+  // vocabulary as the Library filters, not full-width segments.
+  // Outer: whatever lands on the sticky wrapper. Needs an opaque background so
+  // content does not show through once it pins to the top.
+  tabSticky: { backgroundColor: colors.paper, marginTop: 19 },
   tabRow: {
-    flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.cream3,
-    backgroundColor: colors.cream, paddingHorizontal: 20,
+    flexDirection: "row", gap: 19,
+    borderBottomWidth: 1, borderBottomColor: colors.rule,
   },
   tabItem: {
-    flex: 1, paddingVertical: 11,
+    paddingBottom: 9,
     borderBottomWidth: 2, borderBottomColor: "transparent",
-    alignItems: "center",
   },
-  tabItemActive: { borderBottomColor: colors.terracotta },
-  tabItemText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
-  tabItemTextActive: { color: colors.terracotta },
+  tabItemActive: { borderBottomColor: colors.ink },
+  tabItemText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.pencil },
+  tabItemTextActive: { color: colors.ink },
 
   // Tab content
-  tabContent: { paddingHorizontal: 20, paddingTop: 14 },
-  emptyTabText: { fontSize: 13, color: colors.char3, textAlign: "center", paddingVertical: 24, lineHeight: 20 },
+  tabContent: { paddingTop: 16 },
+  emptyTabText: {
+    fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil,
+    textAlign: "center", paddingVertical: 22, lineHeight: 19,
+  },
 
   // Quotes
   quoteCard: {
-    borderLeftWidth: 3, borderLeftColor: colors.terracotta,
-    borderTopWidth: 1, borderTopColor: colors.cream3,
-    borderRightWidth: 1, borderRightColor: colors.cream3,
-    borderBottomWidth: 1, borderBottomColor: colors.cream3,
-    borderTopRightRadius: 10, borderBottomRightRadius: 10,
-    backgroundColor: colors.parchment, padding: 12, paddingTop: 10, marginBottom: 12,
+    paddingTop: 4, paddingBottom: 18, marginBottom: 18,
+    borderBottomWidth: 1, borderBottomColor: colors.rule,
   },
   quoteCardActions: {
     flexDirection: "row", justifyContent: "flex-end", gap: 14, marginBottom: 6,
   },
   quoteText: {
-    fontFamily: fonts.readingItalic,
-    fontSize: 13, color: colors.espresso, lineHeight: 20, marginBottom: 6,
+    fontFamily: fonts.reading,
+    fontSize: 14.5, color: colors.ink, lineHeight: 24, marginBottom: 8,
   },
-  quotePage: { fontSize: 11, color: colors.char3 },
+  quotePage: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
 
   // Notes
   noteCard: {
-    backgroundColor: colors.parchment, borderRadius: 12,
-    padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: colors.cream3,
+    paddingTop: 4, paddingBottom: 16, marginBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: colors.rule,
   },
-  noteCardText: { fontSize: 13, color: colors.espresso, lineHeight: 19 },
-  noteCardDate: { fontSize: 10, color: colors.char3, marginTop: 6 },
+  noteCardText: { fontFamily: fonts.reading, fontSize: 14, color: colors.ink, lineHeight: 22 },
+  noteCardDate: { fontFamily: fonts.body, fontSize: 10.5, color: colors.pencil, marginTop: 7 },
 
   // Delete button
   deleteBtn: {
-    position: "absolute", top: 8, right: 8,
+    position: "absolute", top: 2, right: 0,
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: colors.cream2,
     alignItems: "center", justifyContent: "center",
     zIndex: 1,
   },
-  deleteBtnText: { fontSize: 10, color: colors.char3 },
+  deleteBtnText: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil2 },
 
   // Add form
   addDashedBtn: {
-    borderWidth: 1.5, borderColor: colors.cream3, borderStyle: "dashed",
-    borderRadius: 10, padding: 12, alignItems: "center", marginBottom: 12,
+    borderWidth: 1, borderColor: colors.ruleStrong, borderStyle: "dashed",
+    borderRadius: 2, paddingVertical: 11, alignItems: "center", marginBottom: 12,
   },
-  addDashedText: { fontSize: 13, color: colors.char3 },
+  addDashedText: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil2 },
   addCard: {
     backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
     borderRadius: 12, padding: 14, marginBottom: 12,
