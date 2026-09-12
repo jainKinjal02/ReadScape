@@ -915,6 +915,39 @@ function Confetti() {
 
 // ── Quotes Tab ────────────────────────────────────────────────────────────────
 
+// We do not store highlight ranges, so the marked run is derived from the
+// text: roughly the middle half, snapped outward to word boundaries so the
+// highlighter never slices through a word.
+function markRange(text: string): [number, number] {
+  if (text.length < 40) return [0, text.length];
+  const from = text.indexOf(" ", Math.floor(text.length * 0.18));
+  const to = text.indexOf(" ", Math.floor(text.length * 0.68));
+  return [from === -1 ? 0 : from + 1, to === -1 ? text.length : to];
+}
+
+// The stored text often already carries its own quote marks — pasted from a
+// book, or typed with them. Strip whatever is there and add one consistent
+// pair, or you get the ""doubled"" marks.
+function stripQuoteMarks(text: string): string {
+  return text.trim().replace(/^["\u201C\u201D']+/, "").replace(/["\u201C\u201D']+$/, "").trim();
+}
+
+function QuoteBody({ text, index }: { text: string; index: number }) {
+  const clean = stripQuoteMarks(text);
+  const [from, to] = markRange(clean);
+  // Alternate the highlighter down the list, as in the design.
+  const markStyle = index % 2 === 0 ? styles.quoteMark : styles.quoteMarkAlt;
+  return (
+    <Text style={styles.quoteText}>
+      {"\u201C "}
+      {clean.slice(0, from)}
+      <Text style={markStyle}>{clean.slice(from, to)}</Text>
+      {clean.slice(to)}
+      {" \u201D"}
+    </Text>
+  );
+}
+
 function QuotesTab({
   quotes,
   onAdd,
@@ -973,7 +1006,7 @@ function QuotesTab({
       {quotes.length === 0 && !showAdd && (
         <Text style={styles.emptyTabText}>No quotes yet. Tap below to save a passage.</Text>
       )}
-      {quotes.map((q) => (
+      {quotes.map((q, i) => (
         <View key={q.id} style={styles.quoteCard}>
           <View style={styles.quoteCardActions}>
             <TouchableOpacity onPress={() => setSharingQuote(q)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -985,7 +1018,7 @@ function QuotesTab({
               <Text style={styles.deleteBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.quoteText}>"{q.text}"</Text>
+          <QuoteBody text={q.text} index={i} />
           {!!q.page && <Text style={styles.quotePage}>Page {q.page}</Text>}
         </View>
       ))}
@@ -1342,7 +1375,7 @@ const styles = StyleSheet.create({
   // vocabulary as the Library filters, not full-width segments.
   // Outer: whatever lands on the sticky wrapper. Needs an opaque background so
   // content does not show through once it pins to the top.
-  tabSticky: { backgroundColor: colors.paper, marginTop: 19 },
+  tabSticky: { backgroundColor: colors.paper, marginTop: 30 },
   tabRow: {
     flexDirection: "row", gap: 19,
     borderBottomWidth: 1, borderBottomColor: colors.rule,
@@ -1374,6 +1407,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.reading,
     fontSize: 14.5, color: colors.ink, lineHeight: 24, marginBottom: 8,
   },
+  // A nested Text background highlights per line and follows the wrap, which
+  // is what a real highlighter does — a single block behind the paragraph
+  // would not.
+  quoteMark: { backgroundColor: colors.mark, color: colors.ink },
+  quoteMarkAlt: { backgroundColor: colors.blush, color: colors.ink },
   quotePage: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
 
   // Notes
