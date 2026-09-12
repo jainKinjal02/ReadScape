@@ -1,6 +1,7 @@
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useRef, useEffect, useState } from "react";
 import {
+  useWindowDimensions,
   View,
   Text,
   ScrollView,
@@ -20,10 +21,11 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { colors, fonts } from "../../src/design/tokens";
+import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
+import { fetchMoodLogs } from "../../src/lib/books";
 import { useReadingStreak } from "../../src/hooks/useReadingStreak";
 import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
@@ -36,13 +38,6 @@ const CUR_CARD_W = SW * 0.82;
 // Atmospheric header background images
 
 
-function FireIcon() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill={colors.terracotta}>
-      <Path d="M12 2C8 7 4 9 4 14a8 8 0 0016 0c0-5-4-7-8-12z" />
-    </Svg>
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -55,6 +50,29 @@ export default function HomeScreen() {
   const setUserName = useAppStore((s) => s.setUserName);
   const setReadingGoal = useAppStore((s) => s.setReadingGoal);
   const setUserBio = useAppStore((s) => s.setUserBio);
+  const { width: winW } = useWindowDimensions();
+  // Reference gutter is 23px on a 352px frame (~6.5%). Scale it, then clamp so
+  // it never crowds a small phone or drifts wide on a tablet or browser.
+  const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
+
+  // Goal marks are sized to the width rather than fixed at the reference's 4px.
+  // At a fixed width a 50-book goal orphans one or two marks onto a second row
+  // on a 375pt phone, which reads as a mistake. Splitting into equal rows and
+  // sizing to fit keeps every row deliberate at any width.
+  const TICK_GAP = 2.6;
+  const tickRowW = winW - gutter * 2;
+  const tickRows = Math.max(
+    1,
+    Math.ceil(readingGoal / Math.max(1, Math.floor((tickRowW + TICK_GAP) / (4 + TICK_GAP))))
+  );
+  const ticksPerRow = Math.ceil(readingGoal / tickRows);
+  const tickW = Math.min(
+    10,
+    // the 0.02 shaves a hair off so floating-point rounding cannot force a wrap
+    Math.max(4, (tickRowW - TICK_GAP * (ticksPerRow - 1)) / ticksPerRow - 0.02)
+  );
+
+  const userId = useAppStore((s) => s.userId);
   const { books } = useBooks();
   useReadingStreak(); // keeps `streak` derived from real reading activity
 
@@ -150,180 +168,255 @@ export default function HomeScreen() {
   };
 
 
+  // Latest logged mood per book. The reference puts this on the home card on
+  // purpose: every tracker shows status and stars, this is the only one that
+  // can show how a book *felt*.
+  const [latestMoods, setLatestMoods] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchMoodLogs(userId)
+      .then((logs) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        // Newest first, so the first entry seen for a book is its latest mood.
+        for (const l of logs) if (!map[l.book_id]) map[l.book_id] = l.mood;
+        setLatestMoods(map);
+      })
+      .catch(() => {
+        // Non-fatal: the card simply renders without a mood chip.
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const current = readingBooks[0] ?? null;
+
+  // Most recently finished first. Undated finishes sort last rather than
+  // being dropped — older rows predate the date_finished column.
+  const recentlyFinished = books
+    .filter((b) => b.status === "read")
+    .sort((a, b) => {
+      const ta = a.date_finished ? new Date(a.date_finished).getTime() : 0;
+      const tb = b.date_finished ? new Date(b.date_finished).getTime() : 0;
+      return tb - ta;
+    })
+    .slice(0, 10);
+  const lovedCount = books.filter((b) => b.is_favorite).length;
+  const waitingCount = books.filter((b) => b.status === "want_to_read").length;
+
+  const currentPct =
+    current?.total_pages && current.total_pages > 0
+      ? Math.min(100, Math.round((current.current_page / current.total_pages) * 100))
+      : 0;
+
+  const currentMeta = (() => {
+    if (!current) return "";
+    const parts: string[] = [];
+    if (current.current_page > 0) parts.push(`page ${current.current_page}`);
+    if (current.date_started) {
+      const days = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(current.date_started).getTime()) / 86400000)
+      );
+      parts.push(days === 0 ? "started today" : days === 1 ? "one day in" : `${days} days in`);
+    }
+    return parts.join(", ");
+  })();
+
+  const currentMood = current ? moodConfig[latestMoods[current.id]]?.label : undefined;
+
   const greeting = getGreeting();
 
   return (
     <View style={styles.root}>
-
-      {/* ── Atmospheric header — fixed, outside ScrollView ── */}
-      <View style={styles.heroHeader}>
-        <View style={styles.heroContent}>
-          <View style={styles.topRow}>
-            <View>
-              <Text style={styles.greeting}>{greeting},</Text>
-              <Text style={styles.name}>{userName || "Reader"}</Text>
-            </View>
-            {/* Avatar — opens profile panel */}
-            <TouchableOpacity style={styles.avatar} onPress={openPanel} activeOpacity={0.75}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.streakPill}>
-            <FireIcon />
-            <Text style={styles.streakText}>{streak} day reading streak</Text>
-          </View>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: gutter,
+            paddingTop: insets.top + 10,
+            paddingBottom: 28 + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Currently Reading ── */}
-        {readingBooks.length === 1 ? (
-          <CurrentlyReadingCard
-            book={readingBooks[0]}
-            onPress={() => router.push(`/book/${readingBooks[0].id}`)}
-          />
-        ) : readingBooks.length > 1 ? (
-          <>
-            <View style={styles.curSectionHdr}>
-              <Text style={styles.secTitle}>Currently reading</Text>
-              <Text style={styles.curSectionCount}>{readingBooks.length} books</Text>
+        {/* ── Masthead ── */}
+        <View style={styles.topRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{greeting},</Text>
+            <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
+          </View>
+          {/* The reference has no avatar, but profile and sign-out have to live
+              somewhere, so it borrows the outlined circle from its own "+" button. */}
+          <TouchableOpacity style={styles.avatar} onPress={openPanel} activeOpacity={0.7}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Now reading ── */}
+        <View style={styles.ruleStrong} />
+        {current ? (
+          <TouchableOpacity
+            style={styles.now}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/book/${current.id}`)}
+          >
+            <View style={styles.nowCover}>
+              <CoverImage uri={current.cover_url ?? ""} title={current.title} style={styles.nowCoverImg} />
             </View>
-            <FlatList
-              data={readingBooks}
-              horizontal
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.curShelfRow}
-              snapToInterval={CUR_CARD_W + 12}
-              decelerationRate="fast"
-              renderItem={({ item }) => (
-                <CurrentlyReadingCard
-                  book={item}
-                  horizontal
-                  onPress={() => router.push(`/book/${item.id}`)}
-                />
+            <View style={styles.nowBody}>
+              <Text style={styles.nowTitle} numberOfLines={2}>{current.title}</Text>
+              {!!current.author && (
+                <Text style={styles.nowAuthor} numberOfLines={1}>{current.author}</Text>
               )}
-            />
-          </>
+              <View style={styles.prog}>
+                <View style={[styles.progFill, { width: `${currentPct}%` }]} />
+              </View>
+              {!!currentMeta && <Text style={styles.nowMeta}>{currentMeta}</Text>}
+              {!!currentMood && (
+                <View style={styles.chipsRow}>
+                  <View style={styles.chipMark}>
+                    <Text style={styles.chipMarkText}>{currentMood.toLowerCase()}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.curCardEmpty}
+            style={styles.nowEmpty}
+            activeOpacity={0.85}
             onPress={() => router.push("/(tabs)/library")}
-            activeOpacity={0.88}
           >
-            <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" style={{ marginBottom: 10 }}>
-              <Path d="M12 4H5a1 1 0 00-1 1v13a1 1 0 001 1h7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.3} strokeLinejoin="round" />
-              <Path d="M12 4h7a1 1 0 011 1v13a1 1 0 01-1 1h-7V4z" fill={colors.cream3} stroke={colors.terracotta} strokeWidth={1.3} strokeLinejoin="round" />
-              <Path d="M12 4v15" stroke={colors.terracotta} strokeWidth={1.3} />
-              <Path d="M6 8h4M6 11h4M6 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
-              <Path d="M14 8h4M14 11h4M14 14h3" stroke={colors.char3} strokeWidth={1} strokeLinecap="round" />
-            </Svg>
-            <Text style={styles.emptyReadTitle}>What are you reading?</Text>
-            <Text style={styles.emptyReadSub}>Add a book to your library and mark it as Reading to track your progress here.</Text>
-            <View style={styles.emptyReadBtn}>
-              <Text style={styles.emptyReadBtnText}>Browse library →</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Stats row ── */}
-        <View style={styles.statsRow}>
-          <View style={styles.statC}>
-            <Text style={styles.statV}>{readCount}</Text>
-            <Text style={styles.statL}>Books read</Text>
-          </View>
-          <View style={styles.statC}>
-            <Text style={styles.statV}>{books.length}</Text>
-            <Text style={styles.statL}>In library</Text>
-          </View>
-          <View style={styles.statC}>
-            <Text style={styles.statV}>{wantToRead.length}</Text>
-            <Text style={styles.statL}>Want to read</Text>
-          </View>
-        </View>
-
-        {/* ── Reading Goal ── */}
-        {readingGoal > 0 ? (
-          <View style={styles.goalCard}>
-            <View style={styles.goalHeader}>
-              <View>
-                <Text style={styles.goalLabel}>{currentYear} Reading Goal</Text>
-                <Text style={styles.goalTitle}>
-                  {goalPct === 100 ? "Goal complete!" : `${readingGoal - booksReadThisYear} book${readingGoal - booksReadThisYear === 1 ? "" : "s"} to go`}
-                </Text>
-              </View>
-              <View style={styles.goalCount}>
-                <Text style={styles.goalCountBig}>{booksReadThisYear}</Text>
-                <Text style={styles.goalCountOf}>of {readingGoal} books</Text>
-              </View>
-            </View>
-            <View style={styles.goalBarBg}>
-              <View style={[styles.goalBarFill, { width: `${goalPct}%` }]} />
-            </View>
-            <Text style={styles.goalPct}>
-              {goalPct === 100 ? "Amazing work this year 🎉" : `${goalPct}% complete`}
+            <Text style={styles.nowEmptyTitle}>Nothing on the go</Text>
+            <Text style={styles.nowEmptySub}>
+              Mark a book as reading and it will sit here, with where you are in it.
             </Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.goalCardEmpty} onPress={openEditProfile} activeOpacity={0.8}>
-            <Text style={styles.goalEmptyIcon}>🎯</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.goalEmptyTitle}>Set a reading goal</Text>
-              <Text style={styles.goalEmptySub}>How many books do you want to read in {currentYear}?</Text>
-            </View>
-            <Text style={styles.goalEmptyChevron}>›</Text>
           </TouchableOpacity>
         )}
 
-        {/* ── Want to Read ── */}
-        <View style={styles.secHdrRow}>
-          <Text style={styles.secTitle}>Want to read</Text>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/library")}>
-            <Text style={styles.secAll}>See all</Text>
-          </TouchableOpacity>
+        {/* ── The numbers ── */}
+        <View style={styles.divide}>
+          <View style={styles.nums}>
+            <View style={styles.numCell}>
+              <Text style={styles.numV}>{readCount}</Text>
+              <Text style={styles.numL}>read</Text>
+            </View>
+            <View style={styles.numCell}>
+              <Text style={styles.numV}>{lovedCount}</Text>
+              <Text style={styles.numL}>loved</Text>
+            </View>
+            <View style={styles.numCell}>
+              <Text style={styles.numV}>{waitingCount}</Text>
+              <Text style={styles.numL}>waiting</Text>
+            </View>
+            {streak > 0 && (
+              <View style={styles.numCell}>
+                <Text style={styles.numV}>{streak}</Text>
+                <Text style={styles.numL}>day streak</Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        <FlatList
-          data={[...wantToRead, { id: "__add__" } as Book]}
-          horizontal
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.shelfRow}
-          ListEmptyComponent={
-            <TouchableOpacity style={styles.addCard} onPress={() => router.push("/(tabs)/library")}>
-              <Text style={styles.addPlus}>+</Text>
+        {/* ── The year, as marks you can count ── */}
+        <View style={styles.divide}>
+          {readingGoal > 0 ? (
+            <>
+              <View style={styles.head}>
+                <Text style={styles.h2}>{goalHeading(readingGoal)}</Text>
+                <Text style={styles.xs}>{booksReadThisYear} done</Text>
+              </View>
+              {/* One mark per book. A bar says "62%"; this says "you can see
+                  exactly how many are left", which is the point. */}
+              <View style={styles.ticks}>
+                {Array.from({ length: readingGoal }, (_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.tick,
+                      { width: tickW },
+                      i < booksReadThisYear && styles.tickOn,
+                      i === booksReadThisYear && styles.tickCur,
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.head} onPress={openEditProfile} activeOpacity={0.7}>
+              <Text style={styles.h2}>Set a goal for {currentYear}</Text>
+              <Text style={styles.xs}>add →</Text>
             </TouchableOpacity>
-          }
-          renderItem={({ item }) => {
-            if (item.id === "__add__") {
-              return (
-                <TouchableOpacity
-                  style={styles.addCard}
-                  onPress={() => router.push("/(tabs)/library")}
-                >
-                  <Text style={styles.addPlus}>+</Text>
-                </TouchableOpacity>
-              );
-            }
-            return (
-              <TouchableOpacity
-                style={styles.shelfItem}
-                onPress={() => router.push(`/book/${item.id}`)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.shelfCover}>
-                  <CoverImage uri={item.cover_url ?? ""} title={item.title} style={styles.shelfCoverImg} />
-                </View>
-                <Text style={styles.shelfTitle} numberOfLines={2}>{item.title}</Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
+          )}
+        </View>
 
+        {/* ── Waiting for you ── */}
+        <View style={styles.divide}>
+          <View style={styles.head}>
+            <Text style={styles.h2}>Waiting for you</Text>
+            {wantToRead.length > 0 && (
+              <TouchableOpacity onPress={() => router.push("/(tabs)/library")}>
+                <Text style={styles.xs}>see all</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {wantToRead.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -gutter }}
+              contentContainerStyle={[styles.strip, { paddingHorizontal: gutter }]}
+            >
+              {wantToRead.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={styles.stripItem}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(`/book/${b.id}`)}
+                >
+                  <CoverImage uri={b.cover_url ?? ""} title={b.title} style={styles.stripCover} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <TouchableOpacity
+              style={styles.stripEmpty}
+              activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/library")}
+            >
+              <Text style={styles.stripEmptyText}>+  add a book you mean to read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Recently finished ── */}
+        {recentlyFinished.length > 0 && (
+          <View style={styles.divide}>
+            <View style={styles.head}>
+              <Text style={styles.h2}>Behind you</Text>
+              <Text style={styles.xs}>{readCount} finished</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -gutter }}
+              contentContainerStyle={[styles.strip, { paddingHorizontal: gutter }]}
+            >
+              {recentlyFinished.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={styles.stripItem}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(`/book/${b.id}`)}
+                >
+                  <CoverImage uri={b.cover_url ?? ""} title={b.title} style={styles.stripCover} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Profile slide-in panel ── */}
@@ -549,43 +642,6 @@ export default function HomeScreen() {
   );
 }
 
-function CurrentlyReadingCard({
-  book,
-  onPress,
-  horizontal,
-}: {
-  book: Book;
-  onPress: () => void;
-  horizontal?: boolean;
-}) {
-  const progress =
-    book.total_pages && book.total_pages > 0
-      ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100))
-      : 0;
-  return (
-    <TouchableOpacity
-      style={[styles.curCard, horizontal && styles.curCardH]}
-      onPress={onPress}
-      activeOpacity={0.88}
-    >
-      <View style={styles.curCoverWrap}>
-        <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.curCoverImg} />
-      </View>
-      <View style={styles.curInfo}>
-        <Text style={styles.curLabel}>Continue reading</Text>
-        <Text style={styles.curTitle} numberOfLines={2}>{book.title}</Text>
-        <Text style={styles.curAuthor}>{book.author ?? ""}</Text>
-        <View style={styles.progBg}>
-          <View style={[styles.progFill, { width: `${progress}%` }]} />
-        </View>
-        <Text style={styles.progLbl}>
-          Page {book.current_page} of {book.total_pages ?? "?"} · {progress}%
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 function PanelRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.panelRow} onPress={onPress} activeOpacity={0.7}>
@@ -605,170 +661,118 @@ function getGreeting() {
   return "Good evening";
 }
 
+// "Fifty this year" reads like a sentence; "50 this year" reads like a form
+// field. Words up to 100, numerals beyond — nobody sets a goal of 137.
+const ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten",
+  "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+
+function numberToWords(n: number): string {
+  if (n < 20) return ONES[n];
+  if (n === 100) return "a hundred";
+  if (n > 100) return String(n);
+  const t = TENS[Math.floor(n / 10)];
+  const o = n % 10;
+  return o === 0 ? t : `${t}-${ONES[o]}`;
+}
+
+function goalHeading(goal: number): string {
+  const w = numberToWords(goal);
+  return `${w.charAt(0).toUpperCase()}${w.slice(1)} this year`;
+}
+
+const TICK_GAP_STYLE = 2.6;
+
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: colors.paper },
+
+  // ── Paper & Ink home ──
+  topRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 18 },
+  greeting: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil },
+  name: {
+    fontFamily: fonts.display,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    color: colors.ink,
+    marginTop: 2,
+  },
+  avatar: {
+    width: 34, height: 34, borderRadius: 17,
+    borderWidth: 1.3, borderColor: colors.ink,
+    alignItems: "center", justifyContent: "center",
+    marginTop: 6,
+  },
+  avatarText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.ink },
+
+  // A heavier rule than the hairlines below it — this is the masthead break.
+  ruleStrong: { borderTopWidth: 1.5, borderTopColor: colors.ink },
+  divide: { borderTopWidth: 1, borderTopColor: colors.rule, marginTop: 19, paddingTop: 18 },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 },
+  h2: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
+  xs: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
+
+  now: { flexDirection: "row", gap: 15, paddingTop: 17 },
+  nowCover: {
+    width: 70, aspectRatio: 2 / 3, borderRadius: 3, overflow: "hidden",
+    shadowColor: colors.ink, shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 6 }, shadowRadius: 12, elevation: 4,
+  },
+  nowCoverImg: { width: "100%", height: "100%" },
+  nowBody: { flex: 1, minWidth: 0 },
+  nowTitle: { fontFamily: fonts.display, fontSize: 15.5, lineHeight: 19, color: colors.ink },
+  nowAuthor: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil, marginTop: 3 },
+  prog: { height: 2, backgroundColor: colors.rule, marginTop: 12 },
+  progFill: { height: 2, backgroundColor: colors.ink },
+  nowMeta: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil, marginTop: 7 },
+
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 9 },
+  chipMark: { backgroundColor: colors.mark, borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3.5 },
+  chipMarkText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: colors.markInk },
+
+  nowEmpty: { paddingTop: 20, paddingBottom: 4 },
+  nowEmptyTitle: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
+  nowEmptySub: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil, marginTop: 5, lineHeight: 17 },
+
+  // Wraps rather than overflowing once the streak makes it four cells.
+  nums: { flexDirection: "row", flexWrap: "wrap", columnGap: 24, rowGap: 14 },
+  numCell: {},
+  numV: { fontFamily: fonts.display, fontSize: 26, lineHeight: 28, color: colors.ink },
+  numL: { fontFamily: fonts.body, fontSize: 10.5, color: colors.pencil, marginTop: 3 },
+
+  ticks: { flexDirection: "row", flexWrap: "wrap", gap: TICK_GAP_STYLE },
+  tick: { height: 18, borderRadius: 1, backgroundColor: colors.rule },
+  tickOn: { backgroundColor: colors.ink },
+  tickCur: { backgroundColor: colors.mark },
+
+  strip: { gap: 10, paddingRight: 4 },
+  stripItem: {
+    width: 60, aspectRatio: 2 / 3, borderRadius: 3, overflow: "hidden",
+    shadowColor: colors.ink, shadowOpacity: 0.16,
+    shadowOffset: { width: 0, height: 5 }, shadowRadius: 10, elevation: 3,
+  },
+  stripCover: { width: "100%", height: "100%" },
+  stripEmpty: {
+    borderWidth: 1, borderStyle: "dashed", borderColor: colors.ruleStrong,
+    borderRadius: 2, paddingVertical: 14, alignItems: "center",
+  },
+  stripEmptyText: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil },
+
   scroll: { flex: 1 },
   content: { paddingBottom: 8 },
 
   // Hero header
-  heroHeader: { height: 165, justifyContent: "flex-end", overflow: "hidden" },
-  heroContent: { padding: 20, paddingBottom: 16 },
-  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
-  greeting: { fontSize: 13, color: colors.ink, marginBottom: 2 },
-  name: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
-  avatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.ruleStrong,
-    borderWidth: 1.5, borderColor: colors.blush,
-    alignItems: "center", justifyContent: "center",
-  },
-  avatarText: { fontSize: 15, fontWeight: "700", color: colors.ink },
-  streakPill: {
-    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
-    backgroundColor: colors.rule,
-    borderWidth: 1, borderColor: colors.pencil2,
-    borderRadius: 12, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  streakText: { fontSize: 12, color: colors.ink, fontWeight: "500" },
 
   // Currently reading card
-  curSectionHdr: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "baseline",
-    paddingHorizontal: 20, marginTop: 16, marginBottom: -4,
-  },
-  curSectionCount: { fontSize: 12, color: colors.char3, fontWeight: "500" },
-  curShelfRow: { paddingLeft: 16, paddingRight: 4, paddingTop: 12 },
-  curCardH: {
-    width: CUR_CARD_W,
-    marginHorizontal: 0,
-    marginRight: 12,
-    marginTop: 0,
-  },
-  curCard: {
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 16, padding: 16,
-    flexDirection: "row", gap: 14,
-    shadowColor: "#000", shadowOpacity: 0.15, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12,
-    elevation: 3,
-  },
-  curCoverWrap: {
-    width: 58, height: 84, borderRadius: 6,
-    shadowColor: "#000", shadowOpacity: 0.18, shadowOffset: { width: 3, height: 3 }, shadowRadius: 10,
-    elevation: 4,
-  },
-  curCoverImg: { width: 58, height: 84, borderRadius: 6 },
-  curInfo: { flex: 1 },
-  curLabel: {
-    fontSize: 10, color: colors.terracotta,
-    textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4,
-  },
-  curTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.espresso, marginBottom: 2 },
-  curAuthor: { fontSize: 12, color: colors.char3, marginBottom: 10 },
-  progBg: { backgroundColor: colors.cream3, borderRadius: 4, height: 4 },
-  progFill: { backgroundColor: colors.terracotta, height: 4, borderRadius: 4 },
-  progLbl: { fontSize: 11, color: colors.char3, marginTop: 4 },
-  moodTag: {
-    alignSelf: "flex-start", marginTop: 6,
-    backgroundColor: colors.blushSoft, borderWidth: 1, borderColor: colors.rule,
-    borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9,
-  },
-  moodTagText: { fontSize: 11, color: colors.terracotta },
 
   // Stats
-  statsRow: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 10, marginBottom: 10 },
-  statC: {
-    flex: 1, backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 12, padding: 12, alignItems: "center",
-  },
-  statV: { fontFamily: fonts.display, fontSize: 20, color: colors.espresso },
-  statL: { fontSize: 10, color: colors.char3, marginTop: 2, textAlign: "center", lineHeight: 13 },
 
   // Want to read
-  secHdrRow: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, marginTop: 14, marginBottom: 8,
-  },
-  secTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso },
-  secAll: { fontSize: 12, color: colors.terracotta, fontWeight: "500" },
-  shelfRow: { paddingLeft: 20, paddingRight: 12, paddingBottom: 4 },
-  shelfItem: { width: 95, marginRight: 10 },
-  shelfCover: {
-    width: 95, height: 138, borderRadius: 8, marginBottom: 6,
-    shadowColor: "#000", shadowOpacity: 0.14, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
-    elevation: 3,
-  },
-  shelfCoverImg: { width: 95, height: 138, borderRadius: 8 },
-  shelfTitle: { fontSize: 10, color: colors.espresso2, lineHeight: 14, fontWeight: "500" },
-  addCard: {
-    width: 95, height: 138, borderRadius: 8,
-    borderWidth: 1.5, borderColor: colors.blush, borderStyle: "dashed",
-    alignItems: "center", justifyContent: "center", marginRight: 10,
-    backgroundColor: colors.blushSoft,
-  },
-  addPlus: { fontSize: 26, color: colors.terra2 },
 
   // Empty currently reading
-  curCardEmpty: {
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 16, paddingVertical: 28, paddingHorizontal: 24,
-    alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12,
-    elevation: 3,
-  },
-  emptyReadTitle: {
-    fontFamily: fonts.display, fontSize: 17,
-    color: colors.espresso, marginBottom: 6, textAlign: "center",
-  },
-  emptyReadSub: {
-    fontSize: 12, color: colors.char3, textAlign: "center",
-    lineHeight: 18, marginBottom: 16, paddingHorizontal: 8,
-  },
-  emptyReadBtn: {
-    backgroundColor: colors.terracotta,
-    borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20,
-  },
-  emptyReadBtnText: { fontSize: 13, color: "#fff", fontWeight: "600" },
 
   // Reading goal card
-  goalCard: {
-    marginHorizontal: 16, marginTop: 0,
-    backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 16, padding: 13,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8,
-    elevation: 2,
-  },
-  goalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
-  goalLabel: {
-    fontSize: 10, color: colors.terracotta,
-    textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 3,
-  },
-  goalTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.espresso },
-  goalCount: { alignItems: "flex-end" },
-  goalCountBig: { fontFamily: fonts.display, fontSize: 22, color: colors.espresso },
-  goalCountOf: { fontSize: 11, color: colors.char3 },
-  goalBarBg: { height: 6, borderRadius: 4, backgroundColor: colors.cream3, overflow: "hidden" },
-  goalBarFill: { height: "100%", borderRadius: 4, backgroundColor: colors.terracotta },
-  goalPct: { fontSize: 11, color: colors.char3, marginTop: 8 },
 
-  goalCardEmpty: {
-    marginHorizontal: 16, marginTop: 0,
-    backgroundColor: colors.parchment,
-    borderRadius: 16, padding: 16,
-    flexDirection: "row", alignItems: "center", gap: 12,
-    borderWidth: 1, borderColor: colors.cream3,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
-    elevation: 1,
-  },
-  goalEmptyIcon: { fontSize: 22 },
-  goalEmptyTitle: { fontSize: 13, fontWeight: "600", color: colors.espresso },
-  goalEmptySub: { fontSize: 11, color: colors.char3, marginTop: 2 },
-  goalEmptyChevron: { fontSize: 22, color: colors.char3, fontWeight: "300" },
 
   // ── Profile panel ──────────────────────────────────────────────────────────
   overlay: {
@@ -971,10 +975,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: "700",
     color: colors.espresso,
-  },
-  editAvatarHint: {
-    fontSize: 12,
-    color: colors.char3,
   },
 
   editForm: {

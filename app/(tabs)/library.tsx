@@ -1,6 +1,7 @@
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState, useRef, useEffect } from "react";
 import {
+  useWindowDimensions,
   View,
   Text,
   TouchableOpacity,
@@ -17,10 +18,11 @@ import {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
-import { colors, fonts } from "../../src/design/tokens";
+import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
+import { fetchMoodLogs } from "../../src/lib/books";
 import { searchBooks, addBookToLibrary, toggleFavorite } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
@@ -34,8 +36,8 @@ const FILTERS: { label: string; value: Filter }[] = [
   { label: "All",          value: "all" },
   { label: "Reading",      value: "reading" },
   { label: "Read",         value: "read" },
-  { label: "Want to Read", value: "want_to_read" },
-  { label: "Abandoned",    value: "abandoned" },
+  { label: "Waiting",      value: "want_to_read" },
+  { label: "Put down",     value: "abandoned" },
 ];
 
 const EMPTY_COPY: Record<Filter, { title: string; sub: string; btn: string | null; action: "add" | "browse" | null }> = {
@@ -58,12 +60,6 @@ function BookOpenSvg() {
   );
 }
 
-const BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  reading:      { label: "Reading", bg: colors.rule,  text: colors.blushInk },
-  read:         { label: "Read",    bg: colors.rule,   text: colors.sage },
-  want_to_read: { label: "Want",    bg: colors.rule, text: colors.pencil },
-  abandoned:    { label: "Stopped", bg: colors.rule, text: colors.pencil2 },
-};
 
 const ADD_STATUS: { label: string; value: BookStatus }[] = [
   { label: "Want",    value: "want_to_read" },
@@ -97,11 +93,36 @@ function HeartIcon({ filled }: { filled: boolean }) {
 export default function LibraryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
+  const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
   const userId = useAppStore((s) => s.userId);
   const { books, loading, refresh } = useBooks();
   const setBooks = useAppStore((s) => s.setBooks);
 
   // Crossfading header images
+
+  // Up to two recent moods per book. The reference puts these in the grid
+  // rather than a detail screen — status and stars are what every tracker
+  // shows, how a book felt is what only this one can.
+  const [bookMoods, setBookMoods] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchMoodLogs(userId)
+      .then((logs) => {
+        if (cancelled) return;
+        const map: Record<string, string[]> = {};
+        for (const l of logs) {
+          const list = map[l.book_id] ?? (map[l.book_id] = []);
+          if (list.length < 2 && !list.includes(l.mood)) list.push(l.mood);
+        }
+        setBookMoods(map);
+      })
+      .catch(() => {
+        // Non-fatal — cards simply render without chips.
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
@@ -202,29 +223,51 @@ export default function LibraryScreen() {
       );
     }
     const b = item as Book;
-    const badge = BADGE[b.status] ?? BADGE.want_to_read;
+    const moods = bookMoods[b.id] ?? [];
     return (
       <TouchableOpacity
         style={styles.gridItem}
         onPress={() => router.push(`/book/${b.id}`)}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <View style={styles.cover}>
           <CoverImage uri={b.cover_url ?? ""} title={b.title} style={styles.coverImg} />
-          <TouchableOpacity
-            style={styles.heartBtn}
-            onPress={() => handleToggleFavorite(b)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <View style={styles.heartBg}>
-              <HeartIcon filled={!!b.is_favorite} />
-            </View>
-          </TouchableOpacity>
+          {!!b.is_favorite && (
+            <TouchableOpacity
+              style={styles.heartBtn}
+              onPress={() => handleToggleFavorite(b)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={styles.heartBg}>
+                <HeartIcon filled />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={styles.bookTitle} numberOfLines={2}>{b.title}</Text>
-        <Text style={styles.bookAuthor} numberOfLines={1}>{b.author ?? ""}</Text>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+
+        <View style={styles.meta}>
+          <View style={styles.titleRow}>
+            {/* Reading gets a filled mark, waiting a hollow one. Finished books
+                get nothing: that is the resting state, so it needs no label. */}
+            {b.status === "reading" && <View style={styles.dot} />}
+            {b.status === "want_to_read" && <View style={[styles.dot, styles.dotWait]} />}
+            <Text style={styles.bookTitle} numberOfLines={2}>{b.title}</Text>
+          </View>
+          {!!b.author && <Text style={styles.bookAuthor} numberOfLines={1}>{b.author}</Text>}
+          {moods.length > 0 && (
+            <View style={styles.chips}>
+              {moods.map((m, i) => {
+                const label = moodConfig[m]?.label ?? m.replace(/_/g, " ");
+                return (
+                  <View key={m} style={[styles.chip, i === 0 && styles.chipLead]}>
+                    <Text style={[styles.chipText, i === 0 && styles.chipLeadText]}>
+                      {label.toLowerCase()}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -280,22 +323,28 @@ export default function LibraryScreen() {
   return (
     <View style={{ flex: 1 }}>
 
-      {/* ── Atmospheric hero header ── */}
-      <View style={styles.heroHeader}>
-        <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
-          <Text style={styles.heroTitle}>My Library</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
+      {/* ── Masthead ── */}
+      <View style={[styles.masthead, { paddingTop: insets.top + 10, paddingHorizontal: gutter }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.heroTitle}>Library</Text>
+          <Text style={styles.heroSub}>
+            {books.length === 0
+              ? "nothing here yet"
+              : `${books.length} book${books.length === 1 ? "" : "s"}, all yours`}
+          </Text>
         </View>
+        <TouchableOpacity style={styles.addBtn} onPress={() => openModal()} activeOpacity={0.7}>
+          <Text style={styles.addBtnText}>+</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Content below hero ── */}
       <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
         <View style={styles.container}>
 
-          {/* Filter pills */}
-          <View style={styles.filterRow}>
+          {/* Filters read as text with an underline. Pills that scroll off the
+              edge look broken; text runs quietly and fits more. */}
+          <View style={[styles.filterRow, { marginHorizontal: gutter }]}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -304,10 +353,11 @@ export default function LibraryScreen() {
               {FILTERS.map((f) => (
                 <TouchableOpacity
                   key={f.value}
-                  style={[styles.pill, filter === f.value && styles.pillActive]}
+                  style={[styles.tab, filter === f.value && styles.tabActive]}
                   onPress={() => setFilter(f.value)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.pillText, filter === f.value && styles.pillTextActive]}>
+                  <Text style={[styles.tabText, filter === f.value && styles.tabTextActive]}>
                     {f.label}
                   </Text>
                 </TouchableOpacity>
@@ -316,7 +366,7 @@ export default function LibraryScreen() {
           </View>
 
           {/* Library search bar */}
-          <View style={styles.libSearchWrap}>
+          <View style={[styles.libSearchWrap, { marginHorizontal: gutter }]}>
             <SearchIcon />
             <TextInput
               ref={libraryInputRef}
@@ -370,8 +420,11 @@ export default function LibraryScreen() {
               data={gridData}
               renderItem={renderBook}
               keyExtractor={(item) => item.id}
-              numColumns={3}
-              contentContainerStyle={[styles.grid, { paddingBottom: 40 + insets.bottom }]}
+              numColumns={2}
+              contentContainerStyle={[
+                styles.grid,
+                { paddingHorizontal: gutter, paddingBottom: 40 + insets.bottom },
+              ]}
               showsVerticalScrollIndicator={false}
               columnWrapperStyle={styles.gridRow}
               onRefresh={refresh}
@@ -463,74 +516,77 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   // Atmospheric hero header
-  heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
-  heroContent: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end",
-    paddingHorizontal: 20, paddingBottom: 16,
-  },
-  heroTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
+  masthead: { flexDirection: "row", alignItems: "flex-start", paddingBottom: 4 },
+  heroTitle: { fontFamily: fonts.display, fontSize: 30, lineHeight: 36, letterSpacing: -0.6, color: colors.ink },
+  heroSub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil, marginTop: 4 },
   addBtn: {
-    backgroundColor: colors.rule,
-    borderWidth: 1, borderColor: colors.pencil,
-    borderRadius: 16, paddingVertical: 6, paddingHorizontal: 14,
+    width: 34, height: 34, borderRadius: 17,
+    borderWidth: 1.3, borderColor: colors.ink,
+    alignItems: "center", justifyContent: "center", marginTop: 6,
   },
-  addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  addBtnText: { fontFamily: fonts.body, color: colors.ink, fontSize: 19, lineHeight: 22, marginTop: -2 },
 
-  filterRow: { height: 48, justifyContent: "center", marginTop: 6, marginBottom: 4 },
-  filterContent: { paddingHorizontal: 20, gap: 8, alignItems: "center" },
-  pill: {
-    paddingVertical: 7, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1, borderColor: colors.cream3,
-    backgroundColor: colors.card,
-  },
-  pillActive: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
-  pillText: { fontSize: 12, fontWeight: "500", color: colors.char3 },
-  pillTextActive: { color: "#fff" },
+  filterRow: { marginTop: 15, borderBottomWidth: 1, borderBottomColor: colors.rule },
+  filterContent: { gap: 17, alignItems: "flex-end" },
+  tab: { paddingBottom: 9, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabActive: { borderBottomColor: colors.ink },
+  tabText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.pencil },
+  tabTextActive: { color: colors.ink },
 
   // Library search bar
+  // A row, not a box. One less rectangle on a page already full of covers.
   libSearchWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    marginHorizontal: 20, marginBottom: 10,
-    backgroundColor: colors.card,
-    borderRadius: 10, borderWidth: 1, borderColor: colors.rule,
+    marginBottom: 4,
+    backgroundColor: "transparent",
+    borderRadius: 0, borderWidth: 0,
     paddingHorizontal: 12, paddingVertical: 9,
   },
   libSearchInput: {
-    flex: 1, fontSize: 13, color: "#fff",
+    flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.ink,
   },
   libClearBtn: { fontSize: 13, color: colors.pencil, paddingHorizontal: 2 },
 
-  grid: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4 },
-  gridRow: { gap: 12, marginBottom: 16 },
-  gridItem: { flex: 1, maxWidth: "31%" },
+  // Two columns, not three: titles fit, and covers are recognisable across
+  // the room. Three columns forced 11px type and truncated most titles.
+  grid: { paddingBottom: 40, paddingTop: 8 },
+  gridRow: { gap: 15, marginBottom: 22 },
+  gridItem: { flex: 1 },
 
   cover: {
-    width: "100%", aspectRatio: 2 / 3, borderRadius: 8, marginBottom: 6,
-    shadowColor: "#000", shadowOpacity: 0.15, shadowOffset: { width: 2, height: 4 }, shadowRadius: 10,
-    elevation: 3,
+    width: "100%", aspectRatio: 2 / 3, borderRadius: 3,
+    shadowColor: colors.ink, shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 6 }, shadowRadius: 13, elevation: 3,
   },
-  coverImg: { width: "100%", height: "100%", borderRadius: 8 },
-  heartBtn: { position: "absolute", top: 5, right: 5 },
+  coverImg: { width: "100%", height: "100%", borderRadius: 3 },
+  heartBtn: { position: "absolute", top: 7, right: 7 },
   heartBg: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.95)",
     alignItems: "center", justifyContent: "center",
+    shadowColor: colors.ink, shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 2,
   },
+
+  meta: { paddingTop: 8 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.mark, marginTop: 6 },
+  dotWait: { backgroundColor: "transparent", borderWidth: 1.2, borderColor: colors.ruleStrong },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 7 },
+  chip: { backgroundColor: colors.rule, borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3.5 },
+  chipLead: { backgroundColor: colors.mark },
+  chipText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: colors.pencil },
+  chipLeadText: { color: colors.markInk },
   coverAdd: {
-    width: "100%", aspectRatio: 2 / 3, borderRadius: 8,
-    borderWidth: 1.5, borderColor: colors.blush, borderStyle: "dashed",
+    width: "100%", aspectRatio: 2 / 3, borderRadius: 3,
+    borderWidth: 1, borderColor: colors.ruleStrong, borderStyle: "dashed",
     alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: colors.blushSoft,
+    backgroundColor: "transparent",
   },
-  addPlus: { fontSize: 22, color: colors.terra2 },
-  addLabel: { fontSize: 9, color: colors.terra2 },
-  bookTitle: { fontSize: 11, color: colors.espresso, fontWeight: "500", lineHeight: 14 },
-  bookAuthor: { fontSize: 10, color: colors.char3, marginTop: 1 },
-  badge: {
-    alignSelf: "flex-start", borderRadius: 6,
-    paddingVertical: 2, paddingHorizontal: 6, marginTop: 4,
-  },
-  badgeText: { fontSize: 9, fontWeight: "600" },
+  addPlus: { fontFamily: fonts.body, fontSize: 22, color: colors.pencil },
+  addLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.pencil },
+  bookTitle: { flex: 1, fontFamily: fonts.display, fontSize: 14, color: colors.ink, lineHeight: 17 },
+  bookAuthor: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil, marginTop: 2 },
 
   // Loading / empty states
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
