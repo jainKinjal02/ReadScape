@@ -1,6 +1,7 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
+  useWindowDimensions,
   View,
   Text,
   ScrollView,
@@ -329,6 +330,8 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
 export default function InsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
+  const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
   const readingGoal = useAppStore((s) => s.readingGoal);
   const streak = useAppStore((s) => s.streak);
   const books = useAppStore((s) => s.books);
@@ -517,7 +520,7 @@ export default function InsightsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 28 + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.body}>
+        <View style={[styles.body, { paddingHorizontal: gutter }]}>
           {/* ── Masthead ── */}
           <View style={styles.masthead}>
             <View style={{ flex: 1 }}>
@@ -624,7 +627,8 @@ export default function InsightsScreen() {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.galleryStrip}
+                style={{ marginHorizontal: -gutter }}
+                contentContainerStyle={[styles.galleryStrip, { paddingHorizontal: gutter }]}
               >
                 {photos.map((photo, idx) => (
                   <TouchableOpacity
@@ -849,21 +853,21 @@ const styles = StyleSheet.create({
   // Compact stats strip
 
   secHdrRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, marginBottom: 14,
+    flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between",
+    marginBottom: 14,
   },
 
   cameraBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: colors.cream2, borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 14, paddingVertical: 6, paddingHorizontal: 12,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1, borderColor: colors.ink, borderRadius: 2,
+    paddingVertical: 6, paddingHorizontal: 11,
   },
   cameraBtnText: { fontSize: 11, color: colors.espresso, fontWeight: "500" },
 
   // Gallery empty state
   galleryEmpty: {
-    marginHorizontal: 20, marginBottom: 24,
-    borderWidth: 1, borderColor: colors.rule, borderRadius: 18,
+    marginBottom: 24,
+    borderWidth: 1, borderStyle: "dashed", borderColor: colors.ruleStrong, borderRadius: 2,
     alignItems: "center", padding: 32, gap: 10, overflow: "hidden",
   },
   galleryEmptyTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso, textAlign: "center" },
@@ -875,7 +879,7 @@ const styles = StyleSheet.create({
   galleryEmptyBtnText: { fontSize: 12, color: "#fff", fontWeight: "600" },
 
   // Polaroid strip
-  galleryStrip: { paddingHorizontal: 20, paddingVertical: 16, gap: 14 },
+  galleryStrip: { paddingVertical: 16, gap: 14 },
   polaroid: {
     backgroundColor: "#fff",
     borderRadius: 4,
