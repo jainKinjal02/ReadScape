@@ -1,5 +1,5 @@
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useRef, useEffect, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Easing,
   Dimensions,
   Modal,
   StatusBar,
@@ -20,8 +19,9 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
-import { useRouter } from "expo-router";
-import { colors, fonts } from "../../src/design/tokens";
+import { useFocusEffect, useRouter } from "expo-router";
+import { colors, fonts, moodConfig } from "../../src/design/tokens";
+import { fetchMoodLogs } from "../../src/lib/books";
 import { useAppStore } from "../../src/store";
 import { Book } from "../../src/types";
 import {
@@ -45,162 +45,7 @@ const CARD_W = (SW - 40 - 12) / 2;
 
 
 
-// ─── Genre configuration ─────────────────────────────────────────────────────
-// Add a local `image` require() for each genre as you generate the images.
-// Leave as `null` to fall back to the gradient.
-const GENRES: {
-  name: string;
-  emoji: string;
-  gradient: readonly [string, string];
-  image: any;
-}[] = [
-  { name: "Fiction",    emoji: "📚", gradient: [colors.ink, colors.ink], image: require("../../assets/genres/fiction.png") },
-  { name: "Fantasy",    emoji: "🌟", gradient: [colors.sage, "#2d8a78"], image: require("../../assets/genres/fantasy.png") },
-  { name: "Sci-Fi",     emoji: "🚀", gradient: ["#3a7bd5", "#1a4898"], image: require("../../assets/genres/scifi.png") },
-  { name: "Thriller",   emoji: "⚡", gradient: ["#8b3535", "#5a1010"], image: require("../../assets/genres/thriller.png") },
-  { name: "Self-Help",  emoji: "🌱", gradient: ["#c47a4a", "#8a4020"], image: require("../../assets/genres/selfhelp.png") },
-  { name: "Romance",    emoji: "🌸", gradient: ["#c06080", "#8a2850"], image: require("../../assets/genres/romance.png") },
-  { name: "History",    emoji: "🏛️", gradient: ["#7a6a40", "#4a3a18"], image: require("../../assets/genres/history.png") },
-  { name: "Biography",  emoji: "🖊️", gradient: ["#4a7090", "#254060"], image: require("../../assets/genres/biography.png") },
-  { name: "Horror",     emoji: "🌙", gradient: ["#6a2a7a", "#2a0a3a"], image: require("../../assets/genres/horror.png") },
-  { name: "Dystopian",  emoji: "🔮", gradient: ["#4a5078", "#222440"], image: require("../../assets/genres/dystopian.png") },
-];
-
-function bookCountForGenre(genre: string, books: Book[]) {
-  return books.filter((b) => (b.genre ?? []).some((g) => g.toLowerCase() === genre.toLowerCase())).length;
-}
-
 // ─── Animated genre card ──────────────────────────────────────────────────────
-function GenreCard({
-  genre,
-  index,
-  count,
-  onPress,
-}: {
-  genre: typeof GENRES[number];
-  index: number;
-  count: number;
-  onPress: () => void;
-}) {
-
-  // 1. Staggered entrance — fades + slides up
-  const entranceOpacity = useRef(new Animated.Value(0)).current;
-  const entranceY = useRef(new Animated.Value(24)).current;
-
-  // 2. Press spring scale
-  const scale = useRef(new Animated.Value(1)).current;
-
-  // 3. Shimmer sweep across the card
-  const shimmerX = useRef(new Animated.Value(-CARD_W * 0.6)).current;
-
-  useEffect(() => {
-    // Staggered entrance
-    Animated.parallel([
-      Animated.timing(entranceOpacity, {
-        toValue: 1,
-        duration: 480,
-        delay: index * 70,
-        useNativeDriver: true,
-      }),
-      Animated.timing(entranceY, {
-        toValue: 0,
-        duration: 420,
-        delay: index * 70,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Shimmer loop — offset each card so they don't all flash at once
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(2800 + index * 350),
-        Animated.timing(shimmerX, {
-          toValue: CARD_W * 1.4,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-        // Reset instantly
-        Animated.timing(shimmerX, {
-          toValue: -CARD_W * 0.6,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
-
-  const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
-  const onPressOut = () =>
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
-
-  return (
-    <Animated.View
-      style={[
-        styles.cardWrapper,
-        {
-          opacity: entranceOpacity,
-          transform: [{ translateY: entranceY }, { scale }],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.cardTouchable}
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        activeOpacity={1}
-      >
-        {/* Background: local image if available, else solid gradient */}
-        {genre.image ? (
-          <Image
-            source={genre.image}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-          />
-        ) : (
-          <LinearGradient
-            colors={genre.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-
-        {/* Dark gradient overlay at bottom — keeps text legible over photos */}
-
-        {/* Shimmer beam — a narrow translucent band that sweeps left→right */}
-        <Animated.View
-          style={[styles.shimmerBeam, { transform: [{ translateX: shimmerX }] }]}
-          pointerEvents="none"
-        >
-          <LinearGradient
-            colors={[
-              "transparent",
-              colors.rule,
-              colors.rule,
-              "transparent",
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{ flex: 1 }}
-          />
-        </Animated.View>
-
-        {/* Card content */}
-        <View style={styles.cardContent}>
-          <Text style={styles.genreEmoji}>{genre.emoji}</Text>
-          <Text style={styles.genreName}>{genre.name}</Text>
-          <Text style={styles.genreCount}>
-            {count > 0 ? `${count} book${count !== 1 ? "s" : ""}` : "Explore"}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
 
 // ─── Fan position config per slot ─────────────────────────────────────────────
 const FAN_POS: Record<number, { rotate: number; tx: number; ty: number; scale: number }[]> = {
@@ -479,43 +324,6 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 
 // ─── Animated count-up number ────────────────────────────────────────────────
-function AnimatedNumber({
-  value,
-  style,
-  delay = 0,
-  format,
-}: {
-  value: number;
-  style: any;
-  delay?: number;
-  format?: (n: number) => string;
-}) {
-  const [display, setDisplay] = useState(0);
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (value <= 0) return;
-    // Always reset to 0 first so the roll-up is visible
-    anim.setValue(0);
-    setDisplay(0);
-    const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
-    const timer = setTimeout(() => {
-      Animated.timing(anim, {
-        toValue: value,
-        duration: 1200,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    }, delay);
-    return () => {
-      clearTimeout(timer);
-      anim.removeListener(id);
-    };
-  }, [value]);
-
-  const text = format ? format(display) : display > 999 ? display.toLocaleString() : String(display);
-  return <Text style={style}>{text}</Text>;
-}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
@@ -537,6 +345,28 @@ export default function InsightsScreen() {
   const pagesRead = booksFinished.reduce((sum, b) => sum + (b.total_pages ?? 0), 0);
   const inLibrary = books.length;
 
+  // How long each book kept you. Only books with both dates can answer that,
+  // so undated finishes are left out rather than guessed at.
+  const readingDays = books
+    .filter((b) => b.status === "read" && b.date_started && b.date_finished)
+    .map((b) => ({
+      id: b.id,
+      title: b.title,
+      days: Math.max(
+        1,
+        Math.round(
+          (new Date(b.date_finished!).getTime() - new Date(b.date_started!).getTime()) / 86400000
+        )
+      ),
+    }))
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 8);
+  const maxDays = Math.max(...readingDays.map((d) => d.days), 1);
+
+  // Mood frequency across every logged session.
+  const [moodCounts, setMoodCounts] = useState<{ mood: string; count: number }[]>([]);
+  const maxMood = Math.max(...moodCounts.map((m) => m.count), 1);
+
   // ── Gallery state ─────────────────────────────────────────────────────────
   const userId = useAppStore((s) => s.userId);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
@@ -547,6 +377,30 @@ export default function InsightsScreen() {
   const [showCaptionSheet, setShowCaptionSheet] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<GalleryPhoto | null>(null);
+
+  // Refetch on focus: sessions are logged on another screen and this is a tab,
+  // so it is never unmounted between visits.
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      let cancelled = false;
+      fetchMoodLogs(userId)
+        .then((logs) => {
+          if (cancelled) return;
+          const tally: Record<string, number> = {};
+          for (const l of logs) tally[l.mood] = (tally[l.mood] ?? 0) + 1;
+          setMoodCounts(
+            Object.entries(tally)
+              .map(([mood, count]) => ({ mood, count }))
+              .sort((a, b) => b.count - a.count)
+          );
+        })
+        .catch(() => {
+          // Non-fatal — the section hides itself when empty.
+        });
+      return () => { cancelled = true; };
+    }, [userId])
+  );
 
   // Fetch persisted photos whenever the user is known
   useEffect(() => {
@@ -658,75 +512,88 @@ export default function InsightsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-
-      {/* ── Atmospheric hero header ── */}
-      <View style={styles.heroHeader}>
-        <View style={[styles.heroContent, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.heroRow}>
-            <View>
-              <Text style={styles.heroTitle}>Reading Insights</Text>
-              <Text style={styles.heroSub}>Your {new Date().getFullYear()} journey</Text>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 28 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.body}>
+          {/* ── Masthead ── */}
+          <View style={styles.masthead}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.h1}>Insights</Text>
+              <Text style={styles.sub}>
+                {booksFinishedCount} book{booksFinishedCount === 1 ? "" : "s"}
+                {pagesRead > 0 ? `  ·  ${pagesRead.toLocaleString()} pages` : ""}
+                {`  ·  ${year}`}
+              </Text>
             </View>
-            <TouchableOpacity style={styles.wrapIconBtn} onPress={() => setShowWrap(true)} activeOpacity={0.8}>
-              <Text style={styles.wrapIconEmoji}>✦</Text>
-              <Text style={styles.wrapIconLabel}>{new Date().getFullYear()} Wrap</Text>
+            <TouchableOpacity style={styles.wrapBtn} onPress={() => setShowWrap(true)} activeOpacity={0.75}>
+              <Text style={styles.wrapBtnText}>{year} wrap</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
 
-      <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={[]}>
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+          {/* ── How long each one kept you ── */}
+          <View style={styles.divideStrong}>
+            <Text style={[styles.h2, { marginBottom: 14 }]}>How long each one kept you</Text>
+            {readingDays.length === 0 ? (
+              <Text style={styles.emptyLine}>
+                Finish a book with a start date and its pace shows up here.
+              </Text>
+            ) : (
+              readingDays.map((d) => {
+                const slowest = d.days === maxDays;
+                return (
+                  <View key={d.id} style={styles.bar}>
+                    <View style={styles.barLabel}>
+                      <Text style={styles.barTitle} numberOfLines={1}>{d.title}</Text>
+                      <Text style={styles.barDays}>{d.days === 1 ? "1 day" : `${d.days} days`}</Text>
+                    </View>
+                    <View style={styles.barTrack}>
+                      {/* The one that took longest is marked differently — it is
+                          the interesting one, not a failure. */}
+                      <View
+                        style={[
+                          styles.barFill,
+                          slowest && styles.barFillSlow,
+                          { width: `${Math.max((d.days / maxDays) * 100, 6)}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
 
-          <View style={styles.body}>
-            {/* Compact stats strip */}
-            <View style={styles.statStrip}>
-              <View style={styles.statItem}>
-                <AnimatedNumber value={booksFinishedCount} style={styles.statItemV} delay={0} />
-                <Text style={styles.statItemL}>Finished</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <AnimatedNumber value={pagesRead} style={styles.statItemV} delay={150} format={(n) => n > 999 ? n.toLocaleString() : n === 0 ? "—" : String(n)} />
-                <Text style={styles.statItemL}>Pages</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <AnimatedNumber value={streak} style={styles.statItemV} delay={300} />
-                <Text style={styles.statItemL}>Day streak</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <AnimatedNumber value={inLibrary} style={styles.statItemV} delay={450} />
-                <Text style={styles.statItemL}>In library</Text>
-              </View>
-            </View>
+          {/* ── How they felt ── */}
+          <View style={styles.divide}>
+            <Text style={[styles.h2, { marginBottom: 4 }]}>How they felt</Text>
+            {moodCounts.length === 0 ? (
+              <Text style={styles.emptyLine}>Log a reading session and your moods gather here.</Text>
+            ) : (
+              moodCounts.map((m) => (
+                <View key={m.mood} style={styles.moodRow}>
+                  <Text style={styles.moodLabel} numberOfLines={1}>
+                    {(moodConfig[m.mood]?.label ?? m.mood.replace(/_/g, " ")).toLowerCase()}
+                  </Text>
+                  <View style={styles.moodTrack}>
+                    <View style={[styles.moodFill, { width: `${(m.count / maxMood) * 100}%` }]} />
+                  </View>
+                  <Text style={styles.moodCount}>{m.count}</Text>
+                </View>
+              ))
+            )}
+          </View>
 
-            {/* Genre section header */}
-            <View style={styles.secHdr}>
-              <Text style={styles.secTitle}>Explore by genre</Text>
-            </View>
 
-            {/* Genre horizontal scroll */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.genreScroll}
-            >
-              {GENRES.map((g, i) => (
-                <GenreCard
-                  key={g.name}
-                  genre={g}
-                  index={i}
-                  count={bookCountForGenre(g.name, books)}
-                  onPress={() => router.push(`/genre/${g.name}`)}
-                />
-              ))}
-            </ScrollView>
-
-            {/* ── My Cozy Corner Gallery ── */}
+            {/* ── Cozy corner ── */}
+            <View style={styles.divide}>
             <View style={styles.secHdrRow}>
-              <Text style={styles.secTitle}>My Cozy Corner</Text>
+              <View>
+                <Text style={styles.h2}>Cozy corner</Text>
+                <Text style={styles.sub}>Your books, out in the world</Text>
+              </View>
               <TouchableOpacity style={styles.cameraBtn} onPress={() => handleAddPhoto()}>
                 <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
                   <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={colors.espresso} strokeWidth={1.5} strokeLinejoin="round" />
@@ -789,11 +656,9 @@ export default function InsightsScreen() {
                 </TouchableOpacity>
               </ScrollView>
             )}
-
-            <View style={{ height: 24 + insets.bottom }} />
+            </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
 
       <YearWrapModal visible={showWrap} onClose={() => setShowWrap(false)} />
 
@@ -943,46 +808,50 @@ export default function InsightsScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ── Paper & Ink insights ──
+  masthead: { flexDirection: "row", alignItems: "flex-start", marginBottom: 2 },
+  h1: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, color: colors.ink },
+  sub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil, marginTop: 4 },
+  wrapBtn: {
+    borderWidth: 1, borderColor: colors.ink, borderRadius: 2,
+    paddingHorizontal: 11, paddingVertical: 6, marginTop: 8,
+  },
+  wrapBtnText: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: colors.ink },
+
+  divideStrong: { borderTopWidth: 1.4, borderTopColor: colors.ink, marginTop: 16, paddingTop: 18 },
+  divide: { borderTopWidth: 1, borderTopColor: colors.rule, marginTop: 14, paddingTop: 18 },
+  h2: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
+  emptyLine: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil, lineHeight: 19, paddingVertical: 6 },
+
+  // Reading-pace bars: the label carries the number, so the bar only has to
+  // show relative length.
+  bar: { marginBottom: 13 },
+  barLabel: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 10 },
+  barTitle: { flex: 1, fontFamily: fonts.display, fontSize: 13.5, color: colors.ink },
+  barDays: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
+  barTrack: { height: 11, marginTop: 5 },
+  barFill: { height: "100%", backgroundColor: colors.mark, borderRadius: 1 },
+  barFillSlow: { backgroundColor: colors.blush },
+
+  moodRow: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 9 },
+  moodLabel: { width: 82, fontFamily: fonts.body, fontSize: 12.5, color: colors.ink },
+  moodTrack: { flex: 1, height: 8, backgroundColor: colors.rule, borderRadius: 1, overflow: "hidden" },
+  moodFill: { height: "100%", backgroundColor: colors.deep },
+  moodCount: { width: 18, textAlign: "right", fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
+
   container: { flex: 1 },
 
   // Atmospheric hero header
-  heroHeader: { height: 170, overflow: "hidden", justifyContent: "flex-end" },
-  heroContent: { paddingHorizontal: 20, paddingBottom: 16 },
-  heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  heroTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
-  heroSub: { fontSize: 13, color: colors.pencil, marginTop: 3 },
-  wrapIconBtn: {
-    alignItems: "center",
-    backgroundColor: colors.rule,
-    borderWidth: 1, borderColor: colors.pencil2,
-    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
-  },
-  wrapIconEmoji: { fontSize: 16, color: colors.ink },
-  wrapIconLabel: { fontSize: 10, color: colors.ink, fontWeight: "600", marginTop: 3, letterSpacing: 0.5 },
 
   body: { paddingTop: 16 },
 
   // Stats
   // Compact stats strip
-  statStrip: {
-    flexDirection: "row", alignItems: "center",
-    marginHorizontal: 20, marginBottom: 20,
-    backgroundColor: colors.parchment,
-    borderWidth: 1, borderColor: colors.cream3,
-    borderRadius: 14, paddingVertical: 14,
-  },
-  statItem: { flex: 1, alignItems: "center" },
-  statItemV: { fontFamily: fonts.display, fontSize: 22, color: colors.espresso },
-  statItemL: { fontSize: 10, color: colors.char3, marginTop: 2 },
-  statDivider: { width: 1, height: 32, backgroundColor: colors.cream3 },
 
-  secHdr: { paddingHorizontal: 20, marginBottom: 14 },
   secHdrRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, marginBottom: 14,
   },
-  secTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.espresso },
-  secSub: { fontSize: 12, color: colors.char3, marginTop: 3 },
 
   cameraBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -1032,54 +901,8 @@ const styles = StyleSheet.create({
   polaroidAddLabel: { fontSize: 11, color: colors.terracotta },
 
   // Genre horizontal scroll
-  genreScroll: {
-    paddingLeft: 20,
-    paddingRight: 8,
-    gap: 12,
-    marginBottom: 24,
-  },
 
   // Card
-  cardWrapper: {
-    width: 130,
-    height: 160,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  cardTouchable: {
-    flex: 1,
-  },
-  shimmerBeam: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: CARD_W * 0.55,   // beam is ~55% of card width
-    left: 0,
-  },
-  cardContent: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 14,
-  },
-  genreEmoji: { fontSize: 34, marginBottom: 8 },
-  genreName: {
-    fontFamily: fonts.display,
-    fontSize: 16,
-    color: "#ffffff",
-    marginBottom: 3,
-  },
-  genreCount: {
-    fontSize: 11,
-    color: colors.pencil,
-    fontWeight: "500",
-  },
 
 });
 
