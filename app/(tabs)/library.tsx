@@ -321,7 +321,7 @@ export default function LibraryScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
 
       {/* ── Masthead ── */}
       <View style={[styles.masthead, { paddingTop: insets.top + 10, paddingHorizontal: gutter }]}>

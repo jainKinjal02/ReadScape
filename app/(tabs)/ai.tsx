@@ -240,7 +240,7 @@ export default function AIScreen() {
   const starters = STARTERS[activeTab];
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
 
       {/* ── Atmospheric hero header ── */}
       <View style={styles.heroHeader}>

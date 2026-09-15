@@ -29,6 +29,9 @@ export default function TabsLayout() {
           height: 52 + insets.bottom,
           paddingBottom: insets.bottom + 4,
         }],
+        // Paint the scene itself, so a screen that forgets a root background
+        // does not fall through to React Navigation's default white.
+        sceneStyle: { backgroundColor: colors.paper },
         tabBarShowLabel: true,
         // No icons at all, so the icon slot must not reserve vertical space.
         tabBarIconStyle: { display: "none" },
