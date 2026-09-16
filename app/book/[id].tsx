@@ -25,6 +25,7 @@ import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
+import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
@@ -344,10 +345,14 @@ export default function BookDetailScreen() {
   const pickBookPhoto = async (source: "camera" | "library") => {
     setShowSourcePicker(false);
     await new Promise((r) => setTimeout(r, 180));
-    const { status } = source === "camera"
+    const perm = source === "camera"
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted" && status !== "limited") return;
+    // iOS 14+ partial access reports granted:false with accessPrivileges
+    // "limited". That is a yes, not a no.
+    const limited =
+      "accessPrivileges" in perm && (perm as { accessPrivileges?: string }).accessPrivileges === "limited";
+    if (!perm.granted && !limited) return;
     const result = source === "camera"
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
@@ -379,7 +384,7 @@ export default function BookDetailScreen() {
         const photo = await uploadBookPhoto(userId, id, uri, caption);
         setBookPhotos((prev) => [photo, ...prev]);
       } catch (e: any) {
-        Alert.alert("Couldn't save photo", e.message ?? "Please try again.");
+        Alert.alert("Couldn't save photo", toUserMessage(e));
       } finally {
         setIsSavingPhoto(false);
       }
@@ -773,7 +778,6 @@ export default function BookDetailScreen() {
               style={{ flex: 1, width: "100%" }}
               contentFit="contain"
               transition={300}
-              placeholder={{ color: "#1a1a2e" }}
             />
           )}
 
@@ -958,7 +962,7 @@ function QuotesTab({
   quotes: Quote[];
   onAdd: (text: string, page: number | null) => Promise<void>;
   onDelete: (id: string) => void;
-  scrollRef: React.RefObject<ScrollView>;
+  scrollRef: React.RefObject<ScrollView | null>;
   book: any;
 }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -1124,7 +1128,7 @@ function NotesTab({
   notes: Note[];
   onAdd: (text: string) => Promise<void>;
   onDelete: (id: string) => void;
-  scrollRef: React.RefObject<ScrollView>;
+  scrollRef: React.RefObject<ScrollView | null>;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [text, setText] = useState("");
@@ -1229,7 +1233,6 @@ function PhotosTab({
               style={photoStyles.gridImg}
               contentFit="cover"
               transition={350}
-              placeholder={{ color: "#ede8df" }}
             />
             {!!photo.caption && (
               <Text style={photoStyles.gridCaption} numberOfLines={1}>{photo.caption}</Text>

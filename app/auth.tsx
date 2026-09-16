@@ -16,6 +16,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts } from "../src/design/tokens";
+import { toUserMessage } from "../src/lib/errors";
 import { supabase } from "../src/lib/supabase";
 import { signInWithGoogle, OAuthCancelledError } from "../src/lib/auth";
 import { useAppStore } from "../src/store";
@@ -122,7 +123,7 @@ export default function AuthScreen() {
         router.replace("/(tabs)/home");
       }
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong. Please try again.");
+      setError(toUserMessage(err));
     } finally {
       setLoading(false);
     }

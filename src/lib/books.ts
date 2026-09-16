@@ -252,9 +252,11 @@ function mapOpenLibraryDoc(doc: any): GoogleBook {
     volumeInfo: {
       title: doc.title ?? "Unknown title",
       authors: doc.author_name ?? [],
-      pageCount: doc.number_of_pages_median ?? null,
+      pageCount: doc.number_of_pages_median ?? undefined,
       categories: doc.subject?.slice(0, 8) ?? [],
-      description: null,
+      // Open Library's search endpoint does not return descriptions; the
+      // field is optional, so leave it absent rather than explicitly null.
+      description: undefined,
       imageLinks: coverId
         ? {
             thumbnail: `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,

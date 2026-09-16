@@ -19,6 +19,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
+import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
@@ -192,7 +193,7 @@ export default function LibraryScreen() {
       // Clear result row to signal success without closing modal
       setResults((prev) => prev.filter((r) => r.id !== book.id));
     } catch (err: any) {
-      Alert.alert("Couldn't add book", err.message ?? "Try again.");
+      Alert.alert("Couldn't add book", toUserMessage(err));
     } finally {
       setAddingId(null);
     }

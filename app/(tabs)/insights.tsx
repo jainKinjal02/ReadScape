@@ -444,7 +444,10 @@ export default function InsightsScreen() {
         devLog("[Gallery] Requesting media library permission...");
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         devLog("[Gallery] Media library permission status:", perm.status);
-        if (perm.status !== "granted" && perm.status !== "limited") {
+        // iOS 14+ can grant partial access: status stays "undetermined" while
+        // accessPrivileges is "limited". Treating that as a refusal blocks
+        // users who picked "Select Photos".
+        if (!perm.granted && perm.accessPrivileges !== "limited") {
           Alert.alert("Photos access needed", "Allow photo library access in Settings.");
           return;
         }
@@ -642,7 +645,6 @@ export default function InsightsScreen() {
                       style={styles.polaroidImg}
                       contentFit="cover"
                       transition={400}
-                      placeholder={{ color: "#ede8df" }}
                     />
                     <Text style={styles.polaroidCaption} numberOfLines={1}>
                       {photo.caption || new Date(photo.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
@@ -776,7 +778,6 @@ export default function InsightsScreen() {
               source={{ uri: viewingPhoto.uri }}
               style={galStyles.viewerImg}
               transition={300}
-              placeholder={{ color: "#1a1a2e" }}
               contentFit="contain"
             />
           )}

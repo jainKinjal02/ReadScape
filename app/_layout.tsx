@@ -29,6 +29,7 @@ import {
   View,
 } from "react-native";
 import { colors, fonts } from "../src/design/tokens";
+import { ErrorBoundary } from "../src/components/ErrorBoundary";
 
 // Keep the native splash visible until we're ready
 SplashScreen.preventAutoHideAsync();
@@ -105,7 +106,7 @@ export default function RootLayout() {
   }, [fontsLoaded, authChecked, shouldRedirectHome]);
 
   return (
-    <>
+    <ErrorBoundary>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="auth" />
@@ -113,10 +114,6 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="book/[id]"
-          options={{ presentation: "card", animation: "slide_from_right" }}
-        />
-        <Stack.Screen
-          name="genre/[name]"
           options={{ presentation: "card", animation: "slide_from_right" }}
         />
         <Stack.Screen
@@ -137,7 +134,7 @@ export default function RootLayout() {
           <View style={styles.divider} />
         </Animated.View>
       )}
-    </>
+    </ErrorBoundary>
   );
 }
 

@@ -22,6 +22,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
+import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
@@ -161,7 +162,7 @@ export default function HomeScreen() {
       setUserBio(editBio.trim());
       setEditProfileOpen(false);
     } catch (err: any) {
-      Alert.alert("Couldn't save", err.message ?? "Try again.");
+      Alert.alert("Couldn't save", toUserMessage(err));
     } finally {
       setSavingProfile(false);
     }
