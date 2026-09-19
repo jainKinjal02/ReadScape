@@ -96,6 +96,13 @@ export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
+
+  // Column count derived from the window rather than fixed. Two columns put
+  // 163pt covers on a phone, which reads as a poster wall; three lands near
+  // 105pt, which reads as a shelf. Wider screens get more columns instead of
+  // ever-larger covers.
+  const GRID_GAP = 12;
+  const columns = Math.max(3, Math.floor((winW - gutter * 2 + GRID_GAP) / (110 + GRID_GAP)));
   const userId = useAppStore((s) => s.userId);
   const { books, loading, refresh } = useBooks();
   // Fills in covers for books saved without one. Library is the right place:
@@ -260,7 +267,7 @@ export default function LibraryScreen() {
           {!!b.author && <Text style={styles.bookAuthor} numberOfLines={1}>{b.author}</Text>}
           {moods.length > 0 && (
             <View style={styles.chips}>
-              {moods.map((m, i) => {
+              {moods.slice(0, 1).map((m, i) => {
                 const label = moodConfig[m]?.label ?? m.replace(/_/g, " ");
                 return (
                   <View key={m} style={[styles.chip, i === 0 && styles.chipLead]}>
@@ -420,13 +427,14 @@ export default function LibraryScreen() {
               data={gridData}
               renderItem={renderBook}
               keyExtractor={(item) => item.id}
-              numColumns={2}
+              numColumns={columns}
+              key={columns}
               contentContainerStyle={[
                 styles.grid,
                 { paddingHorizontal: gutter, paddingBottom: 40 + insets.bottom },
               ]}
               showsVerticalScrollIndicator={false}
-              columnWrapperStyle={styles.gridRow}
+              columnWrapperStyle={[styles.gridRow, { gap: GRID_GAP }]}
               onRefresh={refresh}
               refreshing={loading}
             />
@@ -550,7 +558,7 @@ const styles = StyleSheet.create({
   // Two columns, not three: titles fit, and covers are recognisable across
   // the room. Three columns forced 11px type and truncated most titles.
   grid: { paddingBottom: 40, paddingTop: 8 },
-  gridRow: { gap: 15, marginBottom: 22 },
+  gridRow: { marginBottom: 18 },
   gridItem: { flex: 1 },
 
   cover: {
@@ -568,14 +576,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 2,
   },
 
-  meta: { paddingTop: 8 },
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.mark, marginTop: 6 },
+  meta: { paddingTop: 7 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 5 },
+  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.mark, marginTop: 5 },
   dotWait: { backgroundColor: "transparent", borderWidth: 1.2, borderColor: colors.ruleStrong },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 7 },
-  chip: { backgroundColor: colors.rule, borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3.5 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 6 },
+  chip: { backgroundColor: colors.rule, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 3 },
   chipLead: { backgroundColor: colors.mark },
-  chipText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: colors.pencil },
+  chipText: { fontFamily: fonts.bodyMedium, fontSize: 9.5, color: colors.pencil },
   chipLeadText: { color: colors.markInk },
   coverAdd: {
     width: "100%", aspectRatio: 2 / 3, borderRadius: 3,
@@ -585,8 +593,8 @@ const styles = StyleSheet.create({
   },
   addPlus: { fontFamily: fonts.body, fontSize: 22, color: colors.pencil },
   addLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.pencil },
-  bookTitle: { flex: 1, fontFamily: fonts.display, fontSize: 14, color: colors.ink, lineHeight: 17 },
-  bookAuthor: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil, marginTop: 2 },
+  bookTitle: { flex: 1, fontFamily: fonts.display, fontSize: 12.5, color: colors.ink, lineHeight: 15 },
+  bookAuthor: { fontFamily: fonts.body, fontSize: 10, color: colors.pencil, marginTop: 2 },
 
   // Loading / empty states
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
