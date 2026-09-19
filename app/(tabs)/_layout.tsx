@@ -57,9 +57,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="ai"
+        name="notes"
         options={{
-          tabBarLabel: ({ focused }) => <TabLabel label="Ask" focused={focused} />,
+          tabBarLabel: ({ focused }) => <TabLabel label="Notes" focused={focused} />,
         }}
       />
     </Tabs>

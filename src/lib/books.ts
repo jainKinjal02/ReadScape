@@ -156,6 +156,28 @@ export async function fetchQuotes(bookId: string): Promise<Quote[]> {
   return data ?? [];
 }
 
+// Everything the reader has kept, across every book. The per-book fetchers
+// above power the book screen; these power the Notes tab.
+export async function fetchAllQuotes(userId: string): Promise<Quote[]> {
+  const { data, error } = await supabase
+    .from("quotes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchAllNotes(userId: string): Promise<Note[]> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function addQuote(
   userId: string,
   bookId: string,

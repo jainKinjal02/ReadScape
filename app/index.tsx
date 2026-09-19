@@ -14,7 +14,7 @@ import { colors, fonts } from "../src/design/tokens";
 const FEATURES = [
   { icon: "📚", title: "Your Library", desc: "Track every book you've read, are reading, or want to read." },
   { icon: "🎭", title: "Mood Tracking", desc: "Log how a book makes you feel, chapter by chapter." },
-  { icon: "✦", title: "AI Companion", desc: "Ask anything about the book you're reading, get recommendations." },
+  { icon: "✒️", title: "Quotes & Notes", desc: "Keep the lines that moved you, and what you thought while reading." },
 ];
 
 export default function LandingScreen() {

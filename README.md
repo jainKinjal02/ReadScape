@@ -20,8 +20,7 @@ Built with React Native (Expo) and Supabase.
 - **Quotes & notes** — passages kept with a highlighter, shareable as an image
 - **Cozy corner** — photos of your books out in the world
 - **Insights** — how long each book kept you, which moods recurred, your year
-- **AI companion** — ask about the book you're reading, powered by Claude
-  through a Supabase Edge Function, so the API key never reaches the app
+- **Notes** — every quote and thought you kept, across every book, in one place
 
 ## Design
 
@@ -36,8 +35,7 @@ anything meant to be read.
 |---|---|
 | App | Expo SDK 54, React Native 0.81, expo-router |
 | State | Zustand |
-| Backend | Supabase — Postgres, Auth, Storage, Edge Functions |
-| AI | Claude via `@anthropic-ai/sdk` in a Deno Edge Function |
+| Backend | Supabase — Postgres, Auth, Storage |
 | Book data | Open Library |
 
 ## Running it
@@ -58,25 +56,12 @@ editing `.env.local` you need a Metro restart — a reload is not enough.
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `supabase/schema.sql` in the SQL editor — it creates the tables, row
-   level security policies, the `book-photos` storage bucket, and the AI rate
-   limit table. It is idempotent, so it is safe to re-run.
+   level security policies and the `book-photos` storage bucket. It is
+   idempotent, so it is safe to re-run.
 3. Authentication → Providers → enable Email; add Google if you want it, with
    `https://<ref>.supabase.co/auth/v1/callback` as the redirect URI
 4. Authentication → URL Configuration → add `readscape://**`, `exp://**` and
    `http://localhost:8081/**`
-
-### The AI companion
-
-```bash
-supabase link --project-ref <your-ref>
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-supabase functions deploy ai-companion
-```
-
-The function verifies the caller's JWT before doing any work. The Supabase
-gateway accepts the anon key, which ships inside the app bundle and can be
-extracted — so the anon key alone is not proof of a signed-in user. It also
-rate limits per user per day (`AI_DAILY_LIMIT`, default 20) and fails closed.
 
 ## Web
 
@@ -96,7 +81,7 @@ app/              expo-router routes; (tabs)/ is the four-tab shell
 src/design/       colour, type and spacing tokens — the whole theme
 src/lib/          Supabase client, data access, auth, errors
 src/components/   shared UI
-supabase/         schema.sql and the ai-companion Edge Function
+supabase/         schema.sql
 scripts/          asset generator (icon, splash, favicon) via resvg
 ```
 

@@ -481,7 +481,7 @@ export default function HomeScreen() {
           <View style={styles.panelMenu}>
             <PanelRow icon="✏️" label="Edit Profile" onPress={openEditProfile} />
             <PanelRow icon="📚" label="My Library" onPress={() => closePanel(() => router.push("/(tabs)/library"))} />
-            <PanelRow icon="✦" label="AI Companion" onPress={() => closePanel(() => router.push("/(tabs)/ai"))} />
+            <PanelRow icon="✒️" label="Notes" onPress={() => closePanel(() => router.push("/(tabs)/notes"))} />
             <PanelRow icon="📊" label="Insights" onPress={() => closePanel(() => router.push("/(tabs)/insights"))} />
           </View>
 
