@@ -15,7 +15,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
@@ -284,11 +283,7 @@ export default function LibraryScreen() {
 
     return (
       <View style={styles.resultRow}>
-        <Image
-          source={{ uri: cover }}
-          style={styles.resultCover}
-          contentFit="cover"
-        />
+        <CoverImage uri={cover} title={info.title} style={styles.resultCover} />
         <View style={styles.resultInfo}>
           <Text style={styles.resultTitle} numberOfLines={2}>{info.title}</Text>
           <Text style={styles.resultAuthor} numberOfLines={1}>{author}</Text>

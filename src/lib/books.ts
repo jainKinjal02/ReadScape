@@ -232,6 +232,28 @@ export async function deleteNote(noteId: string): Promise<void> {
 // ─── Open Library API (replaces Google Books — no key, always free) ──────────
 // Docs: https://openlibrary.org/dev/docs/api
 
+export type CoverSize = "S" | "M" | "L";
+
+export function coverUrl(coverId: number | string, size: CoverSize = "L"): string {
+  return `https://covers.openlibrary.org/b/id/${coverId}-${size}.jpg?default=false`;
+}
+
+/**
+ * fetch with a deadline. Open Library is usually quick but occasionally
+ * stalls, and without this the search spinner runs forever with no way out.
+ * AbortController rather than AbortSignal.timeout, which Hermes does not
+ * reliably provide.
+ */
+async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
   const fields = "key,title,author_name,cover_i,number_of_pages_median,subject";
@@ -241,7 +263,7 @@ export async function searchBooks(query: string): Promise<GoogleBook[]> {
     `https://openlibrary.org/search.json?title=${encodeURIComponent(query)}` +
     `&fields=${fields}&limit=20`;
 
-  const res = await fetch(titleUrl);
+  const res = await fetchWithTimeout(titleUrl);
   if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
   const json = await res.json();
   let docs: any[] = json.docs ?? [];
@@ -250,7 +272,7 @@ export async function searchBooks(query: string): Promise<GoogleBook[]> {
   // run a general search and merge in any new results.
   if (docs.length < 4) {
     try {
-      const generalRes = await fetch(
+      const generalRes = await fetchWithTimeout(
         `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=15`
       );
       if (generalRes.ok) {
@@ -281,8 +303,16 @@ function mapOpenLibraryDoc(doc: any): GoogleBook {
       description: undefined,
       imageLinks: coverId
         ? {
-            thumbnail: `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,
-            smallThumbnail: `https://covers.openlibrary.org/b/id/${coverId}-S.jpg`,
+            // -L (~500px), not -M (~180px): a 122pt hero cover on a 3x screen
+            // needs ~366px, so -M was always being upscaled.
+            //
+            // default=false matters more than it looks. Without it Open Library
+            // answers 200 with a blank placeholder image for books it has no
+            // cover for, so onError never fires and the reader sees an empty
+            // rectangle instead of the title-initials fallback. With it, the
+            // request 404s and the fallback does its job.
+            thumbnail: coverUrl(coverId, "L"),
+            smallThumbnail: coverUrl(coverId, "M"),
           }
         : undefined,
     },

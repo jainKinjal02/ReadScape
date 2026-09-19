@@ -10,6 +10,20 @@ function bgFromTitle(title: string): string {
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
+/**
+ * Books saved before covers moved to -L still carry -M or -S URLs, and none of
+ * them carry default=false. Upgrading here fixes every already-saved book
+ * without a database migration, and makes the initials fallback work for books
+ * Open Library has no cover for — without default=false it answers 200 with a
+ * blank image, so onError never fires.
+ */
+export function upgradeOpenLibraryCover(uri: string): string {
+  if (!uri.includes("covers.openlibrary.org")) return uri;
+  const large = uri.replace(/-(S|M)\.jpg/, "-L.jpg");
+  if (large.includes("default=")) return large;
+  return large + (large.includes("?") ? "&" : "?") + "default=false";
+}
+
 interface Props {
   uri?: string | null;
   title: string;
@@ -39,6 +53,7 @@ export function CoverImage({ uri, title, style }: Props) {
     .join("");
 
   const bg = bgFromTitle(title);
+  const src = uri ? upgradeOpenLibraryCover(uri) : null;
 
   return (
     <View
@@ -53,9 +68,9 @@ export function CoverImage({ uri, title, style }: Props) {
       <Text style={styles.initials} numberOfLines={1}>{initials}</Text>
 
       {/* Image overlaid on top — hides initials when it loads */}
-      {uri != null && !error && (
+      {src != null && !error && (
         <Image
-          source={{ uri }}
+          source={{ uri: src }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={250}
