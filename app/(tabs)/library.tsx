@@ -166,10 +166,22 @@ export default function LibraryScreen() {
     }
   };
 
-  const gridData: (Book | { id: "__add__" })[] = [
+  const gridEntries: (Book | { id: string })[] = [
     ...filtered,
-    ...(librarySearch.trim().length === 0 ? [{ id: "__add__" as const }] : []),
+    ...(librarySearch.trim().length === 0 ? [{ id: "__add__" }] : []),
   ];
+
+  // FlatList gives every cell flex: 1, so a final row holding fewer than
+  // `columns` items stretches those items across the full width — one book
+  // ends up half the shelf wide. Pad the row out with invisible cells.
+  const remainder = gridEntries.length % columns;
+  const gridData: (Book | { id: string })[] =
+    remainder === 0
+      ? gridEntries
+      : [
+          ...gridEntries,
+          ...Array.from({ length: columns - remainder }, (_, i) => ({ id: `__pad_${i}__` })),
+        ];
 
   // ── Real-time debounced search ───────────────────────────────────────────
   const runSearch = async (text: string) => {
@@ -218,7 +230,11 @@ export default function LibraryScreen() {
   };
 
   // ── Render book grid item ────────────────────────────────────────────────
-  const renderBook = ({ item }: { item: Book | { id: "__add__" } }) => {
+  const renderBook = ({ item }: { item: Book | { id: string } }) => {
+    // Invisible spacer keeping the last row the same shape as the others.
+    if (item.id.startsWith("__pad_")) {
+      return <View style={styles.gridItem} />;
+    }
     if (item.id === "__add__") {
       return (
         <TouchableOpacity
