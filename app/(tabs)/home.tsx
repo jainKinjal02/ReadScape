@@ -56,6 +56,11 @@ export default function HomeScreen() {
   // it never crowds a small phone or drifts wide on a tablet or browser.
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
 
+  // The book you are actually reading is the point of this screen, so its
+  // cover leads. At 70pt it sat only 10pt clear of the 60pt strip covers
+  // further down and read as just another thumbnail.
+  const nowCoverW = Math.round(Math.min(112, Math.max(84, winW * 0.245)));
+
   // Goal marks are sized to the width rather than fixed at the reference's 4px.
   // At a fixed width a 50-book goal orphans one or two marks onto a second row
   // on a 375pt phone, which reads as a mistake. Splitting into equal rows and
@@ -263,7 +268,7 @@ export default function HomeScreen() {
             activeOpacity={0.85}
             onPress={() => router.push(`/book/${current.id}`)}
           >
-            <View style={styles.nowCover}>
+            <View style={[styles.nowCover, { width: nowCoverW }]}>
               <CoverImage uri={current.cover_url ?? ""} title={current.title} style={styles.nowCoverImg} />
             </View>
             <View style={styles.nowBody}>
@@ -713,21 +718,22 @@ const styles = StyleSheet.create({
   h2: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
   xs: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil },
 
-  now: { flexDirection: "row", gap: 15, paddingTop: 17 },
+  now: { flexDirection: "row", gap: 16, paddingTop: 18 },
   nowCover: {
-    width: 70, aspectRatio: 2 / 3, borderRadius: 3, overflow: "hidden",
-    shadowColor: colors.ink, shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 6 }, shadowRadius: 12, elevation: 4,
+    aspectRatio: 2 / 3, borderRadius: 3, overflow: "hidden",
+    // A heavier shadow than the strips below: this one is lifted off the page.
+    shadowColor: colors.ink, shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 9 }, shadowRadius: 18, elevation: 6,
   },
   nowCoverImg: { width: "100%", height: "100%" },
   nowBody: { flex: 1, minWidth: 0 },
-  nowTitle: { fontFamily: fonts.display, fontSize: 15.5, lineHeight: 19, color: colors.ink },
-  nowAuthor: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil, marginTop: 3 },
-  prog: { height: 2, backgroundColor: colors.rule, marginTop: 12 },
+  nowTitle: { fontFamily: fonts.display, fontSize: 17.5, lineHeight: 21, color: colors.ink },
+  nowAuthor: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil, marginTop: 4 },
+  prog: { height: 2, backgroundColor: colors.rule, marginTop: 15 },
   progFill: { height: 2, backgroundColor: colors.ink },
-  nowMeta: { fontFamily: fonts.body, fontSize: 11, color: colors.pencil, marginTop: 7 },
+  nowMeta: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil, marginTop: 9 },
 
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 9 },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 11 },
   chipMark: { backgroundColor: colors.mark, borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3.5 },
   chipMarkText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: colors.markInk },
 
