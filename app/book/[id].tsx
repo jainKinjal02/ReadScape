@@ -31,6 +31,8 @@ import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
   fetchMoodLogs,
+  resolveCoverUrl,
+  updateBookCover,
   updateBookRating,
   updateBookGenre,
   updateBookStatus,
@@ -102,6 +104,9 @@ export default function BookDetailScreen() {
   const [pageInput, setPageInput] = useState(String(book?.current_page ?? 0));
 
   // Genre editing
+  const [showCoverEditor, setShowCoverEditor] = useState(false);
+  const [coverDraft, setCoverDraft] = useState("");
+  const [savingCover, setSavingCover] = useState(false);
   const [showGenreEditor, setShowGenreEditor] = useState(false);
   const [draftGenres, setDraftGenres] = useState<string[]>([]);
   const [genreDraft, setGenreDraft] = useState("");
@@ -193,6 +198,41 @@ export default function BookDetailScreen() {
   };
 
   // ── Genre editing ──────────────────────────────────────────────────────────
+  // Open Library does not have artwork for every book, and its automatic match
+  // is occasionally the wrong edition. Digital Shelf solves this with a "Cover
+  // image URL" field in its admin editor; this is the same escape hatch.
+  const openCoverEditor = () => {
+    setCoverDraft(book?.cover_url ?? "");
+    setShowCoverEditor(true);
+  };
+
+  const saveCover = async () => {
+    if (!book) return;
+    const url = coverDraft.trim();
+    setSavingCover(true);
+    try {
+      await updateBookCover(book.id, url);
+      updateBook({ ...book, cover_url: url || null });
+      setShowCoverEditor(false);
+    } catch (e) {
+      Alert.alert("Couldn't save cover", toUserMessage(e));
+    } finally {
+      setSavingCover(false);
+    }
+  };
+
+  const findCover = async () => {
+    if (!book) return;
+    setSavingCover(true);
+    try {
+      const found = await resolveCoverUrl(book.title, book.author);
+      if (found) setCoverDraft(found);
+      else Alert.alert("No cover found", "Open Library has no artwork for this one. You can paste a link instead.");
+    } finally {
+      setSavingCover(false);
+    }
+  };
+
   const openGenreEditor = () => {
     if (!book) return;
     setDraftGenres(book.genre ?? []);
@@ -454,9 +494,18 @@ export default function BookDetailScreen() {
 
           {/* ── Hero cover ── */}
           <View style={styles.hero}>
-            <View style={styles.heroCover}>
+            <TouchableOpacity
+              style={styles.heroCover}
+              onPress={openCoverEditor}
+              activeOpacity={0.85}
+            >
               <CoverImage uri={book.cover_url ?? ""} title={book.title} style={styles.heroCoverImg} />
-            </View>
+            </TouchableOpacity>
+            {!book.cover_url && (
+              <TouchableOpacity onPress={openCoverEditor} activeOpacity={0.7}>
+                <Text style={styles.addCoverHint}>add a cover</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* ── Title block ── */}
@@ -684,6 +733,59 @@ export default function BookDetailScreen() {
       </Modal>
 
       {/* ── Genre editor ── */}
+      {/* ── Cover editor ── */}
+      <Modal transparent visible={showCoverEditor} animationType="slide" onRequestClose={() => setShowCoverEditor(false)}>
+        <View style={coverStyles.overlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowCoverEditor(false)} />
+          <View style={[coverStyles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+            <Text style={coverStyles.heading}>Cover</Text>
+            <Text style={coverStyles.sub}>
+              Paste a link to an image, or let us look one up.
+            </Text>
+
+            <TextInput
+              style={coverStyles.input}
+              value={coverDraft}
+              onChangeText={setCoverDraft}
+              placeholder="https://…"
+              placeholderTextColor={colors.pencil2}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              multiline
+            />
+
+            {!!coverDraft.trim() && (
+              <View style={coverStyles.previewRow}>
+                <CoverImage uri={coverDraft.trim()} title={book.title} style={coverStyles.preview} />
+                <Text style={coverStyles.previewLabel}>Preview</Text>
+              </View>
+            )}
+
+            <View style={coverStyles.actions}>
+              <TouchableOpacity
+                style={coverStyles.ghostBtn}
+                onPress={findCover}
+                disabled={savingCover}
+                activeOpacity={0.8}
+              >
+                <Text style={coverStyles.ghostBtnText}>Find one</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[coverStyles.primaryBtn, savingCover && { opacity: 0.6 }]}
+                onPress={saveCover}
+                disabled={savingCover}
+                activeOpacity={0.85}
+              >
+                {savingCover
+                  ? <ActivityIndicator color={colors.paper} size="small" />
+                  : <Text style={coverStyles.primaryBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal transparent visible={showGenreEditor} animationType="slide" onRequestClose={() => setShowGenreEditor(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowGenreEditor(false)} />
@@ -1252,6 +1354,10 @@ function PhotosTab({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  addCoverHint: {
+    fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil2,
+    textAlign: "center", marginTop: 10, textDecorationLine: "underline",
+  },
   // ── Paper & Ink book screen ──
   bdTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 6 },
 
@@ -1640,4 +1746,34 @@ const shareStyles = StyleSheet.create({
   },
   shareBtnText: { fontFamily: fonts.bodySemi, color: colors.paper, fontSize: 14.5 },
   cancelText: { fontFamily: fonts.body, fontSize: 13, color: colors.rule },
+});
+
+const coverStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(27,26,34,0.5)", justifyContent: "flex-end" },
+  sheet: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 6, borderTopRightRadius: 6,
+    paddingHorizontal: 24, paddingTop: 22, gap: 12,
+  },
+  heading: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },
+  sub: { fontFamily: fonts.body, fontSize: 12, color: colors.pencil, marginTop: -6 },
+  input: {
+    fontFamily: fonts.body, fontSize: 13, color: colors.ink,
+    borderBottomWidth: 1, borderBottomColor: colors.rule,
+    paddingVertical: 9, minHeight: 40, maxHeight: 84,
+  },
+  previewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  preview: { width: 52, aspectRatio: 2 / 3, borderRadius: 3 },
+  previewLabel: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil },
+  actions: { flexDirection: "row", gap: 9, marginTop: 4 },
+  ghostBtn: {
+    flex: 1, borderWidth: 1, borderColor: colors.ruleStrong, borderRadius: 2,
+    paddingVertical: 12, alignItems: "center",
+  },
+  ghostBtnText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.ink },
+  primaryBtn: {
+    flex: 1, backgroundColor: colors.ink, borderRadius: 2,
+    paddingVertical: 12, alignItems: "center",
+  },
+  primaryBtnText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.paper },
 });

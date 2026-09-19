@@ -254,6 +254,75 @@ async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {
   }
 }
 
+const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim();
+const tokens = (s: string) => new Set(normalise(s).split(/\s+/).filter(Boolean));
+
+/**
+ * Find a cover for a book that has none.
+ *
+ * Open Library's `title=` search fragments across a lot of thin work records —
+ * summaries, study guides, editions with no artwork — and the exact-title match
+ * frequently has no cover at all while a real edition does. A general `q=`
+ * search surfaces the editions that actually have artwork.
+ *
+ * The match guard matters more than the query. Taking the first result with a
+ * cover turns "Lost Lambs" into "Little lost lamb" by Margaret Wise Brown —
+ * and a confidently wrong cover is worse than no cover. So:
+ *   - if we know the author, the author must match
+ *   - if we do not, the titles must contain one another
+ *
+ * Returns null rather than guessing.
+ */
+export async function resolveCoverUrl(
+  title: string,
+  author?: string | null
+): Promise<string | null> {
+  if (!title.trim()) return null;
+
+  const query = [title, author ?? ""].join(" ").trim();
+  const url =
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
+    `&fields=title,author_name,cover_i&limit=10`;
+
+  let docs: any[] = [];
+  try {
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) return null;
+    docs = (await res.json())?.docs ?? [];
+  } catch {
+    return null;
+  }
+
+  const wantTitle = tokens(title);
+  const wantAuthor = tokens(author ?? "");
+
+  for (const doc of docs) {
+    if (!doc?.cover_i) continue;
+
+    if (wantAuthor.size > 0) {
+      const gotAuthor = tokens((doc.author_name ?? []).join(" "));
+      if (![...wantAuthor].some((t) => gotAuthor.has(t))) continue;
+      return coverUrl(doc.cover_i, "L");
+    }
+
+    const gotTitle = tokens(doc.title ?? "");
+    const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+    if (wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle))) {
+      return coverUrl(doc.cover_i, "L");
+    }
+  }
+
+  return null;
+}
+
+export async function updateBookCover(bookId: string, coverUrl: string): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update({ cover_url: coverUrl })
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
   const fields = "key,title,author_name,cover_i,number_of_pages_median,subject";

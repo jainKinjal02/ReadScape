@@ -22,6 +22,7 @@ import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
+import { useCoverBackfill } from "../../src/hooks/useCoverBackfill";
 import { fetchMoodLogs } from "../../src/lib/books";
 import { searchBooks, addBookToLibrary, toggleFavorite } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
@@ -97,6 +98,9 @@ export default function LibraryScreen() {
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
   const userId = useAppStore((s) => s.userId);
   const { books, loading, refresh } = useBooks();
+  // Fills in covers for books saved without one. Library is the right place:
+  // it is where missing covers are most visible.
+  useCoverBackfill();
   const setBooks = useAppStore((s) => s.setBooks);
 
   // Crossfading header images
