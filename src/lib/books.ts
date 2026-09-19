@@ -315,6 +315,68 @@ export async function resolveCoverUrl(
   return null;
 }
 
+/**
+ * Several covers for the same book, to choose between.
+ *
+ * Open Library exposes covers two ways and they disagree:
+ *   /b/id/{cover_i}      the work's representative cover, picked by Open
+ *                        Library — often the original-language edition
+ *   /b/isbn/{isbn}       one specific edition
+ *
+ * For "Butter" those give the Japanese artwork and the English artwork
+ * respectively, and even the ISBN-10 and ISBN-13 of the same edition return
+ * different images. There is no rule that reliably picks the one a reader
+ * means, so offer the options rather than guess at them.
+ */
+export async function resolveCoverCandidates(
+  title: string,
+  author?: string | null,
+  limit = 8
+): Promise<string[]> {
+  if (!title.trim()) return [];
+
+  const query = [title, author ?? ""].join(" ").trim();
+  const url =
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
+    `&fields=title,author_name,cover_i,isbn&limit=10`;
+
+  let docs: any[] = [];
+  try {
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) return [];
+    docs = (await res.json())?.docs ?? [];
+  } catch {
+    return [];
+  }
+
+  const wantTitle = tokens(title);
+  const wantAuthor = tokens(author ?? "");
+  const out: string[] = [];
+
+  const matches = (doc: any) => {
+    if (wantAuthor.size > 0) {
+      const gotAuthor = tokens((doc.author_name ?? []).join(" "));
+      return [...wantAuthor].some((t) => gotAuthor.has(t));
+    }
+    const gotTitle = tokens(doc.title ?? "");
+    const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+    return wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle));
+  };
+
+  for (const doc of docs) {
+    if (!matches(doc)) continue;
+    if (doc.cover_i) out.push(coverUrl(doc.cover_i, "L"));
+    // A handful of editions per work is plenty; the list is for choosing
+    // from, not for browsing every printing ever made.
+    for (const isbn of (doc.isbn ?? []).slice(0, 4)) {
+      out.push(`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`);
+    }
+    if (out.length >= limit) break;
+  }
+
+  return [...new Set(out)].slice(0, limit);
+}
+
 export async function updateBookCover(bookId: string, coverUrl: string): Promise<void> {
   const { error } = await supabase
     .from("books")

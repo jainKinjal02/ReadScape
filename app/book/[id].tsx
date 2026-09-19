@@ -31,6 +31,7 @@ import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
   fetchMoodLogs,
+  resolveCoverCandidates,
   resolveCoverUrl,
   updateBookCover,
   updateBookRating,
@@ -107,6 +108,8 @@ export default function BookDetailScreen() {
   const [showCoverEditor, setShowCoverEditor] = useState(false);
   const [coverDraft, setCoverDraft] = useState("");
   const [savingCover, setSavingCover] = useState(false);
+  const [coverOptions, setCoverOptions] = useState<string[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   const [showGenreEditor, setShowGenreEditor] = useState(false);
   const [draftGenres, setDraftGenres] = useState<string[]>([]);
   const [genreDraft, setGenreDraft] = useState("");
@@ -203,6 +206,7 @@ export default function BookDetailScreen() {
   // image URL" field in its admin editor; this is the same escape hatch.
   const openCoverEditor = () => {
     setCoverDraft(book?.cover_url ?? "");
+    setCoverOptions([]);
     setShowCoverEditor(true);
   };
 
@@ -223,13 +227,18 @@ export default function BookDetailScreen() {
 
   const findCover = async () => {
     if (!book) return;
-    setSavingCover(true);
+    setLoadingOptions(true);
     try {
-      const found = await resolveCoverUrl(book.title, book.author);
-      if (found) setCoverDraft(found);
-      else Alert.alert("No cover found", "Open Library has no artwork for this one. You can paste a link instead.");
+      const options = await resolveCoverCandidates(book.title, book.author);
+      setCoverOptions(options);
+      if (options.length === 0) {
+        Alert.alert(
+          "No covers found",
+          "Open Library has no artwork for this one. You can paste a link instead."
+        );
+      }
     } finally {
-      setSavingCover(false);
+      setLoadingOptions(false);
     }
   };
 
@@ -758,7 +767,33 @@ export default function BookDetailScreen() {
             {!!coverDraft.trim() && (
               <View style={coverStyles.previewRow}>
                 <CoverImage uri={coverDraft.trim()} title={book.title} style={coverStyles.preview} />
-                <Text style={coverStyles.previewLabel}>Preview</Text>
+                <Text style={coverStyles.previewLabel}>Selected</Text>
+              </View>
+            )}
+
+            {(loadingOptions || coverOptions.length > 0) && (
+              <View>
+                <Text style={coverStyles.optionsLabel}>
+                  {loadingOptions ? "Looking…" : "Editions — tap one"}
+                </Text>
+                {loadingOptions ? (
+                  <ActivityIndicator color={colors.pencil} style={{ marginTop: 12 }} />
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={coverStyles.optionsRow}
+                  >
+                    {coverOptions.map((url) => (
+                      <CoverOption
+                        key={url}
+                        url={url}
+                        selected={coverDraft.trim() === url}
+                        onPress={() => setCoverDraft(url)}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
               </View>
             )}
 
@@ -769,7 +804,9 @@ export default function BookDetailScreen() {
                 disabled={savingCover}
                 activeOpacity={0.8}
               >
-                <Text style={coverStyles.ghostBtnText}>Find one</Text>
+                <Text style={coverStyles.ghostBtnText}>
+                  {coverOptions.length > 0 ? "Search again" : "Find covers"}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[coverStyles.primaryBtn, savingCover && { opacity: 0.6 }]}
@@ -1763,6 +1800,14 @@ const coverStyles = StyleSheet.create({
     paddingVertical: 9, minHeight: 40, maxHeight: 84,
   },
   previewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  optionsLabel: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil, marginBottom: 9 },
+  optionsRow: { gap: 9, paddingRight: 4 },
+  option: {
+    width: 52, aspectRatio: 2 / 3, borderRadius: 3,
+    backgroundColor: colors.rule,
+    borderWidth: 2, borderColor: "transparent",
+  },
+  optionSelected: { borderColor: colors.ink },
   preview: { width: 52, aspectRatio: 2 / 3, borderRadius: 3 },
   previewLabel: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil },
   actions: { flexDirection: "row", gap: 9, marginTop: 4 },
@@ -1777,3 +1822,31 @@ const coverStyles = StyleSheet.create({
   },
   primaryBtnText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.paper },
 });
+
+/**
+ * One candidate cover. Open Library answers 404 for editions it has no art
+ * for, so a tile that fails to load removes itself rather than leaving a gap.
+ */
+function CoverOption({
+  url,
+  selected,
+  onPress,
+}: {
+  url: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <Image
+        source={{ uri: url }}
+        style={[coverStyles.option, selected && coverStyles.optionSelected]}
+        contentFit="cover"
+        transition={180}
+        onError={() => setBroken(true)}
+      />
+    </TouchableOpacity>
+  );
+}
