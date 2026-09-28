@@ -41,7 +41,13 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow ReadScape to use your microphone to record voice notes about your books."
+        }
+      ]
     ]
   }
 }

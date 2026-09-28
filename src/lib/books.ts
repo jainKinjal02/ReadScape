@@ -213,11 +213,17 @@ export async function fetchNotes(bookId: string): Promise<Note[]> {
 export async function addNote(
   userId: string,
   bookId: string,
-  text: string
+  text: string,
+  audio: { path: string; durationMs: number } | null = null
 ): Promise<Note> {
   const { data, error } = await supabase
     .from("notes")
-    .insert({ user_id: userId, book_id: bookId, text })
+    .insert({
+      user_id: userId,
+      book_id: bookId,
+      text,
+      ...(audio && { audio_path: audio.path, duration_ms: audio.durationMs }),
+    })
     .select()
     .single();
   if (error) throw error;

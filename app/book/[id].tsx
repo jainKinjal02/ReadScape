@@ -27,6 +27,9 @@ import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
+import { MicIcon, VoiceNoteSheet, VoiceNoteSaved } from "../../src/components/VoiceNoteSheet";
+import { VoicePlayButton } from "../../src/components/VoicePlayButton";
+import { deleteVoiceRecording } from "../../src/lib/voice";
 import { useAppStore } from "../../src/store";
 import { Quote, Note } from "../../src/types";
 import {
@@ -124,6 +127,8 @@ export default function BookDetailScreen() {
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<PersistedPhoto | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{ uri: string; caption: string } | null>(null);
+
+  const [showVoiceNote, setShowVoiceNote] = useState(false);
 
   // Celebration state
   const [showCelebration, setShowCelebration] = useState(false);
@@ -386,8 +391,18 @@ export default function BookDetailScreen() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
+    const note = notes.find((n) => n.id === noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
     await deleteNote(noteId).catch(() => {});
+    if (note?.audio_path) await deleteVoiceRecording(note.audio_path).catch(() => {});
+  };
+
+  const handleVoiceNoteSaved = ({ note, quote, mood }: VoiceNoteSaved) => {
+    setNotes((prev) => [note, ...prev]);
+    if (quote) setQuotes((prev) => [quote, ...prev]);
+    if (mood) setMoods((prev) => [mood, ...prev.filter((m) => m !== mood)]);
+    setShowVoiceNote(false);
+    setActiveTab("notes");
   };
 
   // ── Photo handlers ────────────────────────────────────────────────────────
@@ -646,6 +661,14 @@ export default function BookDetailScreen() {
                 <Text style={styles.chipDashText}>+ add</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={styles.voiceBtn}
+              onPress={() => setShowVoiceNote(true)}
+              activeOpacity={0.8}
+            >
+              <MicIcon color={colors.ink} size={15} />
+              <Text style={styles.voiceBtnText}>Say how it feels</Text>
+            </TouchableOpacity>
           </View>
 
           {!!book.synopsis && (
@@ -693,6 +716,15 @@ export default function BookDetailScreen() {
 
         <View style={{ height: insets.bottom + 20 }} />
       </ScrollView>
+
+      {showVoiceNote && userId && (
+        <VoiceNoteSheet
+          book={book}
+          userId={userId}
+          onClose={() => setShowVoiceNote(false)}
+          onSaved={handleVoiceNoteSaved}
+        />
+      )}
 
       {/* ── Source picker overlay (no Modal — avoids UIViewController conflict) ── */}
       {showSourcePicker && (
@@ -1304,6 +1336,7 @@ function NotesTab({
           <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(n.id)}>
             <Text style={styles.deleteBtnText}>✕</Text>
           </TouchableOpacity>
+          {!!n.audio_path && <VoicePlayButton audioPath={n.audio_path} durationMs={n.duration_ms} />}
           <Text style={styles.noteCardText}>{n.text}</Text>
           <Text style={styles.noteCardDate}>{formatDate(n.created_at)}</Text>
         </View>
@@ -1460,6 +1493,12 @@ const styles = StyleSheet.create({
     borderRadius: 2, paddingHorizontal: 9, paddingVertical: 4,
   },
   chipDashText: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil2 },
+  voiceBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderWidth: 1, borderColor: colors.ruleStrong, borderRadius: 2,
+    paddingVertical: 11, marginTop: 14,
+  },
+  voiceBtnText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.ink },
 
   // Hero
 

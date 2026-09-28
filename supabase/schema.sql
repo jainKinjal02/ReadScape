@@ -199,3 +199,40 @@ $$;
 
 -- Only the service role may call this; end users must not self-serve quota.
 revoke all on function increment_ai_usage(uuid, int) from public, anon, authenticated;
+
+-- ============================================================
+-- VOICE NOTES
+-- A voice note is an ordinary note that also carries the recording it was
+-- transcribed from. Backs supabase/functions/voice-note.
+-- ============================================================
+
+alter table notes add column if not exists audio_path text;
+alter table notes add column if not exists duration_ms int;
+
+-- PRIVATE bucket, unlike book-photos: a reader's voice is more personal than
+-- a photo of a bookshelf. Playback goes through short-lived signed URLs.
+-- Paths are `{user_id}/{timestamp}.m4a`, so the owner is folder [1].
+insert into storage.buckets (id, name, public)
+values ('voice-notes', 'voice-notes', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Users upload own voice notes" on storage.objects;
+create policy "Users upload own voice notes" on storage.objects
+  for insert with check (
+    bucket_id = 'voice-notes'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users read own voice notes" on storage.objects;
+create policy "Users read own voice notes" on storage.objects
+  for select using (
+    bucket_id = 'voice-notes'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users delete own voice notes" on storage.objects;
+create policy "Users delete own voice notes" on storage.objects
+  for delete using (
+    bucket_id = 'voice-notes'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

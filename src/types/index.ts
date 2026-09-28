@@ -52,6 +52,10 @@ export interface Note {
   book_id: string;
   text: string;
   created_at: string;
+  // Set when the note was spoken rather than typed. Path in the private
+  // `voice-notes` bucket; play it through voiceNoteUrl().
+  audio_path?: string | null;
+  duration_ms?: number | null;
 }
 
 export interface Photo {
