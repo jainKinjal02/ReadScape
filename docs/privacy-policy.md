@@ -64,4 +64,4 @@ If this policy changes, we'll update it on this page and change the date at the 
 
 ## Contact
 
-Questions about your privacy or your data: **[YOUR CONTACT EMAIL]**
+Questions about your privacy or your data: **[jainkinjal021196@gmail.com](mailto:jainkinjal021196@gmail.com)**
