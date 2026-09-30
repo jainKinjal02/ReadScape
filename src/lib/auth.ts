@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import { supabase } from "./supabase";
 
 // Dismisses the auth popup once the provider redirects back (web) and settles
@@ -105,3 +107,76 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<void>
 }
 
 export const signInWithGoogle = () => signInWithProvider("google");
+
+/** Apple sign-in only exists on iOS devices, and not on every one. */
+export async function isAppleSignInAvailable(): Promise<boolean> {
+  if (Platform.OS !== "ios") return false;
+  return AppleAuthentication.isAvailableAsync().catch(() => false);
+}
+
+/**
+ * Sign in with Apple through the native sheet, then hand Apple's identity
+ * token to Supabase.
+ *
+ * App Store Review Guideline 4.8: an app that offers Google sign-in must offer
+ * this too.
+ *
+ * The nonce ties the token to this attempt so a captured token cannot be
+ * replayed. Apple receives the SHA-256 hash; Supabase gets the raw value and
+ * checks that it hashes to what is inside the token.
+ *
+ * Apple shares the reader's name only on the very first sign-in, ever, and
+ * never again, so it is saved to their profile straight away.
+ */
+export async function signInWithApple(): Promise<void> {
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce
+  );
+
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+  } catch (e: any) {
+    if (e?.code === "ERR_REQUEST_CANCELED") throw new OAuthCancelledError();
+    throw e;
+  }
+
+  if (!credential.identityToken) throw new Error("Apple did not return a sign-in token.");
+
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider: "apple",
+    token: credential.identityToken,
+    nonce: rawNonce,
+  });
+  if (error) throw error;
+
+  const name = [credential.fullName?.givenName, credential.fullName?.familyName]
+    .filter(Boolean)
+    .join(" ");
+  if (name) {
+    await supabase.auth.updateUser({ data: { name, full_name: name } }).catch(() => {});
+  }
+}
+
+/**
+ * Permanently delete the signed-in reader's account, their library, notes,
+ * photos and voice recordings, then sign out on this device.
+ */
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message);
+  }
+  // The account no longer exists, so the server has nothing to revoke; only
+  // this device's copy of the session needs clearing.
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+}

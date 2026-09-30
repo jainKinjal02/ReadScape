@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.readscape.app"
+      "bundleIdentifier": "com.readscape.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -35,17 +39,19 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow ReadScape to access your photos to add book photos.",
-          "cameraPermission": "Allow ReadScape to use your camera to capture reading moments."
+          "photosPermission": "ReadScape uses your photo library so you can add pictures of your books and reading spots to your journal.",
+          "cameraPermission": "ReadScape uses the camera so you can photograph a book or your reading spot and save it to your journal.",
+          "microphonePermission": "ReadScape uses the microphone to record voice notes about the book you're reading, which are transcribed into your mood, quotes and thoughts."
         }
       ],
       "expo-font",
       "expo-asset",
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow ReadScape to use your microphone to record voice notes about your books."
+          "microphonePermission": "ReadScape uses the microphone to record voice notes about the book you're reading, which are transcribed into your mood, quotes and thoughts."
         }
       ]
     ]

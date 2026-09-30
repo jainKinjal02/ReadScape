@@ -4,20 +4,33 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ilmrkhssqjzsmmgazmpe.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_K7pRH1tSgYZ8Z450NR3AOQ_aGUExUGM"
+      }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": true },
-      "channel": "development"
+      "ios": {
+        "simulator": true
+      },
+      "channel": "development",
+      "extends": "base"
     },
     "preview": {
       "distribution": "internal",
-      "ios": { "simulator": false },
-      "channel": "preview"
+      "ios": {
+        "simulator": false
+      },
+      "channel": "preview",
+      "extends": "base"
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "extends": "base"
     }
   },
   "submit": {

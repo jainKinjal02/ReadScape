@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,13 @@ import Svg, { Path } from "react-native-svg";
 import { colors, fonts } from "../src/design/tokens";
 import { toUserMessage } from "../src/lib/errors";
 import { supabase } from "../src/lib/supabase";
-import { signInWithGoogle, OAuthCancelledError } from "../src/lib/auth";
+import * as AppleAuthentication from "expo-apple-authentication";
+import {
+  signInWithGoogle,
+  signInWithApple,
+  isAppleSignInAvailable,
+  OAuthCancelledError,
+} from "../src/lib/auth";
 import { useAppStore } from "../src/store";
 
 type Mode = "signup" | "signin";
@@ -60,6 +66,12 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
   const [error, setError] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
 
@@ -129,11 +141,17 @@ export default function AuthScreen() {
     }
   };
 
-  const handleGoogle = async () => {
+  // Both providers finish the same way: a session exists, and a first-time
+  // reader still needs onboarding for their goal.
+  const handleProvider = async (
+    signIn: () => Promise<void>,
+    setBusy: (busy: boolean) => void,
+    label: string
+  ) => {
     setError("");
-    setGoogleLoading(true);
+    setBusy(true);
     try {
-      await signInWithGoogle();
+      await signIn();
 
       // On web the browser navigates away and nothing below this runs.
       const {
@@ -149,18 +167,21 @@ export default function AuthScreen() {
       setUserId(session.user.id);
       setUserName(meta.name ?? meta.full_name ?? "Reader");
 
-      // Google gives us a name and email but never a reading goal, so a
-      // first-time Google user still needs onboarding.
+      // Providers give us a name and email but never a reading goal, so a
+      // first-time reader still needs onboarding.
       const onboarded = Number(meta.reading_goal) > 0;
       router.replace(onboarded ? "/(tabs)/home" : "/onboarding");
     } catch (e: any) {
       // Backing out of the provider sheet is a normal action, not a failure.
       if (e instanceof OAuthCancelledError) return;
-      setError(e?.message ?? "Could not sign in with Google.");
+      setError(e?.message ?? `Could not sign in with ${label}.`);
     } finally {
-      setGoogleLoading(false);
+      setBusy(false);
     }
   };
+
+  const handleGoogle = () => handleProvider(signInWithGoogle, setGoogleLoading, "Google");
+  const handleApple = () => handleProvider(signInWithApple, setAppleLoading, "Apple");
 
   const inp = (field: string) => [
     styles.input,
@@ -309,10 +330,29 @@ export default function AuthScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
+              {/* Apple's own button: its look is fixed by Apple's guidelines. */}
+              {appleAvailable && (
+                <View style={[styles.appleWrap, appleLoading && { opacity: 0.65 }]}>
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={
+                      mode === "signup"
+                        ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                        : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                    }
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={3}
+                    style={styles.appleBtn}
+                    onPress={() => {
+                      if (!appleLoading && !loading && !googleLoading) handleApple();
+                    }}
+                  />
+                </View>
+              )}
+
               <TouchableOpacity
                 style={[styles.googleBtn, googleLoading && { opacity: 0.65 }]}
                 onPress={handleGoogle}
-                disabled={googleLoading || loading}
+                disabled={googleLoading || loading || appleLoading}
                 activeOpacity={0.85}
               >
                 {googleLoading ? (
@@ -481,6 +521,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     letterSpacing: 0.5,
   },
+  appleWrap: { marginBottom: 10 },
+  appleBtn: { width: "100%", height: 49 },
   googleBtn: {
     flexDirection: "row",
     alignItems: "center",

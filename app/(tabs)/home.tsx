@@ -30,6 +30,7 @@ import { fetchMoodLogs } from "../../src/lib/books";
 import { useReadingStreak } from "../../src/hooks/useReadingStreak";
 import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
+import { deleteAccount } from "../../src/lib/auth";
 
 const { width: SW } = Dimensions.get("window");
 const PANEL_W = SW * 0.78;
@@ -130,6 +131,39 @@ export default function HomeScreen() {
     setUserName("");
     setLoggingOut(false);
     closePanel(() => router.replace("/"));
+  };
+
+  // ── Delete account ────────────────────────────────────────────────────────
+  // Required by App Store guideline 5.1.1(v). The panel is a Modal, and iOS
+  // can block network requests started inside one, so it closes first.
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      "Delete your account?",
+      "This permanently deletes your account, your library, notes, quotes, photos and voice notes. It can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            closePanel(async () => {
+              setDeletingAccount(true);
+              try {
+                await deleteAccount();
+                setUserId(null);
+                setUserName("");
+                router.replace("/");
+              } catch (e) {
+                Alert.alert("Couldn't delete your account", toUserMessage(e));
+              } finally {
+                setDeletingAccount(false);
+              }
+            }),
+        },
+      ]
+    );
   };
 
   // ── Edit Profile ──────────────────────────────────────────────────────────
@@ -520,6 +554,15 @@ export default function HomeScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.deleteAccountBtn}
+            onPress={confirmDeleteAccount}
+            disabled={loggingOut}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.deleteAccountText}>Delete account</Text>
+          </TouchableOpacity>
         </Animated.View>
       </Modal>
 
@@ -644,6 +687,13 @@ export default function HomeScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {deletingAccount && (
+        <View style={styles.deletingOverlay}>
+          <ActivityIndicator color={colors.ink} />
+          <Text style={styles.deletingText}>Deleting your account…</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -923,7 +973,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginHorizontal: 20,
-    marginBottom: 40,
+    marginBottom: 6,
     paddingVertical: 14,
     paddingHorizontal: 20,
     backgroundColor: colors.dangerSoft,
@@ -932,6 +982,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
   },
+  deleteAccountBtn: { alignSelf: "center", paddingVertical: 10, marginBottom: 28 },
+  deleteAccountText: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil },
+  deletingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(251,250,246,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+  },
+  deletingText: { fontFamily: fonts.body, fontSize: 13, color: colors.pencil },
   logoutText: {
     fontSize: 14,
     fontWeight: "600",
