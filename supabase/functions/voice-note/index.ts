@@ -1,20 +1,18 @@
-import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Turns a reader's spoken reflection into something the app can file away.
 //
 //   1. The app uploads the recording to the private `voice-notes` bucket and
 //      sends us its path.
-//   2. Whisper transcribes it. Claude cannot take audio, so speech-to-text is
-//      a separate provider.
-//   3. Claude sorts the transcript into a mood, a quote read aloud, and the
-//      reader's own thought.
+//   2. Whisper transcribes it.
+//   3. An OpenAI text model sorts the transcript into a mood, a quote read
+//      aloud, and the reader's own thought.
 //
 // Nothing is saved here. The app shows the result for review first, because
 // a transcription will sometimes mishear a quote and the reader should get
 // the chance to fix it before it lands in their notes.
 //
-// Secrets (set with `supabase secrets set`): OPENAI_API_KEY, ANTHROPIC_API_KEY.
+// Secret (set with `supabase secrets set` or the dashboard): OPENAI_API_KEY.
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_WEB_ORIGINS") ?? "")
   .split(",")
@@ -36,7 +34,7 @@ const DAILY_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") ?? "20");
 const BUCKET = "voice-notes";
 
 // Database values on the left, what the app shows on the right. The values are
-// historical and misleading ("finished" is shown as "Moved"), so Claude is
+// historical and misleading ("finished" is shown as "Moved"), so the model is
 // told what each one means to the reader rather than left to guess.
 const MOODS = {
   loving_it: "Loving it: delighted, enjoying it, warm about the book",
@@ -46,19 +44,21 @@ const MOODS = {
   finished: "Moved: emotionally affected, touched, heartbroken, wrecked",
 } as const;
 
+// OpenAI strict mode: every field required, nothing extra, and "no value"
+// written as a null type rather than with anyOf.
 const RESULT_SCHEMA = {
   type: "object",
   properties: {
-    mood: {
-      anyOf: [{ type: "string", enum: Object.keys(MOODS) }, { type: "null" }],
-    },
-    quote: { anyOf: [{ type: "string" }, { type: "null" }] },
-    page: { anyOf: [{ type: "integer" }, { type: "null" }] },
-    thought: { anyOf: [{ type: "string" }, { type: "null" }] },
+    mood: { type: ["string", "null"], enum: [...Object.keys(MOODS), null] },
+    quote: { type: ["string", "null"] },
+    page: { type: ["integer", "null"] },
+    thought: { type: ["string", "null"] },
   },
   required: ["mood", "quote", "page", "thought"],
   additionalProperties: false,
 };
+
+const SORTING_MODEL = "gpt-6-luna";
 
 Deno.serve(async (req) => {
   const corsHeaders = corsFor(req);
@@ -91,8 +91,8 @@ Deno.serve(async (req) => {
     }
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey || !Deno.env.get("ANTHROPIC_API_KEY")) {
-      console.error("OPENAI_API_KEY or ANTHROPIC_API_KEY is not set");
+    if (!openaiKey) {
+      console.error("OPENAI_API_KEY is not set");
       return json({ error: "Voice notes are not configured yet." }, 503);
     }
 
@@ -174,47 +174,52 @@ thought: the reader's own reflection, in their own voice and first person, with 
 
     // If it cannot be sorted, the reader still gets their words back as the
     // thought, rather than losing the recording to an error. The transcript
-    // has already been paid for; an Anthropic outage or an empty credit
-    // balance should cost the reader the sorting, not the note.
+    // has already been paid for; an outage or an empty credit balance should
+    // cost the reader the sorting, not the note.
     const fallback = { transcript, mood: null, quote: null, page: null, thought: transcript };
 
-    let response;
+    let text: string | undefined;
     try {
-      const client = new Anthropic();
-      response = await client.beta.messages.create({
-        model: "claude-opus-5-5",
-        max_tokens: 4000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: {
-          effort: "low",
-          format: { type: "json_schema", schema: RESULT_SCHEMA },
-        },
-        system,
-        messages: [{ role: "user", content: `${context}Transcript:\n${transcript}` }],
-      } as any);
-    } catch (error) {
-      if (error instanceof Anthropic.APIError) {
-        console.error(`Sorting failed (${error.status}):`, error.message);
-      } else {
-        console.error("Sorting failed:", error);
+      const res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: SORTING_MODEL,
+          input: [
+            { role: "system", content: system },
+            { role: "user", content: `${context}Transcript:\n${transcript}` },
+          ],
+          text: {
+            format: { type: "json_schema", name: "voice_note", strict: true, schema: RESULT_SCHEMA },
+          },
+          max_output_tokens: 2000,
+        }),
+      });
+      if (!res.ok) {
+        console.error("Sorting failed:", res.status, await res.text());
+        return json(fallback);
       }
+
+      // The answer is a message item whose content is either the JSON text
+      // or, if the model declined, a refusal.
+      const body = await res.json();
+      const message = (body.output ?? []).find((item: { type: string }) => item.type === "message");
+      const part = (message?.content ?? [])[0];
+      if (body.status !== "completed" || part?.type !== "output_text") {
+        console.error("Sorting incomplete or refused:", body.status, JSON.stringify(part ?? null));
+        return json(fallback);
+      }
+      text = part.text;
+    } catch (error) {
+      console.error("Sorting failed:", error);
       return json(fallback);
     }
 
-    if (response.stop_reason === "refusal") {
-      console.error("Sorting refused:", response.stop_details);
-      return json(fallback);
-    }
-
-    const text = response.content.find((b: { type: string }) => b.type === "text") as
-      | { text: string }
-      | undefined;
     try {
-      const parsed = JSON.parse(text?.text ?? "");
+      const parsed = JSON.parse(text ?? "");
       return json({ transcript, ...parsed });
     } catch {
-      console.error("Unparseable result:", text?.text);
+      console.error("Unparseable result:", text);
       return json(fallback);
     }
   } catch (error) {
