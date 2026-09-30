@@ -172,23 +172,35 @@ thought: the reader's own reflection, in their own voice and first person, with 
       ? `Book: "${book.title}"${book.author ? ` by ${book.author}` : ""}.\n\n`
       : "";
 
-    const client = new Anthropic();
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 4000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: RESULT_SCHEMA },
-      },
-      system,
-      messages: [{ role: "user", content: `${context}Transcript:\n${transcript}` }],
-    } as any);
-
     // If it cannot be sorted, the reader still gets their words back as the
-    // thought, rather than losing the recording to an error.
+    // thought, rather than losing the recording to an error. The transcript
+    // has already been paid for; an Anthropic outage or an empty credit
+    // balance should cost the reader the sorting, not the note.
     const fallback = { transcript, mood: null, quote: null, page: null, thought: transcript };
+
+    let response;
+    try {
+      const client = new Anthropic();
+      response = await client.beta.messages.create({
+        model: "claude-opus-5-5",
+        max_tokens: 4000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: {
+          effort: "low",
+          format: { type: "json_schema", schema: RESULT_SCHEMA },
+        },
+        system,
+        messages: [{ role: "user", content: `${context}Transcript:\n${transcript}` }],
+      } as any);
+    } catch (error) {
+      if (error instanceof Anthropic.APIError) {
+        console.error(`Sorting failed (${error.status}):`, error.message);
+      } else {
+        console.error("Sorting failed:", error);
+      }
+      return json(fallback);
+    }
 
     if (response.stop_reason === "refusal") {
       console.error("Sorting refused:", response.stop_details);
