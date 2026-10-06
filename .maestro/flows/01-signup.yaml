@@ -1,0 +1,44 @@
+# TC01–TC04: welcome screen and sign-up validation.
+appId: host.exp.Exponent
+name: 01 Sign up
+---
+- runFlow: ../common/launch.yaml
+# TC01
+- assertVisible: "Create Account"
+- assertVisible: "Already have an account? Sign in"
+- tapOn: "Create Account"
+- assertVisible: "Start your reading journey"
+# TC02 — the submit button is the second "Create Account" (the first is the tab)
+- tapOn:
+    text: "Create Account"
+    index: 1
+- assertVisible: "Please enter your name."
+# TC03
+- tapOn:
+    id: "auth-name"
+- inputText: "Test Reader"
+- tapOn:
+    id: "auth-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: "123"
+- tapOn: "Start your reading journey"
+- tapOn:
+    text: "Create Account"
+    index: 1
+- assertVisible: "Password must be at least 6 characters."
+# TC04
+- tapOn:
+    id: "auth-password"
+- eraseText: 10
+- inputText: ${PASSWORD}
+- tapOn: "Start your reading journey"
+- tapOn:
+    text: "Create Account"
+    index: 1
+- extendedWaitUntil:
+    visible: "Check your email.*"
+    timeout: 20000
+- tapOn: "Got it"
+- assertVisible: "Welcome back, reader"

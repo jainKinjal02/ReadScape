@@ -1,0 +1,16 @@
+# Signs out from the profile panel, if signed in, and lands on the welcome screen.
+appId: host.exp.Exponent
+---
+- runFlow: launch.yaml
+- runFlow: dismiss-save-password.yaml
+- runFlow:
+    when:
+      visible:
+        id: "profile-avatar"
+    commands:
+      - tapOn:
+          id: "profile-avatar"
+      - tapOn: "Log Out"
+- extendedWaitUntil:
+    visible: "Already have an account? Sign in"
+    timeout: 15000

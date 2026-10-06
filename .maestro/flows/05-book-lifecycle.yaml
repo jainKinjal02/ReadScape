@@ -1,0 +1,53 @@
+# TC16–TC21: one book moving Want -> Reading -> Read, with page, rating,
+# favourite and genres along the way.
+appId: host.exp.Exponent
+name: 05 Book lifecycle
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- tapOn: ".*The Vegetarian.*"
+- extendedWaitUntil:
+    visible: "Han Kang"
+    timeout: 10000
+# A Want book has no progress section yet
+- assertNotVisible: "Where you are"
+# TC16
+- tapOn: "Reading"
+- assertVisible: "Where you are"
+- assertVisible: "Log a session"
+- assertVisible: "Mark finished"
+# TC17
+- tapOn: "page 0.*"
+- eraseText: 6
+- inputText: "60"
+- pressKey: Enter
+- assertVisible: "page 60.*"
+# TC19
+- tapOn:
+    id: "rate-4"
+- assertVisible: "four"
+- tapOn:
+    id: "rate-2"
+- assertVisible: "two"
+# TC20 — toggled twice, so it ends where it started; the Home tab checks the count
+- tapOn:
+    id: "book-favorite"
+# TC21
+- tapOn: "edit|\\+ genre"
+- assertVisible: "Edit genres"
+- tapOn: "Literary Fiction"
+- tapOn: "Save genres"
+- assertNotVisible: "Edit genres"
+- assertVisible: "Literary Fiction"
+# TC18
+- tapOn: "Mark finished"
+- assertVisible: "You finished it!"
+- tapOn: "Continue"
+- assertNotVisible: "You finished it!"
+- assertNotVisible: "Where you are"
+- tapOn:
+    id: "book-back"
+- tapOn: "Read"
+- assertVisible: ".*The Vegetarian.*"
+- assertVisible: ".*Pride (and|&) Prejudice.*"

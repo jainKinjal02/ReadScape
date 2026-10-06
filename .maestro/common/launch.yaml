@@ -1,0 +1,26 @@
+# Opens ReadScape in Expo Go against the local dev server, dismissing the
+# one-time prompts a fresh simulator shows (iOS "Open in Expo Go?" and Expo
+# Go's developer-menu introduction).
+appId: host.exp.Exponent
+---
+# Start from a cold launch so no screen is left over from the last flow. The
+# signed-in session lives in the keychain and survives this.
+- stopApp
+- openLink: exp://127.0.0.1:8082
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible: "Continue|.*ReadScape.*|Library|Insights"
+    timeout: 90000
+# Expo Go's developer-menu introduction sits in its own window, invisible to
+# Maestro except as "Bottom Sheet"; its Continue button spans the bottom.
+- runFlow:
+    when:
+      visible: "Bottom Sheet"
+    commands:
+      - tapOn:
+          point: "50%,91%"
+      - waitForAnimationToEnd

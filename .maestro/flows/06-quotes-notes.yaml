@@ -1,0 +1,62 @@
+# TC22–TC23: adding and deleting a quote and a note on a book.
+appId: host.exp.Exponent
+name: 06 Quotes and notes
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- tapOn: ".*Lost Lambs.*"
+- extendedWaitUntil:
+    visible: "Madeline Cash"
+    timeout: 10000
+# TC22
+- scrollUntilVisible:
+    element: "Quotes"
+    direction: DOWN
+- tapOn: "Quotes"
+- scrollUntilVisible:
+    element: "\\+ Add quote"
+    direction: DOWN
+- tapOn: "\\+ Add quote"
+- tapOn: "Type a passage that moved you…"
+- inputText: "We were all lost lambs once"
+- tapOn: "Page number (optional)"
+- inputText: "12"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: ".*We were all lost lambs once.*"
+    timeout: 10000
+- assertVisible: ".*12.*"
+# Delete every quote, including any a failed earlier run left behind
+- repeat:
+    while:
+      visible: "delete"
+    commands:
+      - tapOn:
+          text: "delete"
+          index: 0
+      - waitForAnimationToEnd
+- assertNotVisible: ".*We were all lost lambs once.*"
+- assertVisible: "No quotes yet. Tap below to save a passage."
+# TC23
+- tapOn: "Notes"
+- scrollUntilVisible:
+    element: "\\+ Add note"
+    direction: DOWN
+- tapOn: "\\+ Add note"
+- tapOn: "Write your thought…"
+- inputText: "The sisters feel painfully real"
+- tapOn: "Save Note"
+- extendedWaitUntil:
+    visible: "The sisters feel painfully real"
+    timeout: 10000
+- repeat:
+    while:
+      visible: "✕"
+    commands:
+      - tapOn:
+          text: "✕"
+          index: 0
+      - waitForAnimationToEnd
+- assertNotVisible: "The sisters feel painfully real"
+- assertVisible: "No notes yet. Tap below to write your thoughts."

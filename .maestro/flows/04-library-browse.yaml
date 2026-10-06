@@ -1,0 +1,31 @@
+# TC14–TC15: status filters and searching the shelf.
+appId: host.exp.Exponent
+name: 04 Library - filters and search
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- assertVisible: "3 books, all yours"
+# TC14
+- tapOn: "Reading"
+- assertVisible: ".*Lost Lambs.*"
+- assertNotVisible: ".*Pride (and|&) Prejudice.*"
+- assertNotVisible: ".*The Vegetarian.*"
+- tapOn: "Read"
+- assertVisible: ".*Pride (and|&) Prejudice.*"
+- assertNotVisible: ".*Lost Lambs.*"
+- tapOn: "Waiting"
+- assertVisible: ".*The Vegetarian.*"
+- assertNotVisible: ".*Pride (and|&) Prejudice.*"
+- tapOn: "Put down"
+- assertVisible: "No abandoned books"
+- tapOn: "All"
+- assertVisible: ".*Lost Lambs.*"
+- assertVisible: ".*Pride (and|&) Prejudice.*"
+- assertVisible: ".*The Vegetarian.*"
+# TC15
+- tapOn: "Search your library…"
+- inputText: "pride"
+- assertVisible: ".*Pride (and|&) Prejudice.*"
+- assertNotVisible: ".*Lost Lambs.*"
+- assertNotVisible: ".*The Vegetarian.*"

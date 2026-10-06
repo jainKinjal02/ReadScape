@@ -1,0 +1,57 @@
+# TC05–TC07: sign-in errors, first sign-in, onboarding.
+appId: host.exp.Exponent
+name: 02 Sign in and onboarding
+---
+- runFlow: ../common/logout.yaml
+- tapOn: "Already have an account? Sign in"
+- assertVisible: "Welcome back, reader"
+# TC05
+- tapOn:
+    id: "auth-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: "wrong-password"
+- tapOn: "Welcome back, reader"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- extendedWaitUntil:
+    visible: ".*[Ii]nvalid.*|.*incorrect.*"
+    timeout: 15000
+- assertVisible: "Welcome back, reader"
+# TC06
+- tapOn:
+    id: "auth-password"
+- eraseText: 20
+- inputText: ${PASSWORD}
+- tapOn: "Welcome back, reader"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- extendedWaitUntil:
+    visible: "Not Now|.*How many books.*|Good (morning|afternoon|evening),"
+    timeout: 20000
+- runFlow: ../common/dismiss-save-password.yaml
+# TC07 — onboarding appears only on an account's first sign-in; a re-run on
+# the same account goes straight to Home, which is also correct.
+- runFlow:
+    when:
+      visible: ".*How many books.*"
+    commands:
+      - tapOn: ".*Regular.*"
+      - tapOn: "Continue"
+      - extendedWaitUntil:
+          visible: "Enter ReadScape"
+          timeout: 5000
+      - tapOn: "Fiction"
+      - tapOn: "Add your own…"
+      - inputText: "Cozy mysteries"
+      - pressKey: Enter
+      - assertVisible: "Cozy mysteries"
+      - tapOn: "Enter ReadScape"
+- extendedWaitUntil:
+    visible: "Good (morning|afternoon|evening),"
+    timeout: 20000
+- assertVisible: "Test Reader"
+- assertVisible: "(Twelve|12) this year"

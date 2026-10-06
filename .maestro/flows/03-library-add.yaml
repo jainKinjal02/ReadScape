@@ -1,0 +1,81 @@
+# TC08–TC13: adding books, and the duplicate-book bug.
+appId: host.exp.Exponent
+name: 03 Library - adding books
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+# TC08
+- assertVisible: "Your library awaits"
+
+# TC09 — add a book as Want
+- tapOn:
+    id: "add-book"
+- assertVisible: "Add a Book"
+- tapOn: "Title or author…"
+- inputText: "The Vegetarian"
+- extendedWaitUntil:
+    visible: "Han Kang"
+    timeout: 20000
+- tapOn:
+    text: "Want"
+    below: "Han Kang"
+- extendedWaitUntil:
+    visible: "In your library · Want"
+    timeout: 15000
+
+# TC10 — searching again must not offer to add it a second time
+- tapOn: "The Vegetarian"
+- eraseText: 30
+- inputText: "The Vegetarian"
+- extendedWaitUntil:
+    visible: "Han Kang"
+    timeout: 20000
+- assertVisible: "In your library · Want"
+
+# TC12 — a book read years ago goes straight to Read
+- eraseText: 30
+- inputText: "Pride and Prejudice"
+- extendedWaitUntil:
+    visible: "Jane Austen"
+    timeout: 20000
+- tapOn:
+    text: "Read"
+    below: "Jane Austen"
+- extendedWaitUntil:
+    visible: "In your library · Read"
+    timeout: 15000
+
+# A third book, currently being read
+- eraseText: 30
+- inputText: "Lost Lambs"
+- extendedWaitUntil:
+    visible: "Madeline Cash"
+    timeout: 20000
+- tapOn:
+    text: "Reading"
+    below: "Madeline Cash"
+- extendedWaitUntil:
+    visible: "In your library · Reading"
+    timeout: 15000
+- tapOn:
+    id: "close-add-book"
+# Three books, not four: nothing was added twice
+- assertVisible: "3 books, all yours"
+
+# TC11 + TC13 — another edition is recognised, and Open goes to the book
+- tapOn:
+    id: "add-book"
+- tapOn: "Title or author…"
+- inputText: "Vegetarian Han Kang"
+- extendedWaitUntil:
+    visible: "In your library · Want"
+    timeout: 20000
+- tapOn: "Open"
+- extendedWaitUntil:
+    visible: "Han Kang"
+    timeout: 10000
+- assertVisible: "Say how it feels"
+- tapOn:
+    id: "book-back"
+- assertVisible: "3 books, all yours"
