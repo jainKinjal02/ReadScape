@@ -1,0 +1,50 @@
+# TC24–TC25: logging a reading session.
+appId: host.exp.Exponent
+name: 07 Reading session
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- tapOn: ".*Lost Lambs.*"
+- extendedWaitUntil:
+    visible: "Log a session"
+    timeout: 10000
+- tapOn: "Log a session"
+- assertVisible: "WHERE DID YOU STOP?"
+# Back to 0 first (the counter never goes below it), so re-runs land on 20 too
+- repeat:
+    times: 10
+    commands:
+      - tapOn: "−"
+- tapOn: "\\+"
+- tapOn: "\\+"
+- assertVisible: "20"
+# TC24 — a mood is required
+- scrollUntilVisible:
+    element: "Save check-in"
+    direction: DOWN
+- tapOn: "Save check-in"
+- assertVisible: "Pick a mood"
+- tapOn: "OK"
+- tapOn: ".*Hooked.*"
+- tapOn: ".*Capture a quote.*"
+- tapOn: "Type a passage that moved you…"
+- inputText: "Everyone in that house was a little lost"
+- tapOn: "What's on your mind about this book…"
+- inputText: "Funny and sad at once"
+- scrollUntilVisible:
+    element: "Save check-in"
+    direction: DOWN
+- tapOn: "Save check-in"
+- extendedWaitUntil:
+    visible: "Session saved!"
+    timeout: 15000
+- tapOn: "OK"
+# TC25 — back on the book: page, mood and quote all landed
+- extendedWaitUntil:
+    visible: "page 20.*"
+    timeout: 10000
+- assertVisible: "hooked"
+- scrollUntilVisible:
+    element: ".*Everyone in that house was a little lost.*"
+    direction: DOWN

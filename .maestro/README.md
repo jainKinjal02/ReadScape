@@ -16,9 +16,20 @@ The last flow deletes that account, which is itself the Delete account test.
    maestro test .maestro/flows -e EMAIL=you+readscape-test@example.com -e PASSWORD=...
    ```
 
-   Flows run in name order (`01-…` first). `01-signup` needs a new email each
-   time, and the account it creates must be confirmed from its inbox before
-   `02-signin` can pass.
+   Flows run in name order (`01-…` first) and build on each other: later
+   flows expect the books the earlier ones added. `01-signup` needs a new
+   email each time, and the account it creates must be confirmed from its
+   inbox before `02-signin` can pass. `12-delete-account` deletes the account.
+
+4. Voice notes (`08`) need real sound, which Maestro can't make, so they run
+   from a script that has the Mac speak while the simulator records:
+
+   ```
+   MAESTRO=maestro .maestro/flows/08-voice-note.sh
+   ```
+
+   The simulator records whatever the Mac's microphone hears. Run it only in a
+   quiet room, or nearby conversation gets transcribed and saved instead.
 
 ## Test cases
 
@@ -49,9 +60,9 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC23 | Notes | A note can be added and deleted | 06-quotes-notes |
 | TC24 | Session | A reading session needs a mood, then saves page, mood and quote | 07-session |
 | TC25 | Session | The session's mood appears under "How it felt" | 07-session |
-| TC26 | Voice | Recording a spoken note fills mood, quote and thought for review | 08-voice-note |
-| TC27 | Voice | Saving keeps the recording, playable from the Notes tab | 08-voice-note |
-| TC28 | Voice | Discarding saves nothing | 08-voice-note |
+| TC26 | Voice | Recording a spoken note fills mood, quote and thought for review | 08-voice-note.sh |
+| TC27 | Voice | Saving keeps the recording, playable from the Notes tab | 08-voice-note.sh |
+| TC28 | Voice | Discarding saves nothing | not automated yet |
 | TC29 | Home | Home shows the current read, counts and goal | 09-tabs |
 | TC30 | Insights | Insights shows the year's books and moods | 09-tabs |
 | TC31 | Notes tab | The Notes tab lists quotes and thoughts across books | 09-tabs |

@@ -11,6 +11,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Modal,
   StatusBar,
@@ -186,18 +187,30 @@ export default function BookDetailScreen() {
       ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100))
       : 0;
 
-  useEffect(() => {
-    if (!id) return;
-    setLoadingData(true);
-    Promise.all([fetchQuotes(id), fetchNotes(id), fetchBookPhotos(id)])
-      .then(([q, n, p]) => {
-        setQuotes(q);
-        setNotes(n);
-        setBookPhotos(p);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
-  }, [id]);
+  // On focus for the same reason as the moods above: a reading session can
+  // save a quote, and returning from it does not remount this screen. The
+  // spinner is for the first load only; refreshes swap the lists in quietly.
+  const loadedOnce = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      let cancelled = false;
+      if (!loadedOnce.current) setLoadingData(true);
+      Promise.all([fetchQuotes(id), fetchNotes(id), fetchBookPhotos(id)])
+        .then(([q, n, p]) => {
+          if (cancelled) return;
+          setQuotes(q);
+          setNotes(n);
+          setBookPhotos(p);
+        })
+        .catch(() => {})
+        .finally(() => {
+          loadedOnce.current = true;
+          if (!cancelled) setLoadingData(false);
+        });
+      return () => { cancelled = true; };
+    }, [id])
+  );
 
   const handleRating = async (star: number) => {
     if (!book) return;
@@ -481,15 +494,20 @@ export default function BookDetailScreen() {
   }
 
   return (
+    // On iOS the ScrollView makes room for the keyboard itself and keeps the
+    // focused field in view. Padding from a KeyboardAvoidingView around it
+    // reset the scroll to the top whenever the keyboard opened, hiding the
+    // quote or note box the reader had just tapped into.
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.cream }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? undefined : "height"}
     >
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
 
         {/* Everything above the tabs lives in one child so the sticky index
@@ -1161,6 +1179,9 @@ function QuotesTab({
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
+    // The page field is usually the one focused; its number pad would
+    // otherwise stay up over the saved quote.
+    Keyboard.dismiss();
     await onAdd(text.trim(), pageText ? Number(pageText) : null);
     setText("");
     setPageText("");
@@ -1195,7 +1216,7 @@ function QuotesTab({
                 <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke={colors.terracotta} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onDelete(q.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity testID="quote-delete" onPress={() => onDelete(q.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.deleteBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -1321,6 +1342,7 @@ function NotesTab({
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
+    Keyboard.dismiss();
     await onAdd(text.trim());
     setText("");
     setShowAdd(false);
@@ -1339,7 +1361,7 @@ function NotesTab({
       )}
       {notes.map((n) => (
         <View key={n.id} style={styles.noteCard}>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(n.id)}>
+          <TouchableOpacity testID="note-delete" style={styles.deleteBtn} onPress={() => onDelete(n.id)}>
             <Text style={styles.deleteBtnText}>✕</Text>
           </TouchableOpacity>
           {!!n.audio_path && <VoicePlayButton audioPath={n.audio_path} durationMs={n.duration_ms} />}

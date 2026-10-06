@@ -30,10 +30,11 @@ name: 06 Quotes and notes
 # Delete every quote, including any a failed earlier run left behind
 - repeat:
     while:
-      visible: "delete"
+      visible:
+        id: "quote-delete"
     commands:
       - tapOn:
-          text: "delete"
+          id: "quote-delete"
           index: 0
       - waitForAnimationToEnd
 - assertNotVisible: ".*We were all lost lambs once.*"
@@ -52,10 +53,11 @@ name: 06 Quotes and notes
     timeout: 10000
 - repeat:
     while:
-      visible: "✕"
+      visible:
+        id: "note-delete"
     commands:
       - tapOn:
-          text: "✕"
+          id: "note-delete"
           index: 0
       - waitForAnimationToEnd
 - assertNotVisible: "The sisters feel painfully real"

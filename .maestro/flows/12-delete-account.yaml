@@ -1,0 +1,33 @@
+# TC35: deleting the account. Run last: it removes the test account.
+appId: host.exp.Exponent
+name: 12 Delete account
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Home"
+- tapOn:
+    id: "profile-avatar"
+- tapOn: "Delete account"
+- assertVisible: "Delete your account?"
+- tapOn:
+    text: "Delete"
+    index: 0
+- extendedWaitUntil:
+    visible: "Already have an account? Sign in"
+    timeout: 30000
+# The account is gone: signing in with it now fails
+- tapOn: "Already have an account? Sign in"
+- tapOn:
+    id: "auth-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: ${PASSWORD}
+- tapOn: "Welcome back, reader"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- extendedWaitUntil:
+    visible: ".*[Ii]nvalid.*|.*incorrect.*"
+    timeout: 15000
+- assertVisible: "Welcome back, reader"

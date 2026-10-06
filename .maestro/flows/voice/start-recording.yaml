@@ -1,0 +1,21 @@
+# Opens a book's voice-note sheet and starts recording. Speech is supplied
+# from outside (08-voice-note.sh plays it through the Mac's speakers).
+appId: host.exp.Exponent
+---
+- runFlow: ../../common/launch.yaml
+- runFlow: ../../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- tapOn: ".*Lost Lambs.*"
+- extendedWaitUntil:
+    visible: "Say how it feels"
+    timeout: 10000
+- tapOn: "Say how it feels"
+- tapOn: "Start recording"
+# First time only: iOS asks for the microphone
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - tapOn: "Start recording"
+- assertVisible: "Listening…"

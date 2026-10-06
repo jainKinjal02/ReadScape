@@ -1,0 +1,16 @@
+# TC26–TC27: stop, review what was heard, save, and find it in Notes.
+appId: host.exp.Exponent
+---
+- tapOn: "Stop recording"
+- extendedWaitUntil:
+    visible: "Here's what I heard"
+    timeout: 60000
+- assertVisible: "HOW IT FELT"
+- assertVisible: "QUOTE"
+- assertVisible: "YOUR THOUGHT"
+- assertVisible: "Recording kept.*"
+- tapOn: "Save"
+- extendedWaitUntil:
+    notVisible: "Here's what I heard"
+    timeout: 20000
+- assertVisible: "Play voice note"

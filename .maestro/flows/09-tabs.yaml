@@ -1,0 +1,26 @@
+# TC29–TC31: Home, Insights and the Notes tab reflect what the earlier flows did.
+appId: host.exp.Exponent
+name: 09 Home, Insights, Notes
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+# TC29 — Home: current read, counts, goal
+- tapOn: "Home"
+- assertVisible: ".*Lost Lambs.*page 20, started today.*"
+- assertVisible: "day streak"
+- assertVisible: "(Twelve|12) this year"
+- assertVisible: "2 done"
+# TC30 — Insights: The Vegetarian was started and finished in the app, so it
+# has a duration; that only works if the status dates were recorded.
+- tapOn: "Insights"
+- assertVisible: "Insights"
+- assertVisible: "How long each one kept you"
+- assertVisible: "The Vegetarian"
+- assertVisible: "1 day"
+- assertVisible: "How they felt"
+- assertVisible: "hooked"
+# TC31 — Notes tab gathers quotes and thoughts from every book
+- tapOn: "Notes"
+- assertVisible: ".*Everyone in that house was a little lost.*"
+- tapOn: "Quotes"
+- assertVisible: ".*Everyone in that house was a little lost.*"

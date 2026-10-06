@@ -1,0 +1,20 @@
+# TC34: removing a book from the library.
+appId: host.exp.Exponent
+name: 11 Remove a book
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- assertVisible: "3 books, all yours"
+- tapOn: ".*Pride (and|&) Prejudice.*"
+- extendedWaitUntil:
+    visible: "Jane Austen"
+    timeout: 10000
+- tapOn:
+    id: "book-delete"
+- assertVisible: "Remove from Library"
+- tapOn: "Remove"
+- extendedWaitUntil:
+    visible: "2 books, all yours"
+    timeout: 10000
+- assertNotVisible: ".*Pride (and|&) Prejudice.*"

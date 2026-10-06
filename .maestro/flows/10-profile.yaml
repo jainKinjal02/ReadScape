@@ -1,0 +1,50 @@
+# TC32–TC33: editing the profile, logging out and back in.
+appId: host.exp.Exponent
+name: 10 Profile, log out, sign back in
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Home"
+# TC32
+- tapOn:
+    id: "profile-avatar"
+- tapOn: ".*Edit Profile.*"
+- assertVisible: "YOUR NAME"
+- tapOn: "Test Reader|Tess Reader"
+- eraseText: 20
+- inputText: "Tess Reader"
+- tapOn: "YOUR NAME"
+- scrollUntilVisible:
+    element: "Save Changes"
+    direction: DOWN
+- tapOn: "Save Changes"
+- extendedWaitUntil:
+    notVisible: "Save Changes"
+    timeout: 10000
+- assertVisible: "Tess Reader"
+# TC33
+- tapOn:
+    id: "profile-avatar"
+- tapOn: "Log Out"
+- extendedWaitUntil:
+    visible: "Already have an account? Sign in"
+    timeout: 15000
+- tapOn: "Already have an account? Sign in"
+- tapOn:
+    id: "auth-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: ${PASSWORD}
+- tapOn: "Welcome back, reader"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- extendedWaitUntil:
+    visible: "Not Now|Good (morning|afternoon|evening),"
+    timeout: 20000
+- runFlow: ../common/dismiss-save-password.yaml
+# Straight to Home (already onboarded), with the new name and the same library
+- assertVisible: "Tess Reader"
+- tapOn: "Library"
+- assertVisible: "3 books, all yours"
