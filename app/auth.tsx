@@ -130,9 +130,14 @@ export default function AuthScreen() {
           password,
         });
         if (err) throw err;
+        const meta = data.session.user.user_metadata ?? {};
         setUserId(data.session.user.id);
-        setUserName(data.session.user.user_metadata?.name ?? "Reader");
-        router.replace("/(tabs)/home");
+        setUserName(meta.name ?? "Reader");
+        // With email confirmation on, a reader's first sign-in comes after
+        // sign-up rather than straight from it, so this is where most new
+        // readers arrive. Same rule as the Apple and Google path.
+        const onboarded = Number(meta.reading_goal) > 0;
+        router.replace(onboarded ? "/(tabs)/home" : "/onboarding");
       }
     } catch (err: any) {
       setError(toUserMessage(err));
@@ -254,6 +259,7 @@ export default function AuthScreen() {
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>Your name</Text>
                   <TextInput
+                    testID="auth-name"
                     style={inp("name")}
                     value={name}
                     onChangeText={setName}
@@ -271,6 +277,7 @@ export default function AuthScreen() {
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Email</Text>
                 <TextInput
+                  testID="auth-email"
                   ref={emailRef}
                   style={inp("email")}
                   value={email}
@@ -289,6 +296,7 @@ export default function AuthScreen() {
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Password</Text>
                 <TextInput
+                  testID="auth-password"
                   ref={passwordRef}
                   style={inp("password")}
                   value={password}

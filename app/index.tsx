@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaText: {
-    color: colors.ink,
+    color: colors.paper,
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 0.3,

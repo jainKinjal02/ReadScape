@@ -13,11 +13,80 @@ export async function fetchUserBooks(userId: string): Promise<Book[]> {
   return data ?? [];
 }
 
+/** Thrown when a book is already in the reader's library. Carries that copy. */
+export class AlreadyInLibraryError extends Error {
+  constructor(public book: Book) {
+    super(`"${book.title}" is already in your library.`);
+    this.name = "AlreadyInLibraryError";
+  }
+}
+
+/**
+ * The reader's existing copy of a search result, if they have one.
+ *
+ * One book is one entry: it moves Want -> Reading -> Read rather than being
+ * added again for each status. Matched by catalogue id, or failing that by
+ * title and author, because the same book turns up under several catalogue
+ * entries (editions, translations) and adding a second edition of a book
+ * already on the shelf is the duplicate a reader actually runs into.
+ */
+export function findInLibrary(books: Book[], result: GoogleBook): Book | null {
+  const byId = books.find((b) => b.google_books_id && b.google_books_id === result.id);
+  if (byId) return byId;
+
+  const title = normalise(result.volumeInfo.title ?? "");
+  if (!title) return null;
+  const wantAuthor = tokens((result.volumeInfo.authors ?? []).join(" "));
+
+  return (
+    books.find((b) => {
+      if (normalise(b.title) !== title) return false;
+      const gotAuthor = tokens(b.author ?? "");
+      // Same title and no author on one side is still the same book often
+      // enough; same title with different authors is not.
+      if (wantAuthor.size === 0 || gotAuthor.size === 0) return true;
+      return [...wantAuthor].some((t) => gotAuthor.has(t));
+    }) ?? null
+  );
+}
+
+/**
+ * The fields to write when a book moves to `status`, given where it is now.
+ *
+ * Dates record what actually happened in the app: starting to read stamps the
+ * start, finishing stamps the finish. A book added straight to Read gets no
+ * finish date, because it may have been read years ago and today's date would
+ * put it in this year's stats and this week's streak. Moving a book back out
+ * of Read clears its finish date, so a mis-tap doesn't count as finishing.
+ */
+export function statusChange(
+  book: Pick<Book, "date_started" | "date_finished">,
+  status: BookStatus
+): Pick<Book, "status"> & Partial<Pick<Book, "date_started" | "date_finished">> {
+  const now = new Date().toISOString();
+  const patch: Pick<Book, "status"> & Partial<Pick<Book, "date_started" | "date_finished">> = { status };
+  if (status === "reading" && !book.date_started) patch.date_started = now;
+  if (status === "read" && !book.date_finished) patch.date_finished = now;
+  if (status !== "read" && book.date_finished) patch.date_finished = null;
+  return patch;
+}
+
 export async function addBookToLibrary(
   userId: string,
   googleBook: GoogleBook,
   status: BookStatus = "want_to_read"
 ): Promise<Book> {
+  // The screen checks its own copy of the library first; this catches the
+  // same book added from another device, or from a screen that is out of date.
+  const { data: existing, error: existingError } = await supabase
+    .from("books")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("google_books_id", googleBook.id)
+    .limit(1);
+  if (existingError) throw existingError;
+  if (existing?.[0]) throw new AlreadyInLibraryError(existing[0]);
+
   const info = googleBook.volumeInfo;
   // Google Books sometimes returns http — force https
   const cover =
@@ -37,6 +106,7 @@ export async function addBookToLibrary(
       current_page: 0,
       synopsis: info.description ?? null,
       google_books_id: googleBook.id,
+      date_started: status === "reading" ? new Date().toISOString() : null,
     })
     .select()
     .single();
@@ -60,11 +130,11 @@ export async function toggleFavorite(bookId: string, isFavorite: boolean): Promi
 
 export async function updateBookStatus(
   bookId: string,
-  status: BookStatus
+  change: ReturnType<typeof statusChange>
 ): Promise<void> {
   const { error } = await supabase
     .from("books")
-    .update({ status })
+    .update(change)
     .eq("id", bookId);
   if (error) throw error;
 }
@@ -391,39 +461,48 @@ export async function updateBookCover(bookId: string, coverUrl: string): Promise
   if (error) throw error;
 }
 
+// Letters outside the Latin alphabets (Hangul, kana, kanji, Cyrillic, …).
+const NON_LATIN = /[^\u0000-\u024F\u1E00-\u1EFF\u2000-\u206F\s]/;
+
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
-  const fields = "key,title,author_name,cover_i,number_of_pages_median,subject";
 
-  // Title-specific search gives the most accurate results for book names
-  const titleUrl =
-    `https://openlibrary.org/search.json?title=${encodeURIComponent(query)}` +
-    `&fields=${fields}&limit=20`;
+  // A general search, not a title-only one. Title search returns matches in
+  // no useful order: "The Vegetarian" gave three cookbooks before Han Kang's
+  // novel, which did not appear at all, and "1984" buried Orwell. General
+  // search ranks by relevance and also finds books by their author's name.
+  //
+  // It reports each work under its original-language title (채식주의자, バター),
+  // so `lang=en` plus the editions fields fetch the best English edition. Its
+  // title is only used when the work's own title is in another script: an
+  // edition title is one printing's spelling ("Pride & Prejudice", "Nineteen
+  // eighty-four"), while the work title is the book's usual name.
+  const fields = [
+    "key", "title", "author_name", "cover_i", "number_of_pages_median", "subject",
+    "editions", "editions.title", "editions.cover_i",
+  ].join(",");
+  const url =
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
+    `&lang=en&fields=${fields}&limit=20`;
 
-  const res = await fetchWithTimeout(titleUrl);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
   const json = await res.json();
-  let docs: any[] = json.docs ?? [];
 
-  // If title search gives fewer than 4 hits the user might be searching by author —
-  // run a general search and merge in any new results.
-  if (docs.length < 4) {
-    try {
-      const generalRes = await fetchWithTimeout(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=15`
-      );
-      if (generalRes.ok) {
-        const generalJson = await generalRes.json();
-        const existing = new Set(docs.map((d: any) => d.key));
-        const extra = (generalJson.docs ?? []).filter((d: any) => !existing.has(d.key));
-        docs = [...docs, ...extra];
-      }
-    } catch {
-      // General search is best-effort — ignore failures
-    }
-  }
-
-  return docs.map(mapOpenLibraryDoc).filter((b: GoogleBook) => b.volumeInfo.title);
+  return (json.docs ?? [])
+    .map((doc: any) => {
+      const edition = doc.editions?.docs?.[0];
+      const foreign = typeof doc.title === "string" && NON_LATIN.test(doc.title);
+      if (!foreign || !edition?.title) return mapOpenLibraryDoc(doc);
+      // The English edition's cover too: the work's representative cover is
+      // usually the original-language artwork.
+      return mapOpenLibraryDoc({
+        ...doc,
+        title: edition.title,
+        cover_i: edition.cover_i ?? doc.cover_i,
+      });
+    })
+    .filter((b: GoogleBook) => b.volumeInfo.title);
 }
 
 function mapOpenLibraryDoc(doc: any): GoogleBook {

@@ -40,6 +40,7 @@ import {
   updateBookRating,
   updateBookGenre,
   updateBookStatus,
+  statusChange,
   updateCurrentPage,
   markBookFinished,
   deleteBook,
@@ -289,9 +290,14 @@ export default function BookDetailScreen() {
   };
 
   const handleStatusChange = async (status: BookStatus) => {
-    if (!id || !book) return;
-    updateBook({ ...book, status });
-    await updateBookStatus(id, status).catch(() => {});
+    if (!id || !book || book.status === status) return;
+    const change = statusChange(book, status);
+    updateBook({ ...book, ...change });
+    await updateBookStatus(id, change).catch(() => {
+      // Put it back rather than show a status the database doesn't have.
+      updateBook(book);
+      Alert.alert("Couldn't update", "Please check your connection and try again.");
+    });
   };
 
   const handlePageSave = async () => {
@@ -491,13 +497,13 @@ export default function BookDetailScreen() {
         <View>
           {/* ── Top row ── */}
           <View style={[styles.bdTop, { paddingTop: insets.top + 8, paddingHorizontal: gutter }]}>
-            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity testID="book-back" onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                 <Path d="M19 12H5M12 5l-7 7 7 7" stroke={colors.ink} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 18 }}>
-              <TouchableOpacity onPress={handleToggleFavorite} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity testID="book-favorite" onPress={handleToggleFavorite} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
@@ -508,7 +514,7 @@ export default function BookDetailScreen() {
                   />
                 </Svg>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDeleteBook} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity testID="book-delete" onPress={handleDeleteBook} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
                   <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke={colors.pencil} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
@@ -578,7 +584,7 @@ export default function BookDetailScreen() {
           <View style={[styles.rate, { paddingHorizontal: gutter }]}>
             <View style={styles.rateSquares}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <TouchableOpacity key={n} onPress={() => handleRating(n)} activeOpacity={0.7}>
+                <TouchableOpacity key={n} testID={`rate-${n}`} onPress={() => handleRating(n)} activeOpacity={0.7}>
                   <View style={[styles.rateSq, n <= rating && styles.rateSqOn]} />
                 </TouchableOpacity>
               ))}

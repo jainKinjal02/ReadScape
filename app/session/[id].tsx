@@ -119,7 +119,7 @@ export default function ReadingSessionScreen() {
       >
         {/* Header */}
         <View style={styles.sessHdr}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity testID="session-back" style={styles.backBtn} onPress={() => router.back()}>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M19 12H5M12 5l-7 7 7 7"

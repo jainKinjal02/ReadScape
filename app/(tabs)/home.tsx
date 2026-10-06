@@ -289,7 +289,7 @@ export default function HomeScreen() {
           </View>
           {/* The reference has no avatar, but profile and sign-out have to live
               somewhere, so it borrows the outlined circle from its own "+" button. */}
-          <TouchableOpacity style={styles.avatar} onPress={openPanel} activeOpacity={0.7}>
+          <TouchableOpacity testID="profile-avatar" style={styles.avatar} onPress={openPanel} activeOpacity={0.7}>
             <Text style={styles.avatarText}>{initials}</Text>
           </TouchableOpacity>
         </View>

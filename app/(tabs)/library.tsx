@@ -24,7 +24,13 @@ import { useAppStore } from "../../src/store";
 import { useBooks } from "../../src/hooks/useBooks";
 import { useCoverBackfill } from "../../src/hooks/useCoverBackfill";
 import { fetchMoodLogs } from "../../src/lib/books";
-import { searchBooks, addBookToLibrary, toggleFavorite } from "../../src/lib/books";
+import {
+  searchBooks,
+  addBookToLibrary,
+  toggleFavorite,
+  findInLibrary,
+  AlreadyInLibraryError,
+} from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
 
@@ -61,6 +67,13 @@ function BookOpenSvg() {
   );
 }
 
+
+const STATUS_NAMES: Record<BookStatus, string> = {
+  want_to_read: "Want",
+  reading: "Reading",
+  read: "Read",
+  abandoned: "Put down",
+};
 
 const ADD_STATUS: { label: string; value: BookStatus }[] = [
   { label: "Want",    value: "want_to_read" },
@@ -211,10 +224,15 @@ export default function LibraryScreen() {
     setAddingId(`${book.id}-${status}`);
     try {
       const added = await addBookToLibrary(userId, book, status);
+      // The result row stays and now reads "In your library", which is the
+      // confirmation, and stops the same book being added a second time.
       setBooks([added, ...books]);
-      // Clear result row to signal success without closing modal
-      setResults((prev) => prev.filter((r) => r.id !== book.id));
     } catch (err: any) {
+      if (err instanceof AlreadyInLibraryError) {
+        // Added elsewhere (another device); bring this screen up to date.
+        if (!books.some((b) => b.id === err.book.id)) setBooks([err.book, ...books]);
+        return;
+      }
       Alert.alert("Couldn't add book", toUserMessage(err));
     } finally {
       setAddingId(null);
@@ -222,6 +240,12 @@ export default function LibraryScreen() {
   };
 
   const openModal = () => setShowAddModal(true);
+
+  const openExisting = (book: Book) => {
+    closeModal();
+    // Let the sheet finish closing before the book screen slides in.
+    setTimeout(() => router.push(`/book/${book.id}`), 250);
+  };
 
   const closeModal = () => {
     setShowAddModal(false);
@@ -307,6 +331,7 @@ export default function LibraryScreen() {
       (info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? "")
         .replace("http://", "https://");
     const author = info.authors?.join(", ") ?? "Unknown author";
+    const existing = findInLibrary(books, item);
 
     return (
       <View style={styles.resultRow}>
@@ -317,6 +342,20 @@ export default function LibraryScreen() {
           {!!info.pageCount && (
             <Text style={styles.resultPages}>{info.pageCount} pages</Text>
           )}
+          {existing ? (
+            <View style={styles.addChips}>
+              <Text style={styles.inLibraryText}>
+                In your library · {STATUS_NAMES[existing.status]}
+              </Text>
+              <TouchableOpacity
+                style={styles.addChip}
+                onPress={() => openExisting(existing)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.addChipText}>Open</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={styles.addChips}>
             {ADD_STATUS.map((s) => {
               const key = `${item.id}-${s.value}`;
@@ -338,6 +377,7 @@ export default function LibraryScreen() {
               );
             })}
           </View>
+          )}
         </View>
       </View>
     );
@@ -356,7 +396,7 @@ export default function LibraryScreen() {
               : `${books.length} book${books.length === 1 ? "" : "s"}, all yours`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => openModal()} activeOpacity={0.7}>
+        <TouchableOpacity testID="add-book" style={styles.addBtn} onPress={() => openModal()} activeOpacity={0.7}>
           <Text style={styles.addBtnText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -468,7 +508,7 @@ export default function LibraryScreen() {
           {/* Header outside KAV so it never moves with the keyboard */}
           <View style={[styles.modalHeader, { paddingTop: insets.top + 14 }]}>
             <Text style={styles.modalTitle}>Add a Book</Text>
-            <TouchableOpacity onPress={closeModal} style={styles.modalCloseBtn}>
+            <TouchableOpacity testID="close-add-book" onPress={closeModal} style={styles.modalCloseBtn}>
               <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
                 <Path d="M18 6L6 18M6 6l12 12" stroke={colors.espresso2} strokeWidth={2} strokeLinecap="round" />
               </Svg>
@@ -689,6 +729,7 @@ const styles = StyleSheet.create({
     borderRadius: 10, minWidth: 56, alignItems: "center",
   },
   addChipText: { fontSize: 11, fontWeight: "600", color: colors.terracotta },
+  inLibraryText: { fontSize: 11.5, color: colors.espresso2, alignSelf: "center", marginRight: 4 },
 
   noResults: { padding: 40, alignItems: "center" },
   noResultsText: { fontSize: 13, color: colors.char3, textAlign: "center" },
