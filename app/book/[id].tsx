@@ -28,6 +28,7 @@ import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
+import { RatingMarks, ratingWords } from "../../src/components/RatingMarks";
 import { MicIcon, VoiceNoteSheet, VoiceNoteSaved } from "../../src/components/VoiceNoteSheet";
 import { VoicePlayButton } from "../../src/components/VoicePlayButton";
 import { deleteVoiceRecording } from "../../src/lib/voice";
@@ -71,14 +72,6 @@ const STATUS_LABELS: Record<string, string> = {
   abandoned:    "Put down",
 };
 
-// Ratings read as words next to the marks, the way you would say them aloud.
-const RATING_WORDS: Record<number, string> = {
-  1: "one",
-  2: "two",
-  3: "three",
-  4: "four",
-  5: "five",
-};
 
 
 export default function BookDetailScreen() {
@@ -212,11 +205,17 @@ export default function BookDetailScreen() {
     }, [id])
   );
 
-  const handleRating = async (star: number) => {
-    if (!book) return;
-    setRating(star);
-    updateBook({ ...book, rating: star });
-    if (id) await updateBookRating(id, star).catch(() => {});
+  // 0 clears the rating (tapping the current value again).
+  const handleRating = async (value: number) => {
+    if (!book || !id) return;
+    const previous = book.rating ?? 0;
+    setRating(value);
+    updateBook({ ...book, rating: value || null });
+    await updateBookRating(id, value || null).catch(() => {
+      setRating(previous);
+      updateBook(book);
+      Alert.alert("Couldn't save rating", "Please check your connection and try again.");
+    });
   };
 
   // ── Genre editing ──────────────────────────────────────────────────────────
@@ -600,15 +599,14 @@ export default function BookDetailScreen() {
 
           {/* ── Rating, as marks rather than stars ── */}
           <View style={[styles.rate, { paddingHorizontal: gutter }]}>
-            <View style={styles.rateSquares}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <TouchableOpacity key={n} testID={`rate-${n}`} onPress={() => handleRating(n)} activeOpacity={0.7}>
-                  <View style={[styles.rateSq, n <= rating && styles.rateSqOn]} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <RatingMarks
+              value={rating}
+              onChange={handleRating}
+              onColor={colors.mark}
+              offColor={colors.rule}
+            />
             <Text style={styles.xs}>
-              {rating > 0 ? RATING_WORDS[rating] : "not rated yet"}
+              {rating > 0 ? ratingWords(rating) : "not rated yet"}
             </Text>
           </View>
 
@@ -1028,13 +1026,13 @@ export default function BookDetailScreen() {
             {/* Star rating */}
             <Text style={celebStyles.rateLabel}>How would you rate it?</Text>
             <View style={celebStyles.starsRow}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={star} onPress={() => setCelebrationRating(star)} activeOpacity={0.7}>
-                  <Text style={[celebStyles.star, celebrationRating >= star && celebStyles.starFilled]}>
-                    {celebrationRating >= star ? "★" : "☆"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <RatingMarks
+                variant="stars"
+                value={celebrationRating}
+                onChange={setCelebrationRating}
+                onColor={colors.terracotta}
+                offColor={colors.cream3}
+              />
             </View>
 
             <TouchableOpacity
@@ -1488,9 +1486,6 @@ const styles = StyleSheet.create({
   segTextActive: { color: colors.paper },
 
   rate: { flexDirection: "row", alignItems: "center", gap: 9 },
-  rateSquares: { flexDirection: "row", gap: 4 },
-  rateSq: { width: 16, height: 16, borderRadius: 1, backgroundColor: colors.rule },
-  rateSqOn: { backgroundColor: colors.mark },
 
   divide: { borderTopWidth: 1, borderTopColor: colors.rule, marginTop: 19, paddingTop: 18 },
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 },
@@ -1801,8 +1796,6 @@ const celebStyles = StyleSheet.create({
   bookAuthor: { fontSize: 12, color: colors.char3, marginTop: 3, marginBottom: 20 },
   rateLabel: { fontSize: 12, color: colors.char3, marginBottom: 10 },
   starsRow: { flexDirection: "row", gap: 6, marginBottom: 24 },
-  star: { fontSize: 34, color: colors.cream3 },
-  starFilled: { color: colors.terracotta },
   doneBtn: {
     width: "100%",
     backgroundColor: colors.espresso,

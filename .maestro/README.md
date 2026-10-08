@@ -53,7 +53,7 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC16 | Book | Want → Reading shows "Where you are" and the session buttons | 05-book-lifecycle |
 | TC17 | Book | Page can be edited and progress updates | 05-book-lifecycle |
 | TC18 | Book | Mark finished moves the book to Read and celebrates | 05-book-lifecycle |
-| TC19 | Book | Rating marks set the rating word | 05-book-lifecycle |
+| TC19 | Book | Rating marks set the rating word, in halves (3.5, 4.5); tapping the current rating clears it | 05-book-lifecycle |
 | TC20 | Book | Favourite toggles on and off | 05-book-lifecycle |
 | TC21 | Book | Genres can be edited | 05-book-lifecycle |
 | TC22 | Quotes | A quote with a page can be added and deleted | 06-quotes-notes |

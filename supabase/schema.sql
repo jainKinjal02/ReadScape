@@ -26,7 +26,8 @@ create table if not exists books (
   status text check (status in ('reading', 'read', 'want_to_read', 'abandoned')) default 'want_to_read',
   total_pages int,
   current_page int default 0,
-  rating int check (rating between 1 and 5),
+  -- 0.5 to 5 in halves. See HALF RATINGS below for existing databases.
+  rating numeric(2,1) check (rating between 0.5 and 5 and rating * 2 = floor(rating * 2)),
   synopsis text,
   google_books_id text,
   date_added timestamptz default now(),
@@ -236,3 +237,30 @@ create policy "Users delete own voice notes" on storage.objects
     bucket_id = 'voice-notes'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================
+-- HALF RATINGS
+-- Ratings were whole numbers 1-5; readers can now give 3.5 or 4.5.
+-- Existing whole-number ratings convert unchanged.
+-- ============================================================
+
+-- Drop the old 1-5 integer check, whatever Postgres named it.
+do $$
+declare c text;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.books'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%rating%'
+  loop
+    execute format('alter table books drop constraint %I', c);
+  end loop;
+end $$;
+
+alter table books alter column rating type numeric(2,1) using rating::numeric(2,1);
+
+alter table books add constraint books_rating_halves
+  check (rating between 0.5 and 5 and rating * 2 = floor(rating * 2));
+
+notify pgrst, 'reload schema';

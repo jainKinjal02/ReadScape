@@ -28,8 +28,18 @@ name: 05 Book lifecycle
     id: "rate-4"
 - assertVisible: "four"
 - tapOn:
+    id: "rate-3.5"
+- assertVisible: "three and a half"
+- tapOn:
     id: "rate-2"
 - assertVisible: "two"
+# Tapping the current rating again clears it
+- tapOn:
+    id: "rate-2"
+- assertVisible: "not rated yet"
+- tapOn:
+    id: "rate-4.5"
+- assertVisible: "four and a half"
 # TC20 — toggled twice, so it ends where it started; the Home tab checks the count
 - tapOn:
     id: "book-favorite"

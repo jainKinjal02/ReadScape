@@ -152,7 +152,8 @@ export async function updateBookGenre(
 
 export async function updateBookRating(
   bookId: string,
-  rating: number
+  // 0.5 to 5 in halves, or null to clear.
+  rating: number | null
 ): Promise<void> {
   const { error } = await supabase
     .from("books")

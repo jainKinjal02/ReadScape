@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useFocusEffect, useRouter } from "expo-router";
+import { ratingStars } from "../../src/components/RatingMarks";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { fetchMoodLogs } from "../../src/lib/books";
 import { useAppStore } from "../../src/store";
@@ -300,7 +301,7 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
                         ) : null}
                         {book.rating ? (
                           <Text style={wrapStyles.timelineRating}>
-                            {"★".repeat(book.rating)}{"☆".repeat(5 - (book.rating ?? 0))}
+                            {ratingStars(book.rating)}
                           </Text>
                         ) : null}
                         {book.date_finished ? (
