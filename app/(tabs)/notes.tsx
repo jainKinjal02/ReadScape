@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useTabBarSpace } from "../../src/components/FloatingTabBar";
 import { colors, fonts } from "../../src/design/tokens";
 import { useAppStore } from "../../src/store";
 import { fetchAllNotes, fetchAllQuotes } from "../../src/lib/books";
@@ -45,6 +46,7 @@ function stripQuoteMarks(text: string): string {
 export default function NotesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { width: winW } = useWindowDimensions();
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
 
@@ -106,14 +108,8 @@ export default function NotesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: gutter,
-          paddingTop: insets.top + 10,
-          paddingBottom: 28 + insets.bottom,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Title and filters stay put; only the notes scroll. */}
+      <View style={{ paddingHorizontal: gutter, paddingTop: insets.top + 10, backgroundColor: colors.paper }}>
         <Text style={styles.h1}>Notes</Text>
         <Text style={styles.sub}>Everything you kept</Text>
 
@@ -131,6 +127,16 @@ export default function NotesScreen() {
             </TouchableOpacity>
           ))}
         </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: gutter,
+          paddingTop: 14,
+          paddingBottom: tabSpace,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
 
         {loading && entries.length === 0 ? (
           <ActivityIndicator color={colors.pencil} style={{ marginTop: 40 }} />

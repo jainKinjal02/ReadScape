@@ -12,9 +12,7 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  Linking,
   Alert,
 } from "react-native";
 import { Image } from "expo-image";
@@ -31,6 +29,9 @@ import { useReadingStreak } from "../../src/hooks/useReadingStreak";
 import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
 import { deleteAccount } from "../../src/lib/auth";
+import { Avatar } from "../../src/components/Avatar";
+import { useTabBarSpace } from "../../src/components/FloatingTabBar";
+import { SOCIALS, socialUrl } from "../../src/lib/profile";
 
 const { width: SW } = Dimensions.get("window");
 const PANEL_W = SW * 0.78;
@@ -47,12 +48,11 @@ export default function HomeScreen() {
   const userName = useAppStore((s) => s.userName);
   const streak = useAppStore((s) => s.streak);
   const readingGoal = useAppStore((s) => s.readingGoal);
-  const userBio = useAppStore((s) => s.userBio);
+  const profile = useAppStore((s) => s.profile);
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
-  const setReadingGoal = useAppStore((s) => s.setReadingGoal);
-  const setUserBio = useAppStore((s) => s.setUserBio);
   const { width: winW } = useWindowDimensions();
+  const tabSpace = useTabBarSpace();
   // Reference gutter is 23px on a 352px frame (~6.5%). Scale it, then clamp so
   // it never crowds a small phone or drifts wide on a tablet or browser.
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
@@ -94,11 +94,6 @@ export default function HomeScreen() {
     return new Date(b.date_finished).getFullYear() === currentYear;
   }).length;
   const goalPct = readingGoal > 0 ? Math.min(100, Math.round((booksReadThisYear / readingGoal) * 100)) : 0;
-
-  // Derive initials from the real user name (first letter of each word, max 2)
-  const initials = userName
-    ? userName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
-    : "?";
 
   // ── Profile panel ─────────────────────────────────────────────────────────
   const [panelOpen, setPanelOpen] = useState(false);
@@ -166,47 +161,8 @@ export default function HomeScreen() {
     );
   };
 
-  // ── Edit Profile ──────────────────────────────────────────────────────────
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editGoal, setEditGoal] = useState("");
-  const [editBio, setEditBio] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [editFocused, setEditFocused] = useState<string | null>(null);
-
-  const openEditProfile = () => {
-    setEditName(userName);
-    setEditGoal(readingGoal > 0 ? String(readingGoal) : "");
-    setEditBio(userBio);
-    closePanel(() => setEditProfileOpen(true));
-  };
-
-  const saveProfile = async () => {
-    if (!editName.trim()) {
-      Alert.alert("Name required", "Please enter your name.");
-      return;
-    }
-    setSavingProfile(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          name: editName.trim(),
-          reading_goal: Number(editGoal) || 0,
-          bio: editBio.trim(),
-        },
-      });
-      if (error) throw error;
-      setUserName(editName.trim());
-      setReadingGoal(Number(editGoal) || 0);
-      setUserBio(editBio.trim());
-      setEditProfileOpen(false);
-    } catch (err: any) {
-      Alert.alert("Couldn't save", toUserMessage(err));
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
+  // Edit Profile is its own screen (app/edit-profile.tsx).
+  const openEditProfile = () => closePanel(() => router.push("/edit-profile"));
 
   // Latest logged mood per book. The reference puts this on the home card on
   // purpose: every tracker shows status and stars, this is the only one that
@@ -267,35 +223,56 @@ export default function HomeScreen() {
 
   const greeting = getGreeting();
 
+  const socialLinks = SOCIALS
+    .map(({ kind, label }) => ({ label, url: socialUrl(kind, profile.socials[kind]) }))
+    .filter((l): l is { label: string; url: string } => !!l.url);
+
   return (
     <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingHorizontal: gutter,
-            paddingTop: insets.top + 10,
-            paddingBottom: 28 + insets.bottom,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Masthead ── */}
+      {/* ── Masthead: stays put while the page scrolls under it ── */}
+      <View style={[styles.masthead, { paddingTop: insets.top + 10, paddingHorizontal: gutter }]}>
         <View style={styles.topRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greeting},</Text>
             <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
+            {!!profile.pronouns && <Text style={styles.pronouns}>{profile.pronouns}</Text>}
           </View>
-          {/* The reference has no avatar, but profile and sign-out have to live
-              somewhere, so it borrows the outlined circle from its own "+" button. */}
-          <TouchableOpacity testID="profile-avatar" style={styles.avatar} onPress={openPanel} activeOpacity={0.7}>
-            <Text style={styles.avatarText}>{initials}</Text>
+          <TouchableOpacity testID="profile-avatar" onPress={openPanel} activeOpacity={0.7} style={styles.avatarBtn}>
+            <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={40} />
           </TouchableOpacity>
         </View>
+        <View style={styles.ruleStrong} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: gutter, paddingTop: 16, paddingBottom: tabSpace },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── About: bio and where else to find the reader ── */}
+        {(!!profile.bio || socialLinks.length > 0) ? (
+          <View style={styles.about}>
+            {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+            {socialLinks.length > 0 && (
+              <View style={styles.socials}>
+                {socialLinks.map((l) => (
+                  <TouchableOpacity key={l.label} onPress={() => Linking.openURL(l.url)} activeOpacity={0.7}>
+                    <Text style={styles.socialLink}>{l.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => router.push("/edit-profile")} activeOpacity={0.7} style={styles.about}>
+            <Text style={styles.addBio}>+ add a bio and your socials</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Now reading ── */}
-        <View style={styles.ruleStrong} />
         {current ? (
           <TouchableOpacity
             style={styles.now}
@@ -489,9 +466,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             {/* Avatar */}
-            <View style={styles.panelAvatar}>
-              <Text style={styles.panelAvatarText}>{initials}</Text>
-            </View>
+            <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={72} style={{ marginBottom: 12 }} />
             <Text style={styles.panelName}>{userName || "Reader"}</Text>
             <View style={styles.panelBadge}>
               <Text style={styles.panelBadgeText}>ReadScape Member</Text>
@@ -567,127 +542,6 @@ export default function HomeScreen() {
         </Animated.View>
       </Modal>
 
-      {/* ── Edit Profile Modal ───────────────────────────────────────────────── */}
-      <Modal
-        visible={editProfileOpen}
-        animationType="slide"
-        onRequestClose={() => setEditProfileOpen(false)}
-      >
-        <View style={[styles.editScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-
-          {/* Header — outside ScrollView, padded by real inset value */}
-          <View style={styles.editHeader}>
-            <TouchableOpacity
-              style={styles.editBackBtn}
-              onPress={() => setEditProfileOpen(false)}
-            >
-              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M19 12H5M12 5l-7 7 7 7"
-                  stroke={colors.espresso2}
-                  strokeWidth={1.8}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-            </TouchableOpacity>
-            <Text style={styles.editTitle}>Edit Profile</Text>
-            <View style={{ width: 34 }} />
-          </View>
-
-          {/* Scrollable form — KeyboardAvoidingView wraps only this part */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-          >
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-              {/* Avatar preview */}
-              <View style={styles.editAvatarWrap}>
-                <View style={styles.editAvatar}>
-                  <Text style={styles.editAvatarText}>
-                    {editName.trim()
-                      ? editName.trim().split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
-                      : initials}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Form fields */}
-              <View style={styles.editForm}>
-                {/* Name */}
-                <View style={styles.editField}>
-                  <Text style={styles.editLabel}>YOUR NAME</Text>
-                  <TextInput
-                    style={[styles.editInput, editFocused === "name" && styles.editInputFocused]}
-                    value={editName}
-                    onChangeText={setEditName}
-                    placeholder="Your display name"
-                    placeholderTextColor={colors.char3}
-                    autoCapitalize="words"
-                    onFocus={() => setEditFocused("name")}
-                    onBlur={() => setEditFocused(null)}
-                  />
-                </View>
-
-                {/* Reading goal */}
-                <View style={styles.editField}>
-                  <Text style={styles.editLabel}>READING GOAL</Text>
-                  <Text style={styles.editLabelSub}>How many books do you want to read this year?</Text>
-                  <TextInput
-                    style={[styles.editInput, editFocused === "goal" && styles.editInputFocused]}
-                    value={editGoal}
-                    onChangeText={setEditGoal}
-                    placeholder="e.g. 20"
-                    placeholderTextColor={colors.char3}
-                    keyboardType="number-pad"
-                    onFocus={() => setEditFocused("goal")}
-                    onBlur={() => setEditFocused(null)}
-                  />
-                </View>
-
-                {/* Bio */}
-                <View style={styles.editField}>
-                  <Text style={styles.editLabel}>BIO</Text>
-                  <Text style={styles.editLabelSub}>A short note about your reading taste</Text>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      styles.editBioInput,
-                      editFocused === "bio" && styles.editInputFocused,
-                    ]}
-                    value={editBio}
-                    onChangeText={setEditBio}
-                    placeholder="e.g. Lover of quiet fiction and late-night thrillers…"
-                    placeholderTextColor={colors.char3}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                    onFocus={() => setEditFocused("bio")}
-                    onBlur={() => setEditFocused(null)}
-                  />
-                </View>
-
-                {/* Save */}
-                <TouchableOpacity
-                  style={[styles.saveBtn, savingProfile && { opacity: 0.65 }]}
-                  onPress={saveProfile}
-                  disabled={savingProfile}
-                  activeOpacity={0.85}
-                >
-                  {savingProfile ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.saveBtnText}>Save Changes</Text>
-                  )}
-                </TouchableOpacity>
-
-                <View style={{ height: 40 }} />
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
 
       {deletingAccount && (
         <View style={styles.deletingOverlay}>
@@ -744,7 +598,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
 
   // ── Paper & Ink home ──
-  topRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 18 },
+  topRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
   greeting: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil },
   name: {
     fontFamily: fonts.display,
@@ -754,13 +608,18 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginTop: 2,
   },
-  avatar: {
-    width: 34, height: 34, borderRadius: 17,
-    borderWidth: 1.3, borderColor: colors.ink,
-    alignItems: "center", justifyContent: "center",
-    marginTop: 6,
+  masthead: { backgroundColor: colors.paper, zIndex: 1 },
+  avatarBtn: { marginTop: 4 },
+  pronouns: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil, marginTop: 2 },
+
+  about: { marginBottom: 18 },
+  bio: { fontFamily: fonts.readingItalic, fontSize: 14.5, lineHeight: 22, color: colors.ink },
+  socials: { flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 8 },
+  socialLink: {
+    fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.ink,
+    textDecorationLine: "underline", textDecorationColor: colors.ruleStrong,
   },
-  avatarText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.ink },
+  addBio: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil2 },
 
   // A heavier rule than the hairlines below it — this is the masthead break.
   ruleStrong: { borderTopWidth: 1.5, borderTopColor: colors.ink },
@@ -869,22 +728,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.rule,
     alignItems: "center",
     justifyContent: "center",
-  },
-  panelAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.rule,
-    borderWidth: 2.5,
-    borderColor: colors.terracotta,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  panelAvatarText: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: colors.ink,
   },
   panelName: {
     fontFamily: fonts.display,
@@ -999,101 +842,4 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
 
-  // ── Edit Profile ────────────────────────────────────────────────────────
-  editScreen: {
-    flex: 1,
-    backgroundColor: colors.cream,
-  },
-  editHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cream3,
-    backgroundColor: colors.parchment,
-  },
-  editBackBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: colors.cream2,
-    borderWidth: 1, borderColor: colors.cream3,
-    alignItems: "center", justifyContent: "center",
-  },
-  editTitle: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    color: colors.espresso,
-  },
-
-  editAvatarWrap: {
-    alignItems: "center",
-    paddingTop: 32,
-    paddingBottom: 28,
-  },
-  editAvatar: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: colors.rule,
-    borderWidth: 2.5, borderColor: colors.terracotta,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 10,
-  },
-  editAvatarText: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: colors.espresso,
-  },
-
-  editForm: {
-    paddingHorizontal: 20,
-  },
-  editField: {
-    marginBottom: 22,
-  },
-  editLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.espresso2,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  editLabelSub: {
-    fontSize: 12,
-    color: colors.char3,
-    marginBottom: 8,
-  },
-  editInput: {
-    backgroundColor: colors.parchment,
-    borderWidth: 1.5,
-    borderColor: colors.cream3,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: colors.espresso,
-  },
-  editInputFocused: {
-    borderColor: colors.terracotta,
-    backgroundColor: colors.blushSoft,
-  },
-  editBioInput: {
-    height: 100,
-    paddingTop: 13,
-  },
-
-  saveBtn: {
-    backgroundColor: colors.terracotta,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  saveBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
 });

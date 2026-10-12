@@ -4,7 +4,7 @@ title: ReadScape Privacy Policy
 
 # ReadScape Privacy Policy
 
-_Last updated: 30 September 2026_
+_Last updated: 12 October 2026_
 
 ReadScape is a personal reading journal. This policy explains what the app stores, why, who helps us run it, and how you can delete everything.
 
@@ -19,11 +19,13 @@ ReadScape is a personal reading journal. This policy explains what the app store
 
 **Your reading journal**
 - The books you add, your reading status, the page you're on, your ratings and when you started and finished.
-- Your reading goal, favourite genres and profile bio.
+- Your reading goal, favourite genres, profile bio and pronouns.
+- A profile photo, if you add one.
+- Links to your Instagram, TikTok, X or Goodreads profiles, if you add them. These are shown on your profile.
 - The moods you log, and the quotes and notes you save.
 
 **Photos**
-- Photos you choose to add from your camera or photo library. Only the photos you pick are uploaded; ReadScape never reads the rest of your library.
+- Photos you choose to add from your camera or photo library, including your profile photo. Only the photos you pick are uploaded; ReadScape never reads the rest of your library.
 - Photos are stored at unlisted web links. The links aren't shared or published anywhere, but anyone who had a photo's exact link could open it.
 
 **Voice notes**
@@ -52,7 +54,7 @@ OpenAI and Anthropic receive voice-note content only to process that one note. U
 
 Your data is kept for as long as you have an account. You can delete individual notes, quotes, photos and books at any time in the app.
 
-To delete everything, open the profile panel on the Home screen and tap **Delete account**. This permanently deletes your account, your whole library, your notes, quotes and mood logs, your photos and your voice recordings. It can't be undone.
+To delete everything, open the profile panel on the Home screen and tap **Delete account**. This permanently deletes your account, your whole library, your notes, quotes and mood logs, your photos (including your profile photo) and your voice recordings. It can't be undone.
 
 ## Children
 

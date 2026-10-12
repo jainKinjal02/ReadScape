@@ -5,6 +5,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { supabase } from "./supabase";
+import { deleteAvatarByUrl } from "./profile";
 
 // Dismisses the auth popup once the provider redirects back (web) and settles
 // any pending session on native. Safe to call at module scope.
@@ -228,6 +229,11 @@ export async function signInWithApple(): Promise<void> {
  * photos and voice recordings, then sign out on this device.
  */
 export async function deleteAccount(): Promise<void> {
+  // The profile photo is found through the account's metadata, which the
+  // delete-account function does not read; remove it while signed in.
+  const { data } = await supabase.auth.getUser();
+  await deleteAvatarByUrl(data.user?.user_metadata?.avatar_url ?? null).catch(() => {});
+
   const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
   if (error) {
     const body = await (error as { context?: Response }).context?.json?.().catch(() => null);

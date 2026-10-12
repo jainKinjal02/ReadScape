@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
+import { useTabBarSpace } from "../../src/components/FloatingTabBar";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
@@ -109,6 +110,7 @@ function HeartIcon({ filled }: { filled: boolean }) {
 export default function LibraryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { width: winW } = useWindowDimensions();
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
 
@@ -525,7 +527,7 @@ export default function LibraryScreen() {
               key={columns}
               contentContainerStyle={[
                 styles.grid,
-                { paddingHorizontal: gutter, paddingBottom: 40 + insets.bottom },
+                { paddingHorizontal: gutter, paddingBottom: tabSpace },
               ]}
               showsVerticalScrollIndicator={false}
               columnWrapperStyle={[styles.gridRow, { gap: GRID_GAP }]}
@@ -629,7 +631,8 @@ const styles = StyleSheet.create({
   addBtnText: { fontFamily: fonts.body, color: colors.ink, fontSize: 19, lineHeight: 22, marginTop: -2 },
 
   filterRow: { marginTop: 15, borderBottomWidth: 1, borderBottomColor: colors.rule },
-  filterContent: { gap: 17, alignItems: "flex-end" },
+  // Spread across the full width; still scrolls if a small screen can't fit them.
+  filterContent: { flexGrow: 1, justifyContent: "space-between", gap: 12, alignItems: "flex-end" },
   tab: { paddingBottom: 9, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: colors.ink },
   tabText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.pencil },

@@ -20,6 +20,7 @@ import {
 } from "@expo-google-fonts/literata";
 import * as SplashScreen from "expo-splash-screen";
 import { supabase } from "../src/lib/supabase";
+import { profileFromMeta } from "../src/lib/profile";
 import { useAppStore } from "../src/store";
 import {
   Animated,
@@ -55,7 +56,7 @@ export default function RootLayout() {
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserName = useAppStore((s) => s.setUserName);
   const setReadingGoal = useAppStore((s) => s.setReadingGoal);
-  const setUserBio = useAppStore((s) => s.setUserBio);
+  const setProfile = useAppStore((s) => s.setProfile);
 
   const [shouldRedirectHome, setShouldRedirectHome] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -69,7 +70,7 @@ export default function RootLayout() {
         setUserId(session.user.id);
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
-        setUserBio(meta.bio ?? "");
+        setProfile(profileFromMeta(meta));
         setShouldRedirectHome(true);
       }
       setAuthChecked(true);
@@ -81,7 +82,7 @@ export default function RootLayout() {
         const meta = session.user.user_metadata ?? {};
         setUserName(meta.name ?? "Reader");
         setReadingGoal(Number(meta.reading_goal) || 0);
-        setUserBio(meta.bio ?? "");
+        setProfile(profileFromMeta(meta));
       }
     });
     return () => listener.subscription.unsubscribe();

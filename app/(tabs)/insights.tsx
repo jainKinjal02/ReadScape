@@ -22,6 +22,7 @@ import * as ImagePicker from "expo-image-picker";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ratingStars } from "../../src/components/RatingMarks";
+import { useTabBarSpace } from "../../src/components/FloatingTabBar";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { fetchMoodLogs } from "../../src/lib/books";
 import { useAppStore } from "../../src/store";
@@ -331,6 +332,7 @@ function YearWrapModal({ visible, onClose }: { visible: boolean; onClose: () => 
 export default function InsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { width: winW } = useWindowDimensions();
   const gutter = Math.round(Math.min(30, Math.max(18, winW * 0.065)));
   const readingGoal = useAppStore((s) => s.readingGoal);
@@ -519,29 +521,32 @@ export default function InsightsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      {/* ── Masthead: stays put while the page scrolls under it ── */}
+      <View style={[styles.mastheadWrap, { paddingTop: insets.top + 26, paddingHorizontal: gutter }]}>
+        <View style={styles.masthead}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.h1}>Insights</Text>
+            <Text style={styles.sub}>
+              {booksFinishedCount} book{booksFinishedCount === 1 ? "" : "s"}
+              {pagesRead > 0 ? `  ·  ${pagesRead.toLocaleString()} pages` : ""}
+              {`  ·  ${year}`}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.wrapBtn} onPress={() => setShowWrap(true)} activeOpacity={0.75}>
+            <Text style={styles.wrapBtnText}>{year} wrap</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.mastheadRule} />
+      </View>
+
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 28 + insets.bottom }}
+        contentContainerStyle={{ paddingBottom: tabSpace }}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.body, { paddingHorizontal: gutter }]}>
-          {/* ── Masthead ── */}
-          <View style={styles.masthead}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.h1}>Insights</Text>
-              <Text style={styles.sub}>
-                {booksFinishedCount} book{booksFinishedCount === 1 ? "" : "s"}
-                {pagesRead > 0 ? `  ·  ${pagesRead.toLocaleString()} pages` : ""}
-                {`  ·  ${year}`}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.wrapBtn} onPress={() => setShowWrap(true)} activeOpacity={0.75}>
-              <Text style={styles.wrapBtnText}>{year} wrap</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* ── How long each one kept you ── */}
-          <View style={styles.divideStrong}>
+          <View>
             <Text style={[styles.h2, { marginBottom: 14 }]}>How long each one kept you</Text>
             {readingDays.length === 0 ? (
               <Text style={styles.emptyLine}>
@@ -815,7 +820,9 @@ export default function InsightsScreen() {
 
 const styles = StyleSheet.create({
   // ── Paper & Ink insights ──
+  mastheadWrap: { backgroundColor: colors.paper, zIndex: 1 },
   masthead: { flexDirection: "row", alignItems: "flex-start", marginBottom: 2 },
+  mastheadRule: { borderTopWidth: 1.4, borderTopColor: colors.ink, marginTop: 16 },
   h1: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, color: colors.ink },
   sub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pencil, marginTop: 4 },
   wrapBtn: {
@@ -824,7 +831,6 @@ const styles = StyleSheet.create({
   },
   wrapBtnText: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: colors.ink },
 
-  divideStrong: { borderTopWidth: 1.4, borderTopColor: colors.ink, marginTop: 16, paddingTop: 18 },
   divide: { borderTopWidth: 1, borderTopColor: colors.rule, marginTop: 14, paddingTop: 18 },
   h2: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
   emptyLine: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil, lineHeight: 19, paddingVertical: 6 },
@@ -849,7 +855,7 @@ const styles = StyleSheet.create({
 
   // Atmospheric hero header
 
-  body: { paddingTop: 16 },
+  body: { paddingTop: 18 },
 
   // Stats
   // Compact stats strip

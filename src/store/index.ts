@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Book, MoodLog } from "../types";
+import { Profile, profileFromMeta } from "../lib/profile";
 
 interface AppState {
   // Auth
@@ -12,8 +13,9 @@ interface AppState {
   readingGoal: number;
   setReadingGoal: (goal: number) => void;
 
-  userBio: string;
-  setUserBio: (bio: string) => void;
+  // Bio, pronouns, photo and socials (auth user_metadata).
+  profile: Profile;
+  setProfile: (profile: Profile) => void;
 
   // Books
   books: Book[];
@@ -44,8 +46,8 @@ export const useAppStore = create<AppState>((set) => ({
   readingGoal: 0,
   setReadingGoal: (goal) => set({ readingGoal: goal }),
 
-  userBio: "",
-  setUserBio: (bio) => set({ userBio: bio }),
+  profile: profileFromMeta({}),
+  setProfile: (profile) => set({ profile }),
 
   books: [],
   setBooks: (books) => set({ books }),
