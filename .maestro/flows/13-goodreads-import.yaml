@@ -1,0 +1,77 @@
+# TC36–TC39: importing a Goodreads library export.
+# Needs tests/fixtures/goodreads_library_export.csv in the simulator's Files
+# app ("On My iPhone"); see the README.
+appId: host.exp.Exponent
+name: 13 Goodreads import
+---
+- runFlow: ../common/logout.yaml
+- tapOn: "Already have an account? Sign in"
+- tapOn:
+    id: "auth-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: ${PASSWORD}
+- tapOn: "Welcome back, reader"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- extendedWaitUntil:
+    visible: "Not Now|.*How many books.*|Good (morning|afternoon|evening),"
+    timeout: 20000
+- runFlow: ../common/dismiss-save-password.yaml
+# TC36 — a new reader is offered the import straight after onboarding
+- runFlow:
+    when:
+      visible: ".*How many books.*"
+    commands:
+      - tapOn: ".*Regular.*"
+      - tapOn: "Continue"
+      - extendedWaitUntil:
+          visible: "Enter ReadScape"
+          timeout: 5000
+      - tapOn: "Enter ReadScape"
+      - extendedWaitUntil:
+          visible: "Bring your books from Goodreads"
+          timeout: 10000
+# Existing readers reach it from the profile menu
+- runFlow:
+    when:
+      visible: "Good (morning|afternoon|evening),"
+    commands:
+      - tapOn:
+          id: "profile-avatar"
+      - tapOn: ".*Import from Goodreads.*"
+- assertVisible: "Bring your books from Goodreads"
+# TC37 — choosing the export shows a summary before anything is saved
+- tapOn: "Choose the file"
+- runFlow: ../common/pick-goodreads-export.yaml
+- extendedWaitUntil:
+    visible: "5 books to add"
+    timeout: 15000
+- assertVisible: "Read"
+- assertVisible: "Want to read"
+- assertVisible: "Put down"
+# TC38 — importing puts them on the shelf
+- tapOn: "Import 5 books"
+- extendedWaitUntil:
+    visible: "Welcome home"
+    timeout: 30000
+- tapOn: "See my library"
+- assertVisible: "5 books, all yours"
+- assertVisible: ".*The Vegetarian.*"
+- assertVisible: ".*The Well of Ascension.*"
+# TC39 — importing the same file again adds nothing
+- tapOn:
+    id: "add-book"
+- tapOn:
+    id: "close-add-book"
+- tapOn: "Home"
+- tapOn:
+    id: "profile-avatar"
+- tapOn: ".*Import from Goodreads.*"
+- tapOn: "Choose the file"
+- runFlow: ../common/pick-goodreads-export.yaml
+- extendedWaitUntil:
+    visible: "You're up to date"
+    timeout: 15000

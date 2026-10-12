@@ -505,6 +505,11 @@ export default function LibraryScreen() {
                   <Text style={styles.emptyBtnText}>{EMPTY_COPY[filter].btn}</Text>
                 </TouchableOpacity>
               )}
+              {filter === "all" && (
+                <TouchableOpacity style={styles.emptyLink} onPress={() => router.push("/import-goodreads")}>
+                  <Text style={styles.emptyLinkText}>Import from Goodreads</Text>
+                </TouchableOpacity>
+              )}
               {EMPTY_COPY[filter].action === "browse" && (
                 <TouchableOpacity style={styles.emptyBtn} onPress={() => setFilter("all")}>
                   <Text style={styles.emptyBtnText}>{EMPTY_COPY[filter].btn}</Text>
@@ -701,6 +706,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 4,
   },
   emptyBtnText: { color: "#fff", fontSize: 14, fontWeight: "600", letterSpacing: 0.3 },
+  emptyLink: { marginTop: 14, paddingVertical: 6 },
+  emptyLinkText: { color: colors.ink, fontSize: 14, fontWeight: "500", textDecorationLine: "underline" },
 
   // Full-screen modal
   modalScreen: {

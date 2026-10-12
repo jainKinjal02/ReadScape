@@ -96,7 +96,8 @@ export default function OnboardingScreen() {
     } catch {
       // Non-fatal — still enter the app
     } finally {
-      router.replace("/(tabs)/home");
+      // New readers are offered their Goodreads library once, with "Not now".
+      router.replace("/import-goodreads?from=onboarding");
     }
   };
 

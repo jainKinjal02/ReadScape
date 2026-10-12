@@ -1,0 +1,19 @@
+# In the system file picker: Browse -> On My iPhone -> the Goodreads export.
+appId: host.exp.Exponent
+---
+- extendedWaitUntil:
+    visible: "Browse"
+    timeout: 15000
+- tapOn: "Browse"
+- runFlow:
+    when:
+      visible: "On My iPhone"
+    commands:
+      - tapOn: "On My iPhone"
+- extendedWaitUntil:
+    visible: ".*goodreads_library_export.*"
+    timeout: 15000
+# The name label wraps and doesn't select; the file's icon does. With the
+# export alone in the folder it is the first tile, top left.
+- tapOn:
+    point: "18%,27%"

@@ -522,6 +522,7 @@ export default function HomeScreen() {
             <PanelRow icon="📚" label="My Library" onPress={() => closePanel(() => router.push("/(tabs)/library"))} />
             <PanelRow icon="✒️" label="Notes" onPress={() => closePanel(() => router.push("/(tabs)/notes"))} />
             <PanelRow icon="📊" label="Insights" onPress={() => closePanel(() => router.push("/(tabs)/insights"))} />
+            <PanelRow icon="📥" label="Import from Goodreads" onPress={() => closePanel(() => router.push("/import-goodreads"))} />
           </View>
 
           {/* Push logout to the bottom */}

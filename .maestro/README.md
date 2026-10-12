@@ -21,7 +21,14 @@ The last flow deletes that account, which is itself the Delete account test.
    email each time, and the account it creates must be confirmed from its
    inbox before `02-signin` can pass. `12-delete-account` deletes the account.
 
-4. Voice notes (`08`) need real sound, which Maestro can't make, so they run
+4. The Goodreads import (`13`) picks `tests/fixtures/goodreads_library_export.csv`
+   from the simulator's Files app. Copy it there first:
+
+   ```
+   for d in ~/Library/Developer/CoreSimulator/Devices/<UDID>/data/Containers/Shared/AppGroup/*/"File Provider Storage"; do cp tests/fixtures/goodreads_library_export.csv "$d/"; done
+   ```
+
+5. Voice notes (`08`) need real sound, which Maestro can't make, so they run
    from a script that has the Mac speak while the simulator records:
 
    ```
@@ -70,3 +77,7 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC33 | Profile | Log out returns to the welcome screen, and signing back in restores the library | 10-profile |
 | TC34 | Book | Removing a book takes it off the shelf | 11-remove-book |
 | TC35 | Account | Delete account removes the account; signing in again fails | 12-delete-account |
+| TC36 | Goodreads | A new reader is offered the import right after onboarding; others find it in the profile menu | 13-goodreads-import |
+| TC37 | Goodreads | Choosing the export shows what will be added (by shelf) before anything is saved | 13-goodreads-import |
+| TC38 | Goodreads | Importing puts the books on the shelf | 13-goodreads-import |
+| TC39 | Goodreads | Importing the same file again adds nothing | 13-goodreads-import |
