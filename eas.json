@@ -8,7 +8,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilmrkhssqjzsmmgazmpe.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_K7pRH1tSgYZ8Z450NR3AOQ_aGUExUGM",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "662075810228-oda7j035mlmbr2c24dsl0j45uu0c47b1.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "662075810228-oda7j035mlmbr2c24dsl0j45uu0c47b1.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "662075810228-qkhgeqr79a93bjd8j49nsuvfkpv1gs4d.apps.googleusercontent.com"
       }
     },
     "development": {
