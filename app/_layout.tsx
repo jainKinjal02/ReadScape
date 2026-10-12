@@ -21,15 +21,10 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { supabase } from "../src/lib/supabase";
 import { profileFromMeta } from "../src/lib/profile";
+import { OpeningAnimation } from "../src/components/OpeningAnimation";
+import { IVORY } from "../src/components/brandMark";
 import { useAppStore } from "../src/store";
-import {
-  Animated,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { colors, fonts } from "../src/design/tokens";
+import { Animated, StyleSheet } from "react-native";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
 
 // Keep the native splash visible until we're ready
@@ -88,51 +83,54 @@ export default function RootLayout() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Once fonts + auth are ready: hide native splash, navigate, fade out in-app splash
+  // Once fonts + auth are ready: hide the native splash (plain ivory, the
+  // same colour as the animation's first frame), route the reader, and play
+  // the opening. The app is underneath by the time the opening fades away.
+  const [playOpening, setPlayOpening] = useState(false);
   useEffect(() => {
     if (fontsLoaded && authChecked) {
       SplashScreen.hideAsync();
       if (shouldRedirectHome) {
         router.replace("/(tabs)/home");
       }
-      // Short pause so the screen beneath has a moment to render, then fade out
-      setTimeout(() => {
-        Animated.timing(splashOpacity, {
-          toValue: 0,
-          duration: 700,
-          useNativeDriver: true,
-        }).start(() => setShowInAppSplash(false));
-      }, 300);
+      setPlayOpening(true);
     }
   }, [fontsLoaded, authChecked, shouldRedirectHome]);
 
+  const finishOpening = () => {
+    Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => setShowInAppSplash(false));
+  };
+
   return (
     <ErrorBoundary>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="book/[id]"
-          options={{ presentation: "card", animation: "slide_from_right" }}
-        />
-        <Stack.Screen
-          name="session/[id]"
-          options={{ presentation: "modal", animation: "slide_from_bottom" }}
-        />
-      </Stack>
+      {/* Screens wait for the fonts: on iOS, text drawn before its font has
+          loaded stays in the system font, which is how the welcome screen's
+          title came out in plain sans. The opening covers the wait. */}
+      {fontsLoaded && (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="book/[id]"
+            options={{ presentation: "card", animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="session/[id]"
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
+        </Stack>
+      )}
 
-      {/* In-app splash — overlays everything while loading, then fades out */}
+      {/* Opening animation, over everything until it has played */}
       {showInAppSplash && (
         <Animated.View style={[styles.splash, { opacity: splashOpacity }]}>
-          <Image
-            source={require("../assets/icon.png")}
-            style={styles.icon}
-          />
-          <Text style={styles.appName}>ReadScape</Text>
-          <Text style={styles.tagline}>Your reading journey</Text>
-          <View style={styles.divider} />
+          {playOpening && <OpeningAnimation onDone={finishOpening} />}
         </Animated.View>
       )}
     </ErrorBoundary>
@@ -142,36 +140,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   splash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.paper,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  icon: {
-    width: 160,
-    height: 160,
-    borderRadius: 36,
-  },
-  appName: {
-    color: "#F7F4EF",
-    fontSize: 42,
-    fontFamily: fonts.reading,
-    marginTop: 28,
-    letterSpacing: 2,
-  },
-  tagline: {
-    color: "#E8C5CF",
-    fontSize: 16,
-    fontFamily: fonts.reading,
-    marginTop: 10,
-    letterSpacing: 1.5,
-    opacity: 0.85,
-  },
-  divider: {
-    marginTop: 24,
-    width: 60,
-    height: 1.5,
-    backgroundColor: "#C4899A",
-    opacity: 0.4,
-    borderRadius: 1,
+    backgroundColor: IVORY,
   },
 });

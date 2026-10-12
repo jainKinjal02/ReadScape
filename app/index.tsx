@@ -1,68 +1,46 @@
-import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StatusBar,
-  StyleSheet,
-} from "react-native";
+import React from "react";
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "../src/design/tokens";
+import { INK, IVORY } from "../src/components/brandMark";
 
-
-
-const FEATURES = [
-  { icon: "📚", title: "Your Library", desc: "Track every book you've read, are reading, or want to read." },
-  { icon: "🎭", title: "Mood Tracking", desc: "Log how a book makes you feel, chapter by chapter." },
-  { icon: "✒️", title: "Quotes & Notes", desc: "Keep the lines that moved you, and what you thought while reading." },
-];
-
-export default function LandingScreen() {
+/**
+ * The welcome screen: the book opening onto a landscape, the line that says
+ * what Readscape is for, and the two ways in.
+ *
+ * The illustration sits in the top 40% of its image and the rest is paper, so
+ * it is drawn to cover the screen anchored at the top; the text goes in the
+ * empty lower part, whatever the phone's shape.
+ */
+export default function WelcomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <Image
+        source={require("../assets/welcome-background.jpg")}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        contentPosition="top"
+      />
 
-      {/* All content in one centred flex column */}
-      <View style={styles.content}>
-        {/* App name block */}
-        <View style={styles.titleBlock}>
-          <Text style={styles.tagline}>Your reading life,</Text>
-          <Text style={styles.appName}>
-            <Text style={{ color: colors.ink }}>Read</Text>
-            <Text style={{ color: colors.blushInk }}>Scape</Text>
-          </Text>
-          <Text style={styles.subtitle}>
-            Track your journey. Capture your mood.{"\n"}Discover your next read.
-          </Text>
-        </View>
+      <View style={[styles.content, { paddingBottom: insets.bottom + 28 }]}>
+        <Text style={styles.name}>Readscape</Text>
+        <Text style={styles.tagline}>Your reading life, kept here.</Text>
+        <Text style={styles.lead}>
+          Track your books. Save your quotes. Remember how they made you feel.
+        </Text>
 
-        {/* Feature pills */}
-        <View style={styles.featureRow}>
-          {FEATURES.map((f) => (
-            <View key={f.title} style={styles.featurePill}>
-              <Text style={styles.featureIcon}>{f.icon}</Text>
-              <Text style={styles.featureTitle}>{f.title}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* CTAs */}
-        <View style={styles.ctaBlock}>
-          <TouchableOpacity
-            style={styles.ctaButton}
-            onPress={() => router.push("/auth")}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.ctaText}>Create Account</Text>
+        <View style={styles.ctas}>
+          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")} activeOpacity={0.85}>
+            <Text style={styles.primaryText}>Create Account</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.signInLink}
-            onPress={() => router.push("/auth?mode=signin")}
-          >
-            <Text style={styles.signInText}>Already have an account? Sign in</Text>
+          <TouchableOpacity style={styles.secondary} onPress={() => router.push("/auth?mode=signin")}>
+            <Text style={styles.secondaryText}>Already have an account? Sign in</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -71,77 +49,43 @@ export default function LandingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-
+  container: { flex: 1, backgroundColor: IVORY },
   content: {
     flex: 1,
     justifyContent: "flex-end",
     paddingHorizontal: 28,
-    paddingBottom: 56,
-    gap: 32,
   },
-
-  titleBlock: { alignItems: "flex-start" },
-  tagline: {
-    color: colors.pencil,
-    fontSize: 14,
-    letterSpacing: 2.5,
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  appName: {
-    color: colors.ink,
-    fontSize: 54,
+  name: {
     fontFamily: fonts.display,
-    letterSpacing: 0.5,
-    lineHeight: 60,
-    marginBottom: 14,
+    fontSize: 46,
+    lineHeight: 52,
+    letterSpacing: -0.5,
+    color: INK,
   },
-  subtitle: {
-    color: colors.pencil,
+  tagline: {
+    fontFamily: fonts.readingItalic,
+    fontSize: 19,
+    lineHeight: 26,
+    color: INK,
+    marginTop: 6,
+  },
+  lead: {
+    fontFamily: fonts.body,
     fontSize: 15,
     lineHeight: 22,
+    color: colors.pencil,
+    marginTop: 14,
+    maxWidth: 330,
   },
-
-  featureRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  featurePill: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.blushSoft,
-    borderWidth: 1,
-    borderColor: colors.ruleStrong,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  featureIcon: { fontSize: 14 },
-  featureTitle: {
-    color: colors.ink,
-    fontSize: 11,
-    fontWeight: "600",
-    flexShrink: 1,
-  },
-
-  ctaBlock: { gap: 12, alignItems: "center" },
-  ctaButton: {
-    backgroundColor: colors.ink,
-    paddingVertical: 16,
-    paddingHorizontal: 48,
+  ctas: { marginTop: 34, gap: 6, alignItems: "center" },
+  primary: {
+    alignSelf: "stretch",
+    backgroundColor: INK,
     borderRadius: 999,
-    width: "100%",
+    paddingVertical: 16,
     alignItems: "center",
   },
-  ctaText: {
-    color: colors.paper,
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 0.3,
-  },
-  signInLink: { paddingVertical: 4 },
-  signInText: { color: colors.pencil, fontSize: 13 },
+  primaryText: { fontFamily: fonts.bodySemi, fontSize: 16, letterSpacing: 0.2, color: IVORY },
+  secondary: { paddingVertical: 12 },
+  secondaryText: { fontFamily: fonts.body, fontSize: 13.5, color: colors.pencil },
 });

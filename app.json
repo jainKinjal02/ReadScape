@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FBFAF6"
+      "backgroundColor": "#F8F4EA"
     },
     "ios": {
       "supportsTablet": false,
@@ -24,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FBFAF6"
+        "backgroundColor": "#F8F4EA"
       },
       "package": "com.readscape.app",
       "edgeToEdgeEnabled": true,
