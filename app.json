@@ -27,7 +27,11 @@
         "backgroundColor": "#FBFAF6"
       },
       "package": "com.readscape.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -54,6 +58,18 @@
           "microphonePermission": "ReadScape uses the microphone to record voice notes about the book you're reading, which are transcribed into your mood, quotes and thoughts."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "711923d7-4941-4a42-b042-def05cf2f522"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/711923d7-4941-4a42-b042-def05cf2f522"
+    }
   }
 }
