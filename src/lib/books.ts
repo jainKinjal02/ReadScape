@@ -321,13 +321,17 @@ export function coverUrl(coverId: number | string, size: CoverSize = "L"): strin
  * AbortController rather than AbortSignal.timeout, which Hermes does not
  * reliably provide.
  */
-async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {
+async function fetchWithTimeout(url: string, ms = 10000, signal?: AbortSignal): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
+  // A caller's signal (a newer search replacing this one) cancels it too.
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort);
   try {
     return await fetch(url, { signal: controller.signal });
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -465,7 +469,7 @@ export async function updateBookCover(bookId: string, coverUrl: string): Promise
 // Letters outside the Latin alphabets (Hangul, kana, kanji, Cyrillic, …).
 const NON_LATIN = /[^\u0000-\u024F\u1E00-\u1EFF\u2000-\u206F\s]/;
 
-export async function searchBooks(query: string): Promise<GoogleBook[]> {
+export async function searchBooks(query: string, signal?: AbortSignal): Promise<GoogleBook[]> {
   if (!query.trim()) return [];
 
   // A general search, not a title-only one. Title search returns matches in
@@ -473,37 +477,67 @@ export async function searchBooks(query: string): Promise<GoogleBook[]> {
   // novel, which did not appear at all, and "1984" buried Orwell. General
   // search ranks by relevance and also finds books by their author's name.
   //
-  // It reports each work under its original-language title (채식주의자, バター),
-  // so `lang=en` plus the editions fields fetch the best English edition. Its
-  // title is only used when the work's own title is in another script: an
-  // edition title is one printing's spelling ("Pride & Prejudice", "Nineteen
-  // eighty-four"), while the work title is the book's usual name.
-  const fields = [
-    "key", "title", "author_name", "cover_i", "number_of_pages_median", "subject",
-    "editions", "editions.title", "editions.cover_i",
-  ].join(",");
+  // Deliberately the plain, fast query. Asking for editions too (to show
+  // 채식주의자 as "The Vegetarian") made every search 2-3 seconds; that is now
+  // a second step, englishTitles(), run only when a result needs it.
+  const fields = "key,title,author_name,cover_i,number_of_pages_median,subject";
+  const url =
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
+    `&fields=${fields}&limit=20`;
+
+  const res = await fetchWithTimeout(url, 10000, signal);
+  if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
+  const json = await res.json();
+  return (json.docs ?? []).map(mapOpenLibraryDoc).filter((b: GoogleBook) => b.volumeInfo.title);
+}
+
+/** True when some result's title is in a non-Latin script and worth translating. */
+export function needsEnglishTitles(results: GoogleBook[]): boolean {
+  return results.some((b) => NON_LATIN.test(b.volumeInfo.title));
+}
+
+/**
+ * The same results with non-Latin titles (채식주의자, バター) replaced by the
+ * best English edition's title and cover. Everything else is left exactly as
+ * it was: an edition title is one printing's spelling ("Pride & Prejudice",
+ * "Nineteen eighty-four"), while the work title is the book's usual name.
+ */
+export async function englishTitles(
+  query: string,
+  results: GoogleBook[],
+  signal?: AbortSignal
+): Promise<GoogleBook[]> {
+  const fields = "key,editions,editions.title,editions.cover_i";
   const url =
     `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
     `&lang=en&fields=${fields}&limit=20`;
-
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) throw new Error(`Open Library returned ${res.status}`);
+  const res = await fetchWithTimeout(url, 15000, signal);
+  if (!res.ok) return results;
   const json = await res.json();
 
-  return (json.docs ?? [])
-    .map((doc: any) => {
-      const edition = doc.editions?.docs?.[0];
-      const foreign = typeof doc.title === "string" && NON_LATIN.test(doc.title);
-      if (!foreign || !edition?.title) return mapOpenLibraryDoc(doc);
-      // The English edition's cover too: the work's representative cover is
-      // usually the original-language artwork.
-      return mapOpenLibraryDoc({
-        ...doc,
+  const byKey = new Map<string, { title?: string; cover_i?: number }>();
+  for (const doc of json.docs ?? []) {
+    const edition = doc.editions?.docs?.[0];
+    if (doc.key && edition) byKey.set(doc.key, edition);
+  }
+
+  return results.map((b) => {
+    const edition = byKey.get(b.id);
+    if (!edition?.title || !NON_LATIN.test(b.volumeInfo.title)) return b;
+    const cover = edition.cover_i;
+    return {
+      ...b,
+      volumeInfo: {
+        ...b.volumeInfo,
         title: edition.title,
-        cover_i: edition.cover_i ?? doc.cover_i,
-      });
-    })
-    .filter((b: GoogleBook) => b.volumeInfo.title);
+        // The work's representative cover is usually the original-language
+        // artwork; the English edition's is the one a reader here knows.
+        imageLinks: cover
+          ? { thumbnail: coverUrl(cover, "L"), smallThumbnail: coverUrl(cover, "M") }
+          : b.volumeInfo.imageLinks,
+      },
+    };
+  });
 }
 
 function mapOpenLibraryDoc(doc: any): GoogleBook {

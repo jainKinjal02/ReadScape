@@ -30,6 +30,8 @@ import {
   toggleFavorite,
   findInLibrary,
   AlreadyInLibraryError,
+  needsEnglishTitles,
+  englishTitles,
 } from "../../src/lib/books";
 import { GoogleBook, BookStatus, Book } from "../../src/types";
 
@@ -197,25 +199,54 @@ export default function LibraryScreen() {
         ];
 
   // ── Real-time debounced search ───────────────────────────────────────────
+  // Each keystroke can start a search; only the newest may update the screen.
+  // Without this a slow early search ("The") could land after a later one
+  // ("The Vegetarian") and replace the right results with the wrong ones.
+  const searchAbort = useRef<AbortController | null>(null);
+  const searchCache = useRef(new Map<string, GoogleBook[]>());
+
   const runSearch = async (text: string) => {
-    if (!text.trim()) { setResults([]); return; }
+    const q = text.trim();
+    searchAbort.current?.abort();
+    if (!q) { setResults([]); setSearching(false); return; }
+
+    const cached = searchCache.current.get(q.toLowerCase());
+    if (cached) { setResults(cached); setSearching(false); return; }
+
+    const controller = new AbortController();
+    searchAbort.current = controller;
     setSearching(true);
     try {
-      const hits = await searchBooks(text);
+      const hits = await searchBooks(q, controller.signal);
+      if (controller.signal.aborted) return;
       setResults(hits);
-    } catch (e: any) {
-      // Only show alert if the modal is still open with this query
-      Alert.alert("Search failed", "Could not reach book database. Check your connection and try again.");
-    } finally {
+      searchCache.current.set(q.toLowerCase(), hits);
       setSearching(false);
+
+      // Results are on screen; translate any 채식주의자-style titles after.
+      if (needsEnglishTitles(hits)) {
+        const english = await englishTitles(q, hits, controller.signal).catch(() => hits);
+        if (controller.signal.aborted) return;
+        setResults(english);
+        searchCache.current.set(q.toLowerCase(), english);
+      }
+    } catch (e: any) {
+      if (controller.signal.aborted) return; // replaced by a newer search
+      setSearching(false);
+      Alert.alert("Search failed", "Could not reach book database. Check your connection and try again.");
     }
   };
 
   const handleQueryChange = (text: string) => {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (text.trim().length < 2) { setResults([]); return; }
-    debounceRef.current = setTimeout(() => runSearch(text), 400);
+    if (text.trim().length < 2) {
+      searchAbort.current?.abort();
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => runSearch(text), 300);
   };
 
   // ── Add book to Supabase ─────────────────────────────────────────────────
@@ -248,6 +279,8 @@ export default function LibraryScreen() {
   };
 
   const closeModal = () => {
+    searchAbort.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setShowAddModal(false);
     setQuery("");
     setResults([]);

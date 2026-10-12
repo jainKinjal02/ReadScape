@@ -23,6 +23,7 @@ import {
   signInWithGoogle,
   signInWithApple,
   isAppleSignInAvailable,
+  authCallbackUrl,
   OAuthCancelledError,
 } from "../src/lib/auth";
 import { useAppStore } from "../src/store";
@@ -108,7 +109,11 @@ export default function AuthScreen() {
         const { data, error: err } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
-          options: { data: { name: name.trim() } },
+          options: {
+            data: { name: name.trim() },
+            // The confirmation link opens the app and signs the reader in.
+            emailRedirectTo: authCallbackUrl(),
+          },
         });
         if (err) throw err;
 
@@ -120,7 +125,7 @@ export default function AuthScreen() {
         } else {
           Alert.alert(
             "Check your email ✉️",
-            `We sent a confirmation link to ${email.trim()}. Tap it to activate your account, then sign in.`,
+            `We sent a confirmation link to ${email.trim()}. Open it on this phone and you'll go straight into ReadScape.`,
             [{ text: "Got it", onPress: () => switchMode("signin") }]
           );
         }
@@ -179,7 +184,7 @@ export default function AuthScreen() {
     } catch (e: any) {
       // Backing out of the provider sheet is a normal action, not a failure.
       if (e instanceof OAuthCancelledError) return;
-      setError(e?.message ?? `Could not sign in with ${label}.`);
+      setError(toUserMessage(e, `Could not sign in with ${label}.`));
     } finally {
       setBusy(false);
     }

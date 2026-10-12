@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { supabase } from "./supabase";
 
 // Dismisses the auth popup once the provider redirects back (web) and settles
@@ -27,7 +28,7 @@ export class OAuthCancelledError extends Error {
  *   PKCE     → ?code=...            (exchanged server-side for a session)
  *   Implicit → #access_token=...&refresh_token=...
  */
-async function completeSessionFromUrl(url: string): Promise<void> {
+export async function completeSessionFromUrl(url: string): Promise<void> {
   const parsed = new URL(url);
 
   const code = parsed.searchParams.get("code");
@@ -106,7 +107,63 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<void>
   await completeSessionFromUrl(result.url);
 }
 
-export const signInWithGoogle = () => signInWithProvider("google");
+// Google's OAuth clients for the native sign-in sheet. Client IDs are public
+// (they ship inside every Google-enabled app); the secret stays in Supabase.
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
+
+// Expo Go has no native Google module; it keeps the browser flow.
+const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+/**
+ * Sign in with Google.
+ *
+ * In the real iOS app this is Google's native sheet, which names the app
+ * ("to continue to ReadScape"). The browser flow names whichever site
+ * handles the sign-in, which is the Supabase project's address,
+ * ilmrkhssqjzsmmgazmpe.supabase.co, and reads as a phishing page. The
+ * browser flow remains for Expo Go, the web build, and a build made before
+ * the iOS client ID was configured.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  if (Platform.OS === "ios" && !inExpoGo && GOOGLE_IOS_CLIENT_ID && GOOGLE_WEB_CLIENT_ID) {
+    return signInWithGoogleNative();
+  }
+  return signInWithProvider("google");
+}
+
+async function signInWithGoogleNative(): Promise<void> {
+  // Required lazily: importing it in Expo Go, where the native module does
+  // not exist, throws at load time.
+  const {
+    GoogleSignin,
+    isSuccessResponse,
+    isErrorWithCode,
+    statusCodes,
+  } = require("@react-native-google-signin/google-signin");
+
+  GoogleSignin.configure({
+    // The ID token's audience is the web client, which is the client
+    // Supabase's Google provider knows.
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+  });
+
+  let response;
+  try {
+    response = await GoogleSignin.signIn();
+  } catch (e: any) {
+    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) throw new OAuthCancelledError();
+    throw e;
+  }
+  if (!isSuccessResponse(response)) throw new OAuthCancelledError();
+
+  const idToken = response.data.idToken;
+  if (!idToken) throw new Error("Google did not return a sign-in token.");
+
+  const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
+  if (error) throw error;
+}
 
 /** Apple sign-in only exists on iOS devices, and not on every one. */
 export async function isAppleSignInAvailable(): Promise<boolean> {
@@ -180,3 +237,12 @@ export async function deleteAccount(): Promise<void> {
   // this device's copy of the session needs clearing.
   await supabase.auth.signOut({ scope: "local" }).catch(() => {});
 }
+
+/**
+ * Where links in auth emails (sign-up confirmation) send the reader: back
+ * into the app, at app/auth/callback. readscape://auth/callback in a build,
+ * exp://.../--/auth/callback in Expo Go; both are allowed redirect URLs in
+ * Supabase. Without this Supabase used its Site URL, a web page, and the
+ * reader was left in a browser.
+ */
+export const authCallbackUrl = () => Linking.createURL("auth/callback");

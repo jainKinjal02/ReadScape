@@ -45,6 +45,11 @@ export function toUserMessage(
   const e = error as { code?: string; message?: string };
   if (e?.code && CODE_MESSAGES[e.code]) return CODE_MESSAGES[e.code];
 
+  // Supabase Auth limits how many emails and attempts it accepts per hour.
+  if (/rate limit|too many requests/i.test(e?.message ?? "")) {
+    return "Lots of people are signing up right now. Please try again in a few minutes.";
+  }
+
   // Pass a message through only if it reads like a sentence. Anything long,
   // or shaped like a code, is database noise.
   const msg = e?.message;
