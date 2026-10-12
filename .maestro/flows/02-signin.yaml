@@ -42,14 +42,14 @@ name: 02 Sign in and onboarding
       - tapOn: ".*Regular.*"
       - tapOn: "Continue"
       - extendedWaitUntil:
-          visible: "Enter ReadScape"
+          visible: "Enter Readscape"
           timeout: 5000
       - tapOn: "Fiction"
       - tapOn: "Add your own…"
       - inputText: "Cozy mysteries"
       - pressKey: Enter
       - assertVisible: "Cozy mysteries"
-      - tapOn: "Enter ReadScape"
+      - tapOn: "Enter Readscape"
 - extendedWaitUntil:
     visible: "Good (morning|afternoon|evening),"
     timeout: 20000

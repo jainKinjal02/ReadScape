@@ -1,10 +1,10 @@
-# App Store listing: ReadScape
+# App Store listing: Readscape
 
 Copy these into App Store Connect. Character limits are Apple's.
 
 ## Name (30 max)
 
-ReadScape: Reading Journal
+Readscape: Reading Journal
 
 ## Subtitle (30 max)
 
@@ -17,16 +17,16 @@ Track books, moods and quotes
 
 ## Promotional text (170 max, can be changed without a new review)
 
-Say how a book makes you feel. Record a voice note and ReadScape saves your mood, the line that stayed with you, and your thoughts, ready to look back on.
+Say how a book makes you feel. Record a voice note and Readscape saves your mood, the line that stayed with you, and your thoughts, ready to look back on.
 
 ## Description (4000 max)
 
-ReadScape is a quiet, beautiful journal for the books in your life.
+Readscape is a quiet, beautiful journal for the books in your life.
 
 Keep track of what you're reading, remember how each book made you feel, and hold on to the lines you never want to forget.
 
 SAY HOW IT FEELS
-Tap the mic and just talk. Read a line aloud, or say what a chapter did to you. ReadScape turns it into a mood, a saved quote and a note in your own words, and keeps the recording so you can hear it again later.
+Tap the mic and just talk. Read a line aloud, or say what a chapter did to you. Readscape turns it into a mood, a saved quote and a note in your own words, and keeps the recording so you can hear it again later.
 
 YOUR LIBRARY
 Add books in seconds from a catalogue of millions. Choose the cover edition you actually own. Sort by reading, finished, waiting or put down.
@@ -56,7 +56,7 @@ A page where people can reach you, for example your GitHub repository page or a 
 
 ## Privacy policy URL
 
-`https://jainkinjal02.github.io/ReadScape/privacy-policy` once GitHub Pages is turned on (Settings → Pages → Branch `main`, folder `/docs`).
+`https://jainkinjal02.github.io/Readscape/privacy-policy` once GitHub Pages is turned on (Settings → Pages → Branch `main`, folder `/docs`).
 
 ## Age rating
 
@@ -68,7 +68,7 @@ Tracking: **No**. The app does not track users.
 
 Data collected, all **linked to the user**, **not used for tracking**, purpose **App Functionality**:
 
-| Apple's category | What it is in ReadScape |
+| Apple's category | What it is in Readscape |
 |---|---|
 | Contact Info → Name | Account name |
 | Contact Info → Email Address | Account email |
@@ -83,7 +83,7 @@ Not collected: location, contacts, health, financial info, browsing history, sea
 
 Paste into App Review Information → Notes, and fill in the demo account fields.
 
-> ReadScape is a personal reading journal.
+> Readscape is a personal reading journal.
 >
 > Demo account: [EMAIL] / [PASSWORD]. It has several books already added.
 >

@@ -1,12 +1,12 @@
 ---
-title: ReadScape Privacy Policy
+title: Readscape Privacy Policy
 ---
 
-# ReadScape Privacy Policy
+# Readscape Privacy Policy
 
 _Last updated: 12 October 2026_
 
-ReadScape is a personal reading journal. This policy explains what the app stores, why, who helps us run it, and how you can delete everything.
+Readscape is a personal reading journal. This policy explains what the app stores, why, who helps us run it, and how you can delete everything.
 
 **The short version:** we store what you put into your journal so it's there when you come back. We don't show ads, we don't track you across other apps or websites, and we don't sell your data.
 
@@ -25,16 +25,16 @@ ReadScape is a personal reading journal. This policy explains what the app store
 - The moods you log, and the quotes and notes you save.
 
 **Photos**
-- Photos you choose to add from your camera or photo library, including your profile photo. Only the photos you pick are uploaded; ReadScape never reads the rest of your library.
+- Photos you choose to add from your camera or photo library, including your profile photo. Only the photos you pick are uploaded; Readscape never reads the rest of your library.
 - Photos are stored at unlisted web links. The links aren't shared or published anywhere, but anyone who had a photo's exact link could open it.
 
 **Voice notes**
 - When you record a voice note, the recording is uploaded to private storage that only your account can access.
 - It is transcribed into text, and that text is sorted into a mood, a quote and a note, which you review before anything is saved.
 - The recording is kept so you can play it back, until you delete the note or your account. If you discard a voice note before saving it, the recording is deleted straight away.
-- ReadScape only uses the microphone while you are recording a voice note.
+- Readscape only uses the microphone while you are recording a voice note.
 
-## Who helps us run ReadScape
+## Who helps us run Readscape
 
 - **Supabase** hosts our database, file storage and sign-in. Everything listed above is stored with Supabase.
 - **OpenAI** transcribes voice-note recordings into text.
@@ -58,7 +58,7 @@ To delete everything, open the profile panel on the Home screen and tap **Delete
 
 ## Children
 
-ReadScape is not directed at children under 13, and we don't knowingly collect information from them.
+Readscape is not directed at children under 13, and we don't knowingly collect information from them.
 
 ## Changes
 

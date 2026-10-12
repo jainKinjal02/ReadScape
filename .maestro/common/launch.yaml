@@ -13,7 +13,7 @@ appId: host.exp.Exponent
     commands:
       - tapOn: "Open"
 - extendedWaitUntil:
-    visible: "Continue|.*ReadScape.*|Library|Insights"
+    visible: "Continue|.*Read[sS]cape.*|Library|Insights"
     timeout: 90000
 # Expo Go's developer-menu introduction sits in its own window, invisible to
 # Maestro except as "Bottom Sheet"; its Continue button spans the bottom.

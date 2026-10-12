@@ -51,7 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <Text style={styles.buttonText}>Try again</Text>
         </TouchableOpacity>
         <Text style={styles.hint}>
-          If this keeps happening, closing and reopening ReadScape usually clears it.
+          If this keeps happening, closing and reopening Readscape usually clears it.
         </Text>
       </View>
     );

@@ -1,8 +1,8 @@
 ---
-title: ReadScape
+title: Readscape
 ---
 
-# ReadScape
+# Readscape
 
 A quiet, beautiful journal for the books in your life.
 

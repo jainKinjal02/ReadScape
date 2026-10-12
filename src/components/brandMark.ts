@@ -1,5 +1,5 @@
 /**
- * The ReadScape mark (assets/icon.png) as vector shapes, traced from the icon
+ * The Readscape mark (assets/app-icon.png) as vector shapes, traced from the icon
  * so the opening animation uses exactly the icon's ink. Coordinates are in
  * the icon's 1254 x 1254 artboard.
  */

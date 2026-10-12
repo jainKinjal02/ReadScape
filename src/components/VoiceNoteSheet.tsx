@@ -117,7 +117,7 @@ export function VoiceNoteSheet({
     if (!perm.granted) {
       Alert.alert(
         "Microphone is off",
-        "Allow ReadScape to use the microphone in Settings to record voice notes."
+        "Allow Readscape to use the microphone in Settings to record voice notes."
       );
       return;
     }

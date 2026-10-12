@@ -1,5 +1,5 @@
 ---
-title: Email confirmed · ReadScape
+title: Email confirmed · Readscape
 permalink: /email-confirmed
 ---
 
@@ -7,4 +7,4 @@ permalink: /email-confirmed
 
 Your email address is confirmed.
 
-Go back to the **ReadScape** app and sign in with your email and password.
+Go back to the **Readscape** app and sign in with your email and password.

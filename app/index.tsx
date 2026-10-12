@@ -39,8 +39,17 @@ export default function WelcomeScreen() {
           <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")} activeOpacity={0.85}>
             <Text style={styles.primaryText}>Create Account</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondary} onPress={() => router.push("/auth?mode=signin")}>
-            <Text style={styles.secondaryText}>Already have an account? Sign in</Text>
+          {/* The whole line is the tap target; "Sign in" is styled as the link. */}
+          <TouchableOpacity
+            style={styles.secondary}
+            onPress={() => router.push("/auth?mode=signin")}
+            accessibilityRole="link"
+            accessibilityLabel="Already have an account? Sign in"
+            hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+          >
+            <Text style={styles.secondaryText}>
+              Already have an account? <Text style={styles.signInLink}>Sign in</Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -88,4 +97,10 @@ const styles = StyleSheet.create({
   primaryText: { fontFamily: fonts.bodySemi, fontSize: 16, letterSpacing: 0.2, color: IVORY },
   secondary: { paddingVertical: 12 },
   secondaryText: { fontFamily: fonts.body, fontSize: 13.5, color: colors.pencil },
+  signInLink: {
+    fontFamily: fonts.bodySemi,
+    color: INK,
+    textDecorationLine: "underline",
+    textDecorationColor: INK,
+  },
 });

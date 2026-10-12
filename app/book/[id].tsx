@@ -1248,7 +1248,7 @@ function QuotesTab({
               <View style={shareStyles.divider} />
               <Text style={shareStyles.bookTitle}>{book?.title}</Text>
               {!!book?.author && <Text style={shareStyles.bookAuthor}>{book.author}</Text>}
-              <Text style={shareStyles.brand}>ReadScape</Text>
+              <Text style={shareStyles.brand}>Readscape</Text>
             </View>
           </ViewShot>
 

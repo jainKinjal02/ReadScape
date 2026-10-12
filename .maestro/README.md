@@ -48,7 +48,7 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC04 | Sign up | Valid sign-up asks the reader to confirm their email, then switches to Sign In | 01-signup |
 | TC05 | Sign in | Wrong password shows an error and stays on Sign In | 02-signin |
 | TC06 | Sign in | First sign-in goes to onboarding | 02-signin |
-| TC07 | Onboarding | Goal choice, a preset genre and a custom genre save, and Enter ReadScape opens Home | 02-signin |
+| TC07 | Onboarding | Goal choice, a preset genre and a custom genre save, and Enter Readscape opens Home | 02-signin |
 | TC08 | Library | Empty library shows its empty state | 03-library-add |
 | TC09 | Library | Search finds a book; adding it as Want puts it on the shelf | 03-library-add |
 | TC10 | Library | **A book already on the shelf shows "In your library" and cannot be added again** (duplicate bug) | 03-library-add |

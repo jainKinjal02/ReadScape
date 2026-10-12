@@ -34,7 +34,7 @@ const CODE_MESSAGES: Record<string, string> = {
 };
 
 export const OFFLINE_MESSAGE =
-  "Can't reach ReadScape right now. Check your connection and try again.";
+  "Can't reach Readscape right now. Check your connection and try again.";
 
 export function toUserMessage(
   error: unknown,

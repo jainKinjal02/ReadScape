@@ -28,9 +28,9 @@ name: 13 Goodreads import
       - tapOn: ".*Regular.*"
       - tapOn: "Continue"
       - extendedWaitUntil:
-          visible: "Enter ReadScape"
+          visible: "Enter Readscape"
           timeout: 5000
-      - tapOn: "Enter ReadScape"
+      - tapOn: "Enter Readscape"
       - extendedWaitUntil:
           visible: "Bring your books from Goodreads"
           timeout: 10000

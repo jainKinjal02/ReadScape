@@ -125,7 +125,7 @@ export default function AuthScreen() {
         } else {
           Alert.alert(
             "Check your email ✉️",
-            `We sent a confirmation link to ${email.trim()}. Open it on this phone and you'll go straight into ReadScape.`,
+            `We sent a confirmation link to ${email.trim()}. Open it on this phone and you'll go straight into Readscape.`,
             [{ text: "Got it", onPress: () => switchMode("signin") }]
           );
         }
@@ -227,10 +227,7 @@ export default function AuthScreen() {
 
             {/* Logo */}
             <View style={styles.logoBlock}>
-              <Text style={styles.appName}>
-                <Text style={{ color: colors.ink }}>Read</Text>
-                <Text style={{ color: colors.blushInk }}>Scape</Text>
-              </Text>
+              <Text style={[styles.appName, { color: colors.ink }]}>Readscape</Text>
               <Text style={styles.tagline}>
                 {mode === "signup"
                   ? "Start your reading journey"
@@ -381,7 +378,7 @@ export default function AuthScreen() {
 
             {/* Switch mode hint */}
             <Text style={styles.hint}>
-              {mode === "signup" ? "Already have an account? " : "New to ReadScape? "}
+              {mode === "signup" ? "Already have an account? " : "New to Readscape? "}
               <Text
                 style={styles.hintLink}
                 onPress={() => switchMode(mode === "signup" ? "signin" : "signup")}

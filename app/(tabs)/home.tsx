@@ -469,7 +469,7 @@ export default function HomeScreen() {
             <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={72} style={{ marginBottom: 12 }} />
             <Text style={styles.panelName}>{userName || "Reader"}</Text>
             <View style={styles.panelBadge}>
-              <Text style={styles.panelBadgeText}>ReadScape Member</Text>
+              <Text style={styles.panelBadgeText}>Readscape Member</Text>
             </View>
           </LinearGradient>
 
