@@ -41,7 +41,7 @@ name: 10 Profile, log out, sign back in
     text: "Sign In"
     index: 1
 - extendedWaitUntil:
-    visible: "Not Now|Good (morning|afternoon|evening),"
+    visible: "Not Now|Waiting for you"
     timeout: 20000
 - runFlow: ../common/dismiss-save-password.yaml
 # Straight to Home (already onboarded), with the new name and the same library

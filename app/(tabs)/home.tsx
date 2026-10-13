@@ -31,7 +31,8 @@ import { supabase } from "../../src/lib/supabase";
 import { deleteAccount } from "../../src/lib/auth";
 import { Avatar } from "../../src/components/Avatar";
 import { useTabBarSpace } from "../../src/components/FloatingTabBar";
-import { SOCIALS, socialUrl } from "../../src/lib/profile";
+import { SOCIALS, SocialKind, socialUrl } from "../../src/lib/profile";
+import { SocialIcon } from "../../src/components/SocialIcons";
 
 const { width: SW } = Dimensions.get("window");
 const PANEL_W = SW * 0.78;
@@ -187,16 +188,6 @@ export default function HomeScreen() {
 
   const current = readingBooks[0] ?? null;
 
-  // Most recently finished first. Undated finishes sort last rather than
-  // being dropped — older rows predate the date_finished column.
-  const recentlyFinished = books
-    .filter((b) => b.status === "read")
-    .sort((a, b) => {
-      const ta = a.date_finished ? new Date(a.date_finished).getTime() : 0;
-      const tb = b.date_finished ? new Date(b.date_finished).getTime() : 0;
-      return tb - ta;
-    })
-    .slice(0, 10);
   const lovedCount = books.filter((b) => b.is_favorite).length;
   const waitingCount = books.filter((b) => b.status === "want_to_read").length;
 
@@ -221,56 +212,111 @@ export default function HomeScreen() {
 
   const currentMood = current ? moodConfig[latestMoods[current.id]]?.label : undefined;
 
-  const greeting = getGreeting();
+  // TikTok and Instagram first: they are the ones readers mostly share.
+  const socialLinks = (["tiktok", "instagram", "twitter", "goodreads"] as SocialKind[])
+    .map((kind) => ({
+      kind,
+      label: SOCIALS.find((x) => x.kind === kind)!.label,
+      url: socialUrl(kind, profile.socials[kind]),
+    }))
+    .filter((l): l is { kind: SocialKind; label: string; url: string } => !!l.url);
 
-  const socialLinks = SOCIALS
-    .map(({ kind, label }) => ({ label, url: socialUrl(kind, profile.socials[kind]) }))
-    .filter((l): l is { label: string; url: string } => !!l.url);
+  // The profile scrolls away with the page; once it has, a slim bar with the
+  // reader's photo and name fades in so the top of the screen still says
+  // whose shelf this is.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [profileH, setProfileH] = useState(260);
+  const compactOpacity = scrollY.interpolate({
+    inputRange: [profileH - 70, profileH - 20],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
   return (
     <View style={styles.root}>
-      {/* ── Masthead: stays put while the page scrolls under it ── */}
-      <View style={[styles.masthead, { paddingTop: insets.top + 10, paddingHorizontal: gutter }]}>
-        <View style={styles.topRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greeting},</Text>
-            <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
-            {!!profile.pronouns && <Text style={styles.pronouns}>{profile.pronouns}</Text>}
-          </View>
-          <TouchableOpacity testID="profile-avatar" onPress={openPanel} activeOpacity={0.7} style={styles.avatarBtn}>
-            <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={40} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.ruleStrong} />
+      {/* ── Top bar: stays put; the compact name appears once the profile is gone ── */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 6, paddingHorizontal: gutter }]}>
+        <Animated.View style={[styles.compact, { opacity: compactOpacity }]} pointerEvents="none">
+          <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={28} />
+          <Text style={styles.compactName} numberOfLines={1}>{userName || "Reader"}</Text>
+        </Animated.View>
+        <TouchableOpacity
+          testID="profile-avatar"
+          accessibilityLabel="Menu"
+          onPress={openPanel}
+          activeOpacity={0.7}
+          style={styles.roundBtn}
+        >
+          <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"
+              stroke={colors.ink}
+              strokeWidth={1.6}
+            />
+            <Path
+              d="M19.4 13.5a7.6 7.6 0 000-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 00-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 007 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 000 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 002.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 002.6-1.5l2.4 1 2-3.4-2-1.6z"
+              stroke={colors.ink}
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: gutter, paddingTop: 16, paddingBottom: tabSpace },
+          { paddingHorizontal: gutter, paddingTop: 4, paddingBottom: tabSpace },
         ]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
       >
-        {/* ── About: bio and where else to find the reader ── */}
-        {(!!profile.bio || socialLinks.length > 0) ? (
-          <View style={styles.about}>
-            {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-            {socialLinks.length > 0 && (
-              <View style={styles.socials}>
-                {socialLinks.map((l) => (
-                  <TouchableOpacity key={l.label} onPress={() => Linking.openURL(l.url)} activeOpacity={0.7}>
-                    <Text style={styles.socialLink}>{l.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          <TouchableOpacity onPress={() => router.push("/edit-profile")} activeOpacity={0.7} style={styles.about}>
-            <Text style={styles.addBio}>+ add a bio and your socials</Text>
+        {/* ── The reader: photo, name, pronouns and bio, where to find them ── */}
+        <View style={styles.profile} onLayout={(e) => setProfileH(e.nativeEvent.layout.height)}>
+          <TouchableOpacity onPress={() => router.push("/edit-profile")} activeOpacity={0.85}>
+            <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={84} />
           </TouchableOpacity>
-        )}
+          <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
+          {(!!profile.pronouns || !!profile.bio) && (
+            <Text style={styles.bioLine}>
+              {!!profile.pronouns && <Text style={styles.pronouns}>{profile.pronouns}</Text>}
+              {!!profile.pronouns && !!profile.bio ? "  •  " : ""}
+              {profile.bio}
+            </Text>
+          )}
+
+          <View style={styles.profileActions}>
+            <TouchableOpacity
+              style={styles.editPill}
+              onPress={() => router.push("/edit-profile")}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.editPillText}>Edit</Text>
+            </TouchableOpacity>
+            {socialLinks.map((l) => (
+              <TouchableOpacity
+                key={l.kind}
+                accessibilityLabel={l.label}
+                style={styles.roundBtn}
+                onPress={() => Linking.openURL(l.url)}
+                activeOpacity={0.75}
+              >
+                <SocialIcon kind={l.kind} color={colors.ink} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          {!profile.bio && socialLinks.length === 0 && (
+            <Text style={styles.addBio} onPress={() => router.push("/edit-profile")}>
+              Add a bio and your Instagram or TikTok
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.ruleStrong} />
 
         {/* ── Now reading ── */}
         {current ? (
@@ -408,33 +454,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ── Recently finished ── */}
-        {recentlyFinished.length > 0 && (
-          <View style={styles.divide}>
-            <View style={styles.head}>
-              <Text style={styles.h2}>Behind you</Text>
-              <Text style={styles.xs}>{readCount} finished</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginHorizontal: -gutter }}
-              contentContainerStyle={[styles.strip, { paddingHorizontal: gutter }]}
-            >
-              {recentlyFinished.map((b) => (
-                <TouchableOpacity
-                  key={b.id}
-                  style={styles.stripItem}
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/book/${b.id}`)}
-                >
-                  <CoverImage uri={b.cover_url ?? ""} title={b.title} style={styles.stripCover} />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* ── Profile slide-in panel ── */}
       <Modal visible={panelOpen} transparent animationType="none" onRequestClose={() => closePanel()}>
@@ -565,13 +585,6 @@ function PanelRow({ icon, label, onPress }: { icon: string; label: string; onPre
   );
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 // "Fifty this year" reads like a sentence; "50 this year" reads like a form
 // field. Words up to 100, numerals beyond — nobody sets a goal of 137.
 const ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten",
@@ -598,28 +611,39 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
 
   // ── Paper & Ink home ──
-  topRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
-  greeting: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil },
+  // Top bar: the compact name on the left (once scrolled), menu on the right
+  topBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingBottom: 8, backgroundColor: colors.paper, zIndex: 1,
+  },
+  compact: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, marginRight: 12 },
+  compactName: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  roundBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    borderWidth: 1, borderColor: colors.ruleStrong,
+    alignItems: "center", justifyContent: "center",
+  },
+
+  // The reader's profile, as on a profile page
+  profile: { paddingTop: 4, paddingBottom: 20 },
   name: {
     fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 36,
+    lineHeight: 42,
     letterSpacing: -0.6,
     color: colors.ink,
-    marginTop: 2,
+    marginTop: 12,
   },
-  masthead: { backgroundColor: colors.paper, zIndex: 1 },
-  avatarBtn: { marginTop: 4 },
-  pronouns: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil, marginTop: 2 },
-
-  about: { marginBottom: 18 },
-  bio: { fontFamily: fonts.readingItalic, fontSize: 14.5, lineHeight: 22, color: colors.ink },
-  socials: { flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 8 },
-  socialLink: {
-    fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.ink,
-    textDecorationLine: "underline", textDecorationColor: colors.ruleStrong,
+  bioLine: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: colors.ink, marginTop: 6 },
+  pronouns: { fontFamily: fonts.bodyMedium, color: colors.ink },
+  profileActions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" },
+  editPill: {
+    height: 42, paddingHorizontal: 30, borderRadius: 21,
+    borderWidth: 1, borderColor: colors.ruleStrong,
+    alignItems: "center", justifyContent: "center",
   },
-  addBio: { fontFamily: fonts.body, fontSize: 12.5, color: colors.pencil2 },
+  editPillText: { fontFamily: fonts.bodyMedium, fontSize: 14.5, color: colors.ink },
+  addBio: { fontFamily: fonts.body, fontSize: 13, color: colors.pencil, marginTop: 12, textDecorationLine: "underline" },
 
   // A heavier rule than the hairlines below it — this is the masthead break.
   ruleStrong: { borderTopWidth: 1.5, borderTopColor: colors.ink },

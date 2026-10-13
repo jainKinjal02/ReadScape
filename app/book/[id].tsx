@@ -456,10 +456,12 @@ export default function BookDetailScreen() {
     setPendingUpload(upload);
   };
 
+  // pendingUpload is cleared only once the upload has finished. Clearing it
+  // up front re-ran this effect, whose cleanup cancelled the timer before it
+  // fired: the upload never started and "Saving photo…" spun forever.
   useEffect(() => {
     if (!pendingUpload || !userId || !id) return;
     const { uri, caption } = pendingUpload;
-    setPendingUpload(null);
     setIsSavingPhoto(true);
     const timer = setTimeout(async () => {
       try {
@@ -469,6 +471,7 @@ export default function BookDetailScreen() {
         Alert.alert("Couldn't save photo", toUserMessage(e));
       } finally {
         setIsSavingPhoto(false);
+        setPendingUpload(null);
       }
     }, 400);
     return () => clearTimeout(timer);

@@ -30,7 +30,7 @@ name: 02 Sign in and onboarding
     text: "Sign In"
     index: 1
 - extendedWaitUntil:
-    visible: "Not Now|.*How many books.*|Good (morning|afternoon|evening),"
+    visible: "Not Now|.*How many books.*|Waiting for you"
     timeout: 20000
 - runFlow: ../common/dismiss-save-password.yaml
 # TC07 — onboarding appears only on an account's first sign-in; a re-run on
@@ -51,7 +51,7 @@ name: 02 Sign in and onboarding
       - assertVisible: "Cozy mysteries"
       - tapOn: "Enter Readscape"
 - extendedWaitUntil:
-    visible: "Good (morning|afternoon|evening),"
+    visible: "Waiting for you"
     timeout: 20000
 - assertVisible: "Test Reader"
 - assertVisible: "(Twelve|12) this year"

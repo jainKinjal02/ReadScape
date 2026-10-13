@@ -17,7 +17,7 @@ name: 13 Goodreads import
     text: "Sign In"
     index: 1
 - extendedWaitUntil:
-    visible: "Not Now|.*How many books.*|Good (morning|afternoon|evening),"
+    visible: "Not Now|.*How many books.*|Waiting for you"
     timeout: 20000
 - runFlow: ../common/dismiss-save-password.yaml
 # TC36 — a new reader is offered the import straight after onboarding
@@ -37,7 +37,7 @@ name: 13 Goodreads import
 # Existing readers reach it from the profile menu
 - runFlow:
     when:
-      visible: "Good (morning|afternoon|evening),"
+      visible: "Waiting for you"
     commands:
       - tapOn:
           id: "profile-avatar"
