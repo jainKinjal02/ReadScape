@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
+import { Linking } from "react-native";
 import { supabase } from "./supabase";
 
 /**
@@ -56,6 +57,40 @@ export function socialUrl(kind: SocialKind, value: string): string | null {
       // best we can do is their people search.
       return `https://www.goodreads.com/search?q=${encodeURIComponent(handle)}&search_type=people`;
   }
+}
+
+/** The handle in "@name", "name", or a pasted instagram.com/name link. */
+function handleOf(value: string): string {
+  const v = value.trim();
+  const fromUrl = v.match(/^https?:\/\/[^/]+\/@?([^/?#]+)/i);
+  return (fromUrl ? fromUrl[1] : v).replace(/^@/, "");
+}
+
+/**
+ * Open a reader's profile in the app it belongs to, or its website when the
+ * app isn't installed. Instagram and X have app links that take a username;
+ * TikTok and Goodreads use their web links, which iOS hands to the app when
+ * it is installed.
+ */
+export async function openSocial(kind: SocialKind, value: string): Promise<void> {
+  const web = socialUrl(kind, value);
+  if (!web) return;
+  const handle = handleOf(value);
+  const app =
+    kind === "instagram" && handle
+      ? `instagram://user?username=${encodeURIComponent(handle)}`
+      : kind === "twitter" && handle
+        ? `twitter://user?screen_name=${encodeURIComponent(handle)}`
+        : null;
+  if (app) {
+    try {
+      await Linking.openURL(app);
+      return;
+    } catch {
+      // Not installed: fall through to the website.
+    }
+  }
+  await Linking.openURL(web).catch(() => {});
 }
 
 const BUCKET = "book-photos";

@@ -150,11 +150,11 @@ export default function EditProfileScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
         >
           <View style={styles.avatarWrap}>
             <TouchableOpacity onPress={() => setShowPhotoSheet(true)} activeOpacity={0.8}>
-              <Avatar name={name || userName} uri={shownPhoto} size={96} />
+              <Avatar name={name || userName} uri={shownPhoto} size={76} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowPhotoSheet(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.changePhoto}>Change profile photo</Text>
@@ -216,7 +216,7 @@ export default function EditProfileScreen() {
               onBlur={() => setFocused(null)}
             />
 
-            <Text style={[styles.label, { marginTop: 8 }]}>SOCIAL</Text>
+            <Text style={[styles.label, { marginTop: 22 }]}>SOCIAL</Text>
             <Text style={styles.sub}>Shown on your profile so other readers can find you</Text>
             {SOCIALS.map(({ kind, label, placeholder }) => (
               <View key={kind} style={styles.socialRow}>
@@ -237,16 +237,20 @@ export default function EditProfileScreen() {
               </View>
             ))}
 
-            <TouchableOpacity
-              style={[styles.saveBtn, saving && { opacity: 0.65 }]}
-              onPress={save}
-              disabled={saving}
-              activeOpacity={0.85}
-            >
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
-            </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Always in view, so changing just the photo still shows how to keep it. */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.65 }]}
+            onPress={save}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Photo source sheet: an overlay, not a Modal, for the picker's sake. */}
@@ -284,40 +288,44 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 14,
+    paddingHorizontal: 20, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: colors.cream3, backgroundColor: colors.parchment,
   },
   backBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.cream2,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.cream2,
     borderWidth: 1, borderColor: colors.cream3, alignItems: "center", justifyContent: "center",
   },
-  title: { fontFamily: fonts.display, fontSize: 20, color: colors.espresso },
+  title: { fontFamily: fonts.display, fontSize: 17, color: colors.espresso },
 
-  avatarWrap: { alignItems: "center", paddingTop: 28, paddingBottom: 24, gap: 12 },
-  changePhoto: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.terracotta },
+  avatarWrap: { alignItems: "center", paddingTop: 20, paddingBottom: 6, gap: 8 },
+  changePhoto: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, textDecorationLine: "underline" },
 
   form: { paddingHorizontal: 20 },
   label: {
-    fontSize: 11, fontWeight: "700", color: colors.espresso2,
-    letterSpacing: 0.8, marginBottom: 4, marginTop: 18,
+    fontSize: 10.5, fontWeight: "700", color: colors.espresso2,
+    letterSpacing: 0.7, marginBottom: 6, marginTop: 14,
   },
-  sub: { fontSize: 12, color: colors.char3, marginBottom: 8 },
+  sub: { fontSize: 11.5, color: colors.char3, marginTop: -3, marginBottom: 6 },
   input: {
-    backgroundColor: colors.parchment, borderWidth: 1.5, borderColor: colors.cream3,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: colors.espresso,
+    backgroundColor: colors.parchment, borderWidth: 1, borderColor: colors.cream3,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: colors.espresso,
   },
-  inputFocused: { borderColor: colors.terracotta, backgroundColor: colors.blushSoft },
-  bioInput: { height: 100, paddingTop: 13 },
+  inputFocused: { borderColor: colors.ink, backgroundColor: colors.card },
+  bioInput: { height: 72, paddingTop: 9 },
 
-  socialRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
-  socialLabel: { width: 92, fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.ink },
-  socialInput: { flex: 1, paddingVertical: 11 },
+  socialRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  socialLabel: { width: 84, fontFamily: fonts.body, fontSize: 13, color: colors.ink },
+  socialInput: { flex: 1, paddingVertical: 8 },
 
+  footer: {
+    paddingHorizontal: 20, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: colors.cream3, backgroundColor: colors.cream,
+  },
   saveBtn: {
-    backgroundColor: colors.terracotta, borderRadius: 14, paddingVertical: 15,
-    alignItems: "center", marginTop: 28,
+    backgroundColor: colors.ink, borderRadius: 999, paddingVertical: 14,
+    alignItems: "center",
   },
-  saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "700", letterSpacing: 0.3 },
+  saveBtnText: { fontFamily: fonts.bodySemi, color: colors.paper, fontSize: 15, letterSpacing: 0.2 },
 
   backdrop: { flex: 1, backgroundColor: "rgba(27,26,34,0.35)" },
   sheet: {

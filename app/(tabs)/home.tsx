@@ -33,6 +33,7 @@ import { Avatar } from "../../src/components/Avatar";
 import { useTabBarSpace } from "../../src/components/FloatingTabBar";
 import { SOCIALS, SocialKind, socialUrl } from "../../src/lib/profile";
 import { SocialIcon } from "../../src/components/SocialIcons";
+import { openSocial } from "../../src/lib/profile";
 
 const { width: SW } = Dimensions.get("window");
 const PANEL_W = SW * 0.78;
@@ -221,99 +222,55 @@ export default function HomeScreen() {
     }))
     .filter((l): l is { kind: SocialKind; label: string; url: string } => !!l.url);
 
-  // The profile scrolls away with the page; once it has, a slim bar with the
-  // reader's photo and name fades in so the top of the screen still says
-  // whose shelf this is.
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [profileH, setProfileH] = useState(260);
-  const compactOpacity = scrollY.interpolate({
-    inputRange: [profileH - 70, profileH - 20],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
   return (
     <View style={styles.root}>
-      {/* ── Top bar: stays put; the compact name appears once the profile is gone ── */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 6, paddingHorizontal: gutter }]}>
-        <Animated.View style={[styles.compact, { opacity: compactOpacity }]} pointerEvents="none">
-          <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={28} />
-          <Text style={styles.compactName} numberOfLines={1}>{userName || "Reader"}</Text>
-        </Animated.View>
-        <TouchableOpacity
-          testID="profile-avatar"
-          accessibilityLabel="Menu"
-          onPress={openPanel}
-          activeOpacity={0.7}
-          style={styles.roundBtn}
-        >
-          <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"
-              stroke={colors.ink}
-              strokeWidth={1.6}
-            />
-            <Path
-              d="M19.4 13.5a7.6 7.6 0 000-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 00-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 007 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 000 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 002.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 002.6-1.5l2.4 1 2-3.4-2-1.6z"
-              stroke={colors.ink}
-              strokeWidth={1.6}
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </TouchableOpacity>
-      </View>
-
-      <Animated.ScrollView
+      <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: gutter, paddingTop: 4, paddingBottom: tabSpace },
+          { paddingHorizontal: gutter, paddingTop: insets.top + 12, paddingBottom: tabSpace },
         ]}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
-        })}
       >
-        {/* ── The reader: photo, name, pronouns and bio, where to find them ── */}
-        <View style={styles.profile} onLayout={(e) => setProfileH(e.nativeEvent.layout.height)}>
-          <TouchableOpacity onPress={() => router.push("/edit-profile")} activeOpacity={0.85}>
-            <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={84} />
-          </TouchableOpacity>
-          <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
-          {(!!profile.pronouns || !!profile.bio) && (
-            <Text style={styles.bioLine}>
-              {!!profile.pronouns && <Text style={styles.pronouns}>{profile.pronouns}</Text>}
-              {!!profile.pronouns && !!profile.bio ? "  •  " : ""}
-              {profile.bio}
-            </Text>
-          )}
-
-          <View style={styles.profileActions}>
-            <TouchableOpacity
-              style={styles.editPill}
-              onPress={() => router.push("/edit-profile")}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.editPillText}>Edit</Text>
-            </TouchableOpacity>
-            {socialLinks.map((l) => (
-              <TouchableOpacity
-                key={l.kind}
-                accessibilityLabel={l.label}
-                style={styles.roundBtn}
-                onPress={() => Linking.openURL(l.url)}
-                activeOpacity={0.75}
-              >
-                <SocialIcon kind={l.kind} color={colors.ink} />
-              </TouchableOpacity>
-            ))}
+        {/* ── The reader: photo, name, pronouns and bio, and their links ── */}
+        <View style={styles.profile}>
+          <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={64} />
+          <View style={styles.profileText}>
+            <Text style={styles.name} numberOfLines={1}>{userName || "Reader"}</Text>
+            {(!!profile.pronouns || !!profile.bio) && (
+              <Text style={styles.bioLine} numberOfLines={2}>
+                {!!profile.pronouns && <Text style={styles.pronouns}>{profile.pronouns}</Text>}
+                {!!profile.pronouns && !!profile.bio ? "  •  " : ""}
+                {profile.bio}
+              </Text>
+            )}
+            {socialLinks.length > 0 && (
+              <View style={styles.socialRow}>
+                {socialLinks.map((l) => (
+                  <TouchableOpacity
+                    key={l.kind}
+                    accessibilityLabel={l.label}
+                    style={styles.socialBtn}
+                    onPress={() => openSocial(l.kind, profile.socials[l.kind])}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    activeOpacity={0.75}
+                  >
+                    <SocialIcon kind={l.kind} color={colors.ink} size={16} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          {!profile.bio && socialLinks.length === 0 && (
-            <Text style={styles.addBio} onPress={() => router.push("/edit-profile")}>
-              Add a bio and your Instagram or TikTok
-            </Text>
-          )}
+          {/* The menu: initials, as before. Profile editing lives in there. */}
+          <TouchableOpacity
+            testID="profile-avatar"
+            accessibilityLabel="Menu"
+            onPress={openPanel}
+            activeOpacity={0.7}
+            style={styles.menuBtn}
+          >
+            <Avatar name={userName || "Reader"} uri={null} size={36} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.ruleStrong} />
@@ -454,7 +411,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-      </Animated.ScrollView>
+      </ScrollView>
 
       {/* ── Profile slide-in panel ── */}
       <Modal visible={panelOpen} transparent animationType="none" onRequestClose={() => closePanel()}>
@@ -488,9 +445,9 @@ export default function HomeScreen() {
             {/* Avatar */}
             <Avatar name={userName || "Reader"} uri={profile.avatarUrl} size={72} style={{ marginBottom: 12 }} />
             <Text style={styles.panelName}>{userName || "Reader"}</Text>
-            <View style={styles.panelBadge}>
-              <Text style={styles.panelBadgeText}>Readscape Member</Text>
-            </View>
+            <TouchableOpacity style={styles.panelEdit} onPress={openEditProfile} activeOpacity={0.8}>
+              <Text style={styles.panelEditText}>Edit profile</Text>
+            </TouchableOpacity>
           </LinearGradient>
 
           {/* Stats strip */}
@@ -513,7 +470,6 @@ export default function HomeScreen() {
 
           {/* Menu items */}
           <View style={styles.panelMenu}>
-            <PanelRow icon="✏️" label="Edit Profile" onPress={openEditProfile} />
             <PanelRow icon="📚" label="My Library" onPress={() => closePanel(() => router.push("/(tabs)/library"))} />
             <PanelRow icon="✒️" label="Notes" onPress={() => closePanel(() => router.push("/(tabs)/notes"))} />
             <PanelRow icon="📊" label="Insights" onPress={() => closePanel(() => router.push("/(tabs)/insights"))} />
@@ -611,39 +567,26 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
 
   // ── Paper & Ink home ──
-  // Top bar: the compact name on the left (once scrolled), menu on the right
-  topBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingBottom: 8, backgroundColor: colors.paper, zIndex: 1,
-  },
-  compact: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, marginRight: 12 },
-  compactName: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
-  roundBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    borderWidth: 1, borderColor: colors.ruleStrong,
-    alignItems: "center", justifyContent: "center",
-  },
-
-  // The reader's profile, as on a profile page
-  profile: { paddingTop: 4, paddingBottom: 20 },
+  // The reader, in one row: photo, name and bio, menu
+  profile: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingBottom: 18 },
+  profileText: { flex: 1 },
   name: {
     fontFamily: fonts.display,
-    fontSize: 36,
-    lineHeight: 42,
-    letterSpacing: -0.6,
+    fontSize: 26,
+    lineHeight: 31,
+    letterSpacing: -0.4,
     color: colors.ink,
-    marginTop: 12,
+    marginTop: 2,
   },
-  bioLine: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: colors.ink, marginTop: 6 },
+  bioLine: { fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, color: colors.ink, marginTop: 3 },
   pronouns: { fontFamily: fonts.bodyMedium, color: colors.ink },
-  profileActions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" },
-  editPill: {
-    height: 42, paddingHorizontal: 30, borderRadius: 21,
+  socialRow: { flexDirection: "row", gap: 8, marginTop: 9 },
+  socialBtn: {
+    width: 32, height: 32, borderRadius: 16,
     borderWidth: 1, borderColor: colors.ruleStrong,
     alignItems: "center", justifyContent: "center",
   },
-  editPillText: { fontFamily: fonts.bodyMedium, fontSize: 14.5, color: colors.ink },
-  addBio: { fontFamily: fonts.body, fontSize: 13, color: colors.pencil, marginTop: 12, textDecorationLine: "underline" },
+  menuBtn: { marginTop: 2 },
 
   // A heavier rule than the hairlines below it — this is the masthead break.
   ruleStrong: { borderTopWidth: 1.5, borderTopColor: colors.ink },
@@ -760,19 +703,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
-  panelBadge: {
-    backgroundColor: colors.blushSoft,
+  panelEdit: {
     borderWidth: 1,
     borderColor: colors.ruleStrong,
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    marginTop: 4,
   },
-  panelBadgeText: {
-    fontSize: 11,
-    color: colors.terra2,
-    fontWeight: "600",
-  },
+  panelEditText: { fontFamily: fonts.bodyMedium, fontSize: 13.5, color: colors.ink },
 
   // Stats strip
   panelStats: {
