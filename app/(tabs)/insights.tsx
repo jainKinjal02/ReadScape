@@ -34,6 +34,7 @@ import {
   type PersistedPhoto,
 } from "../../src/lib/gallery";
 import { devLog } from "../../src/lib/log";
+import { pickerFailureMessage } from "../../src/lib/errors";
 
 type GalleryPhoto = PersistedPhoto;
 
@@ -471,7 +472,8 @@ export default function InsightsScreen() {
       }
     } catch (e) {
       console.error("[Gallery] Error opening picker:", e);
-      Alert.alert("Couldn't open " + (source === "camera" ? "camera" : "photos"));
+      const { title, body } = pickerFailureMessage(source === "camera" ? "camera" : "library");
+      Alert.alert(title, body);
     }
   };
 

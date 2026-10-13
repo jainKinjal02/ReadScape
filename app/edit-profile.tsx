@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts } from "../src/design/tokens";
-import { toUserMessage } from "../src/lib/errors";
+import { pickerFailureMessage, toUserMessage } from "../src/lib/errors";
 import { supabase } from "../src/lib/supabase";
 import { useAppStore } from "../src/store";
 import { Avatar } from "../src/components/Avatar";
@@ -83,10 +83,17 @@ export default function EditProfileScreen() {
       aspect: [1, 1],
       quality: 0.9,
     };
-    const result =
-      source === "camera"
-        ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
+    } catch {
+      const { title, body } = pickerFailureMessage(source);
+      Alert.alert(title, body);
+      return;
+    }
     if (!result.canceled && result.assets[0]) setPhoto(result.assets[0].uri);
   };
 

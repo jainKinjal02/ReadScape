@@ -65,3 +65,14 @@ export function toUserMessage(
 
   return fallback;
 }
+
+/**
+ * Why the camera or photo library didn't open, in words a reader can use.
+ * The Simulator has no camera at all, and a phone's camera can be switched
+ * off under Screen Time; both reject launchCameraAsync rather than cancel.
+ */
+export function pickerFailureMessage(source: "camera" | "library"): { title: string; body: string } {
+  return source === "camera"
+    ? { title: "Camera unavailable", body: "This device's camera can't be used right now. You can choose a photo from your library instead." }
+    : { title: "Couldn't open your photos", body: "Please try again." };
+}

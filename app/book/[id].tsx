@@ -26,7 +26,7 @@ import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
-import { toUserMessage } from "../../src/lib/errors";
+import { pickerFailureMessage, toUserMessage } from "../../src/lib/errors";
 import { CoverImage } from "../../src/components/CoverImage";
 import { RatingMarks, ratingWords } from "../../src/components/RatingMarks";
 import { MicIcon, VoiceNoteSheet, VoiceNoteSaved } from "../../src/components/VoiceNoteSheet";
@@ -435,9 +435,16 @@ export default function BookDetailScreen() {
     const limited =
       "accessPrivileges" in perm && (perm as { accessPrivileges?: string }).accessPrivileges === "limited";
     if (!perm.granted && !limited) return;
-    const result = source === "camera"
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = source === "camera"
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
+    } catch {
+      const { title, body } = pickerFailureMessage(source);
+      Alert.alert(title, body);
+      return;
+    }
     if (!result.canceled && result.assets[0]) {
       setPendingPhotoUri(result.assets[0].uri);
       setPhotoCaptionInput("");
