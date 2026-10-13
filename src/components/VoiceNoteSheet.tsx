@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   Easing,
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +23,7 @@ import {
   useAudioRecorderState,
 } from "expo-audio";
 import Svg, { Path, Rect } from "react-native-svg";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { colors, fonts, moodConfig } from "../design/tokens";
 import { toUserMessage } from "../lib/errors";
 import { addNote, addQuote, logMood } from "../lib/books";
@@ -36,6 +38,8 @@ import { Book, Mood, Note, Quote } from "../types";
 // Long enough to read a passage and say what it did to you; short enough that
 // an accidental recording doesn't run up a transcription bill.
 const MAX_MS = 3 * 60 * 1000;
+
+const KEEP_AWAKE_TAG = "voice-note";
 
 // Speech needs far less than the HIGH_QUALITY preset's stereo 128kbps, and a
 // smaller file uploads faster on a phone connection.
@@ -184,6 +188,30 @@ export function VoiceNoteSheet({
       setPhase("idle");
     }
   };
+
+  // Keep the screen on while recording. Talking means not touching the
+  // phone, so a 30-second Auto-Lock would lock it mid-sentence, and iOS
+  // stops the recording when the app leaves the screen.
+  useEffect(() => {
+    if (phase !== "recording") return;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [phase]);
+
+  // If the app still leaves the screen (locked by hand, a call, another app),
+  // keep what was said rather than leave a frozen timer behind.
+  useEffect(() => {
+    if (phase !== "recording") return;
+    // Only "background": iOS also reports "inactive" when the recording
+    // starts, when Control Center is pulled down or a banner appears, and
+    // none of those should end the note.
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "background") stop();
+    });
+    return () => sub.remove();
+  }, [phase]);
 
   // Stop on its own at the limit rather than recording forever.
   useEffect(() => {
