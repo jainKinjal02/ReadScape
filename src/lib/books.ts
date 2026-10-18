@@ -339,6 +339,71 @@ const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").tri
 const tokens = (s: string) => new Set(normalise(s).split(/\s+/).filter(Boolean));
 
 /**
+ * Open Library search results for a known book, for finding its cover.
+ *
+ * Searching title and author together occasionally finds nothing at all when
+ * the title has an apostrophe: "I'm Thinking of Ending Things Iain Reid"
+ * returns zero results, while the same words without the apostrophe find the
+ * book at once. So when the exact query comes back empty, try again with the
+ * punctuation taken out. The match guards below still decide what counts.
+ */
+async function searchForCover(title: string, author: string | null | undefined, fields: string): Promise<any[]> {
+  const strip = (v: string) =>
+    v.replace(/['‘’`]/g, "").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const exact = [title, author ?? ""].join(" ").trim();
+  const plain = strip(exact);
+  // Last resort: the title without its subtitle, the author without initials
+  // ("Diana, Herself: An Allegory of Awakening" by "Martha N. Beck").
+  const short = strip(
+    [title.split(":")[0], (author ?? "").split(/\s+/).filter((w) => w.replace(/\W/g, "").length > 1).join(" ")].join(" ")
+  );
+  const queries = [...new Set([exact, plain, short].filter(Boolean))];
+  for (const query of queries) {
+    try {
+      const res = await fetchWithTimeout(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=10`
+      );
+      if (!res.ok) continue;
+      const docs = (await res.json())?.docs ?? [];
+      if (docs.length > 0) return docs;
+    } catch {
+      // Try the next form; give up quietly if none work.
+    }
+  }
+  return [];
+}
+
+/**
+ * Whether an Open Library result is the book we mean. A confidently wrong
+ * cover is worse than none ("Lost Lambs" must not become "Little lost lamb"),
+ * so:
+ *   - if we know the author, the author must match;
+ *   - unless Open Library only has the author's name in another script
+ *     (Murakami is listed as 村上春樹), when the title must match exactly
+ *     instead: "Men Without Women" by 村上春樹 is Murakami's, while
+ *     Hemingway's, with the same title, is listed in English and still fails;
+ *   - with no author, the titles must contain one another.
+ */
+function isSameBook(doc: any, title: string, author: string | null | undefined): boolean {
+  const wantAuthor = tokens(author ?? "");
+  const names: string[] = doc?.author_name ?? [];
+  if (wantAuthor.size > 0) {
+    const gotAuthor = tokens(names.join(" "));
+    if ([...wantAuthor].some((t) => gotAuthor.has(t))) return true;
+    const mainTitle = (v: string) => normalise(v.split(":")[0]);
+    return (
+      names.length > 0 &&
+      names.every((n) => NON_LATIN.test(n)) &&
+      mainTitle(doc?.title ?? "") === mainTitle(title)
+    );
+  }
+  const wantTitle = tokens(title);
+  const gotTitle = tokens(doc?.title ?? "");
+  const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+  return wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle));
+}
+
+/**
  * Find a cover for a book that has none.
  *
  * Open Library's `title=` search fragments across a lot of thin work records —
@@ -360,39 +425,11 @@ export async function resolveCoverUrl(
 ): Promise<string | null> {
   if (!title.trim()) return null;
 
-  const query = [title, author ?? ""].join(" ").trim();
-  const url =
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
-    `&fields=title,author_name,cover_i&limit=10`;
-
-  let docs: any[] = [];
-  try {
-    const res = await fetchWithTimeout(url);
-    if (!res.ok) return null;
-    docs = (await res.json())?.docs ?? [];
-  } catch {
-    return null;
-  }
-
-  const wantTitle = tokens(title);
-  const wantAuthor = tokens(author ?? "");
+  const docs = await searchForCover(title, author, "title,author_name,cover_i");
 
   for (const doc of docs) {
-    if (!doc?.cover_i) continue;
-
-    if (wantAuthor.size > 0) {
-      const gotAuthor = tokens((doc.author_name ?? []).join(" "));
-      if (![...wantAuthor].some((t) => gotAuthor.has(t))) continue;
-      return coverUrl(doc.cover_i, "L");
-    }
-
-    const gotTitle = tokens(doc.title ?? "");
-    const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
-    if (wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle))) {
-      return coverUrl(doc.cover_i, "L");
-    }
+    if (doc?.cover_i && isSameBook(doc, title, author)) return coverUrl(doc.cover_i, "L");
   }
-
   return null;
 }
 
@@ -416,33 +453,10 @@ export async function resolveCoverCandidates(
 ): Promise<string[]> {
   if (!title.trim()) return [];
 
-  const query = [title, author ?? ""].join(" ").trim();
-  const url =
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}` +
-    `&fields=title,author_name,cover_i,isbn&limit=10`;
+  const docs = await searchForCover(title, author, "title,author_name,cover_i,isbn");
 
-  let docs: any[] = [];
-  try {
-    const res = await fetchWithTimeout(url);
-    if (!res.ok) return [];
-    docs = (await res.json())?.docs ?? [];
-  } catch {
-    return [];
-  }
-
-  const wantTitle = tokens(title);
-  const wantAuthor = tokens(author ?? "");
   const out: string[] = [];
-
-  const matches = (doc: any) => {
-    if (wantAuthor.size > 0) {
-      const gotAuthor = tokens((doc.author_name ?? []).join(" "));
-      return [...wantAuthor].some((t) => gotAuthor.has(t));
-    }
-    const gotTitle = tokens(doc.title ?? "");
-    const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
-    return wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle));
-  };
+  const matches = (doc: any) => isSameBook(doc, title, author);
 
   for (const doc of docs) {
     if (!matches(doc)) continue;
