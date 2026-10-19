@@ -71,6 +71,8 @@ function BookOpenSvg() {
 }
 
 
+const MIN_QUERY = 3;
+
 const STATUS_NAMES: Record<BookStatus, string> = {
   want_to_read: "Want",
   reading: "Reading",
@@ -157,6 +159,7 @@ export default function LibraryScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [results, setResults] = useState<GoogleBook[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -213,11 +216,12 @@ export default function LibraryScreen() {
     if (!q) { setResults([]); setSearching(false); return; }
 
     const cached = searchCache.current.get(q.toLowerCase());
-    if (cached) { setResults(cached); setSearching(false); return; }
+    if (cached) { setResults(cached); setSearching(false); setSearchError(""); return; }
 
     const controller = new AbortController();
     searchAbort.current = controller;
     setSearching(true);
+    setSearchError("");
     try {
       const hits = await searchBooks(q, controller.signal);
       if (controller.signal.aborted) return;
@@ -235,16 +239,19 @@ export default function LibraryScreen() {
     } catch (e: any) {
       if (controller.signal.aborted) return; // replaced by a newer search
       setSearching(false);
-      Alert.alert("Search failed", "Could not reach book database. Check your connection and try again.");
+      // Shown in the results area, not as an alert: a popup over results
+      // that are still perfectly good reads as if everything broke.
+      setSearchError(toUserMessage(e, "Couldn't reach the book catalogue. Check your connection and try again."));
     }
   };
 
   const handleQueryChange = (text: string) => {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (text.trim().length < 2) {
+    // Open Library rejects queries under 3 characters ("Query too short").
+    if (text.trim().length < MIN_QUERY) {
       searchAbort.current?.abort();
-      setResults([]);
+      setResults([]); setSearchError("");
       setSearching(false);
       return;
     }
@@ -285,7 +292,7 @@ export default function LibraryScreen() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setShowAddModal(false);
     setQuery("");
-    setResults([]);
+    setResults([]); setSearchError("");
   };
 
   // ── Render book grid item ────────────────────────────────────────────────
@@ -578,7 +585,7 @@ export default function LibraryScreen() {
                   <ActivityIndicator color={colors.terracotta} size="small" style={{ marginRight: 4 }} />
                 )}
                 {query.length > 0 && !searching && (
-                  <TouchableOpacity onPress={() => { setQuery(""); setResults([]); }}>
+                  <TouchableOpacity onPress={() => { setQuery(""); setResults([]); setSearchError(""); }}>
                     <Text style={styles.clearBtn}>✕</Text>
                   </TouchableOpacity>
                 )}
@@ -586,6 +593,9 @@ export default function LibraryScreen() {
             </View>
 
             {/* Results / empty states */}
+            {!!searchError && results.length > 0 && (
+              <Text style={styles.searchErrorInline}>{searchError}</Text>
+            )}
             {results.length > 0 ? (
               <FlatList
                 data={results}
@@ -595,14 +605,21 @@ export default function LibraryScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               />
-            ) : !searching && query.trim().length >= 2 ? (
+            ) : !searching && searchError ? (
+              <View style={styles.noResults}>
+                <Text style={styles.noResultsText}>{searchError}</Text>
+              </View>
+            ) : !searching && query.trim().length >= MIN_QUERY ? (
               <View style={styles.noResults}>
                 <Text style={styles.noResultsText}>No results for "{query}". Try a different title or author.</Text>
               </View>
             ) : !searching ? (
               <View style={styles.searchHint}>
                 <Text style={styles.searchHintText}>
-                  Start typing to search millions of books.{"\n"}Tap{" "}
+                  {query.trim().length > 0
+                    ? "Keep typing: at least 3 letters to search."
+                    : "Start typing to search millions of books."}
+                  {"\n"}Tap{" "}
                   <Text style={{ color: colors.terracotta }}>Want</Text>,{" "}
                   <Text style={{ color: colors.terracotta }}>Reading</Text>, or{" "}
                   <Text style={{ color: colors.terracotta }}>Read</Text> to add instantly.
@@ -776,6 +793,10 @@ const styles = StyleSheet.create({
 
   noResults: { padding: 40, alignItems: "center" },
   noResultsText: { fontSize: 13, color: colors.char3, textAlign: "center" },
+  searchErrorInline: {
+    fontSize: 12.5, color: colors.danger, textAlign: "center",
+    paddingHorizontal: 24, paddingTop: 10,
+  },
   searchHint: { padding: 32, alignItems: "center" },
   searchHintText: {
     fontSize: 13, color: colors.char3,
