@@ -242,7 +242,7 @@ export default function ImportGoodreadsScreen() {
           {phase === "fetching" && (
             <View style={[StyleSheet.absoluteFill, styles.fetching]}>
               <ActivityIndicator color={colors.ink} />
-              <Text style={styles.title}>Bringing in your books…</Text>
+              <Text style={[styles.title, styles.centerText]}>Bringing in your books…</Text>
               <Text style={[styles.lead, { textAlign: "center" }]}>
                 Goodreads is preparing your library. Big libraries can take a minute; keep this screen open.
               </Text>
@@ -252,7 +252,7 @@ export default function ImportGoodreadsScreen() {
       )}
 
       {phase !== "connect" && phase !== "fetching" && (
-      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
+      <ScrollView contentContainerStyle={[styles.body, { flexGrow: 1, paddingBottom: insets.bottom + 32 }]}>
         {phase === "intro" && (
           <>
             <Text style={styles.title}>Bring your books from Goodreads</Text>
@@ -384,35 +384,48 @@ export default function ImportGoodreadsScreen() {
                 <Text style={styles.primaryText}>Done</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity onPress={() => { setPlan(null); setError(""); setPhase("intro"); }} style={styles.notNow}>
-              <Text style={styles.notNowText}>Choose a different file</Text>
+            <TouchableOpacity onPress={() => { setPlan(null); setError(""); setPhase(exportLabel ? "intro" : "upload"); }} style={styles.notNow}>
+              <Text style={styles.notNowText}>{exportLabel ? "Start over" : "Choose a different file"}</Text>
             </TouchableOpacity>
           </>
         )}
 
         {phase === "importing" && (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.ink} />
-            <Text style={styles.lead}>
-              Adding your books… {progress.done} of {progress.total}
+          <View style={styles.centerFill}>
+            <Text style={[styles.title, styles.centerText]}>Adding your books</Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progress.total ? Math.max(4, Math.round((progress.done / progress.total) * 100)) : 4}%` },
+                ]}
+              />
+            </View>
+            <Text style={[styles.lead, styles.centerText]}>
+              {progress.done} of {progress.total}
             </Text>
           </View>
         )}
 
         {phase === "done" && (
-          <>
-            <Text style={styles.title}>Welcome home</Text>
-            <Text style={styles.lead}>
+          <View style={styles.centerFill}>
+            <View style={styles.doneMark}>
+              <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                <Path d="M5 12.5l4.5 4.5L19 7.5" stroke={colors.ink} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+            <Text style={[styles.title, styles.centerText]}>Welcome home</Text>
+            <Text style={[styles.lead, styles.centerText]}>
               {addedCount} books are on your shelf. Covers will fill in over the next few minutes.
             </Text>
             <TouchableOpacity
-              style={styles.primary}
+              style={[styles.primary, styles.wide]}
               onPress={() => router.replace("/(tabs)/library")}
               activeOpacity={0.85}
             >
               <Text style={styles.primaryText}>See my library</Text>
             </TouchableOpacity>
-          </>
+          </View>
         )}
       </ScrollView>
       )}
@@ -442,7 +455,19 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
   top: { height: 32, paddingHorizontal: 24, justifyContent: "center" },
   body: { paddingHorizontal: 28, paddingTop: 24, gap: 16 },
-  center: { alignItems: "center", gap: 16, paddingTop: 80 },
+  // Waiting and finished states sit in the middle of the screen.
+  centerFill: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, paddingBottom: 64 },
+  centerText: { textAlign: "center" },
+  wide: { alignSelf: "stretch" },
+  progressTrack: {
+    alignSelf: "stretch", height: 6, borderRadius: 3, backgroundColor: colors.rule,
+    overflow: "hidden", marginTop: 4,
+  },
+  progressFill: { height: 6, borderRadius: 3, backgroundColor: colors.ink },
+  doneMark: {
+    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.mark,
+    alignItems: "center", justifyContent: "center",
+  },
 
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.ink, lineHeight: 34 },
   lead: { fontFamily: fonts.body, fontSize: 15, color: colors.pencil, lineHeight: 22 },
