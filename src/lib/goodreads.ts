@@ -28,8 +28,19 @@ export interface GoodreadsBook {
   review: string | null;
 }
 
+/** A book already on the shelf that Goodreads now says something different about. */
+export interface GoodreadsUpdate {
+  book: Book;
+  changes: Partial<Pick<Book, "status" | "rating" | "date_started" | "date_finished" | "current_page">>;
+  /** For the summary, e.g. "Reading → Put down", "rated 4". */
+  describe: string[];
+}
+
 export interface ImportPlan {
   toAdd: GoodreadsBook[];
+  /** Already on the shelf, with changes from Goodreads to apply. */
+  toUpdate: GoodreadsUpdate[];
+  /** Already on the shelf and already the same. */
   alreadyInLibrary: GoodreadsBook[];
   /** Listed more than once in the export (two editions); only the first is added. */
   repeated: GoodreadsBook[];
@@ -214,7 +225,7 @@ const goodreadsKey = (id: string) => `goodreads:${id}`;
  * Importing the same file twice therefore adds nothing the second time.
  */
 export function planImport(books: GoodreadsBook[], library: Book[]): ImportPlan {
-  const plan: ImportPlan = { toAdd: [], alreadyInLibrary: [], repeated: [] };
+  const plan: ImportPlan = { toAdd: [], toUpdate: [], alreadyInLibrary: [], repeated: [] };
   const seen = new Set<string>();
 
   for (const gb of books) {
@@ -224,8 +235,11 @@ export function planImport(books: GoodreadsBook[], library: Book[]): ImportPlan 
     };
     // Goodreads can list the same title twice (two editions); keep the first.
     const dupKey = `${gb.title.toLowerCase()}|${(gb.author ?? "").toLowerCase()}`;
-    if (findInLibrary(library, asResult)) {
-      plan.alreadyInLibrary.push(gb);
+    const existing = findInLibrary(library, asResult);
+    if (existing) {
+      const update = diffFromGoodreads(existing, gb);
+      if (update) plan.toUpdate.push(update);
+      else plan.alreadyInLibrary.push(gb);
     } else if (seen.has(dupKey)) {
       plan.repeated.push(gb);
     } else {
@@ -234,6 +248,64 @@ export function planImport(books: GoodreadsBook[], library: Book[]): ImportPlan 
     }
   }
   return plan;
+}
+
+const STATUS_WORDS: Record<BookStatus, string> = {
+  want_to_read: "Want to read",
+  reading: "Reading",
+  read: "Read",
+  abandoned: "Put down",
+};
+
+/** "23 Aug 2026" (UTC, matching how Goodreads dates are stored). */
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * What Goodreads says that the shelf doesn't, for a book already there.
+ *
+ * Importing again is how a reader who still uses Goodreads keeps Readscape in
+ * step, so the shelf, rating and finish date follow Goodreads. Only what
+ * Goodreads actually records is applied: an unrated book on Goodreads leaves
+ * a Readscape rating alone, and a missing read date doesn't erase one.
+ */
+export function diffFromGoodreads(book: Book, gb: GoodreadsBook): GoodreadsUpdate | null {
+  const changes: GoodreadsUpdate["changes"] = {};
+  const describe: string[] = [];
+
+  if (gb.status !== book.status) {
+    changes.status = gb.status;
+    describe.push(`${STATUS_WORDS[book.status]} → ${STATUS_WORDS[gb.status]}`);
+    if (gb.status === "reading" && !book.date_started) changes.date_started = new Date().toISOString();
+    if (gb.status !== "read" && book.date_finished) changes.date_finished = null;
+    if (gb.status === "read" && book.total_pages) changes.current_page = book.total_pages;
+  }
+  if (gb.status === "read" && gb.dateFinished) {
+    const same =
+      book.date_finished && book.date_finished.slice(0, 10) === gb.dateFinished.slice(0, 10);
+    if (!same) {
+      changes.date_finished = gb.dateFinished;
+      describe.push(`finished ${shortDate(gb.dateFinished)}`);
+    }
+  }
+  if (gb.rating != null && gb.rating !== (book.rating == null ? null : Number(book.rating))) {
+    changes.rating = gb.rating;
+    describe.push(`rated ${gb.rating}`);
+  }
+
+  return Object.keys(changes).length > 0 ? { book, changes, describe } : null;
+}
+
+/** Apply the planned updates. Returns the books as they now are. */
+export async function applyGoodreadsUpdates(updates: GoodreadsUpdate[]): Promise<Book[]> {
+  const out: Book[] = [];
+  for (const u of updates) {
+    const { error } = await supabase.from("books").update(u.changes).eq("id", u.book.id);
+    if (error) throw error;
+    out.push({ ...u.book, ...u.changes } as Book);
+  }
+  return out;
 }
 
 const BATCH = 100;

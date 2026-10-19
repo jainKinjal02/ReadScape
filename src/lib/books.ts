@@ -358,19 +358,32 @@ async function searchForCover(title: string, author: string | null | undefined, 
     [title.split(":")[0], (author ?? "").split(/\s+/).filter((w) => w.replace(/\W/g, "").length > 1).join(" ")].join(" ")
   );
   const queries = [...new Set([exact, plain, short].filter(Boolean))];
+  let answered = false;
   for (const query of queries) {
     try {
       const res = await fetchWithTimeout(
         `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=10`
       );
       if (!res.ok) continue;
+      answered = true;
       const docs = (await res.json())?.docs ?? [];
       if (docs.length > 0) return docs;
     } catch {
-      // Try the next form; give up quietly if none work.
+      // Try the next form.
     }
   }
+  // Nothing found is an answer; never hearing back is not, and the caller
+  // may want to try again later rather than conclude there is no cover.
+  if (!answered) throw new CoverLookupUnavailableError();
   return [];
+}
+
+/** Open Library could not be reached (or timed out) for a cover lookup. */
+export class CoverLookupUnavailableError extends Error {
+  constructor() {
+    super("Couldn't reach Open Library.");
+    this.name = "CoverLookupUnavailableError";
+  }
 }
 
 /**
@@ -417,7 +430,8 @@ function isSameBook(doc: any, title: string, author: string | null | undefined):
  *   - if we know the author, the author must match
  *   - if we do not, the titles must contain one another
  *
- * Returns null rather than guessing.
+ * Returns null rather than guessing. Throws CoverLookupUnavailableError when
+ * Open Library could not be reached, so callers can retry later.
  */
 export async function resolveCoverUrl(
   title: string,
@@ -453,7 +467,7 @@ export async function resolveCoverCandidates(
 ): Promise<string[]> {
   if (!title.trim()) return [];
 
-  const docs = await searchForCover(title, author, "title,author_name,cover_i,isbn");
+  const docs = await searchForCover(title, author, "title,author_name,cover_i,isbn").catch(() => []);
 
   const out: string[] = [];
   const matches = (doc: any) => isSameBook(doc, title, author);

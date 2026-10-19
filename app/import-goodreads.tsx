@@ -17,18 +17,24 @@ import {
   ImportPlan,
   NotAGoodreadsExportError,
   importGoodreadsBooks,
+  applyGoodreadsUpdates,
   parseGoodreadsExport,
   planImport,
 } from "../src/lib/goodreads";
 import {
   ConnectMessage,
-  DESKTOP_USER_AGENT,
+  EXPORT_RELOAD_MS,
   EXPORT_SCRIPT,
+  EXPORT_TIMEOUT_MS,
+  ExportLink,
   GOODREADS_EXPORT_PAGE,
   GOODREADS_SIGN_IN_URL,
+  PRESS_EXPORT,
+  RELOAD_PAGE,
   downloadScript,
   isExportPage,
   isSignInPage,
+  linkKey,
 } from "../src/lib/goodreadsConnect";
 
 type Phase =
@@ -64,10 +70,17 @@ export default function ImportGoodreadsScreen() {
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [addedCount, setAddedCount] = useState(0);
+  const [updatedCount, setUpdatedCount] = useState(0);
   const [exportLabel, setExportLabel] = useState("");
-  const [stale, setStale] = useState<{ href: string; label: string } | null>(null);
+  const [stale, setStale] = useState<ExportLink | null>(null);
+  // Goodreads' pages can take a few seconds; show that something is happening.
+  const [webLoading, setWebLoading] = useState(true);
   const webRef = useRef<WebView>(null);
   const sentToExport = useRef(false);
+  // The export in progress, kept here rather than in the page (see
+  // goodreadsConnect.ts): pressed when, which export was showing before,
+  // when the page was last refreshed, and whether a download is under way.
+  const exportRun = useRef<{ pressedAt: number; before: string | null; reloadedAt: number; downloading: boolean } | null>(null);
 
   const leave = () => {
     // Inside a step (signing in, uploading, the older-export choice), back
@@ -116,6 +129,8 @@ export default function ImportGoodreadsScreen() {
     setError("");
     setStale(null);
     sentToExport.current = false;
+    exportRun.current = null;
+    setWebLoading(true);
     setPhase("connect");
   };
 
@@ -147,9 +162,44 @@ export default function ImportGoodreadsScreen() {
       return;
     }
     switch (msg.type) {
-      case "exporting":
-        setPhase("fetching");
+      case "exportPage": {
+        const run = exportRun.current;
+        const now = Date.now();
+        if (!run) {
+          if (!msg.hasButton) {
+            failConnect("Goodreads' export page didn't look the way we expected. You can upload the file instead.");
+            return;
+          }
+          // Remember the export already showing (often an old one), then ask
+          // Goodreads for a new one.
+          exportRun.current = { pressedAt: now, before: linkKey(msg.link), reloadedAt: now, downloading: false };
+          setPhase("fetching");
+          webRef.current?.injectJavaScript(PRESS_EXPORT);
+          return;
+        }
+        if (run.downloading) return;
+        if (msg.link && linkKey(msg.link) !== run.before) {
+          run.downloading = true;
+          webRef.current?.injectJavaScript(downloadScript(msg.link));
+          return;
+        }
+        if (now - run.pressedAt > EXPORT_TIMEOUT_MS) {
+          if (msg.link) {
+            run.downloading = true; // stop reacting while the reader chooses
+            setStale(msg.link);
+            setPhase("stale");
+          } else {
+            failConnect("Goodreads didn't produce an export. Try again in a few minutes, or upload the file instead.");
+          }
+          return;
+        }
+        // The finished export may only show after a refresh.
+        if (now - run.reloadedAt > EXPORT_RELOAD_MS) {
+          run.reloadedAt = now;
+          webRef.current?.injectJavaScript(RELOAD_PAGE);
+        }
         break;
+      }
       case "csv":
         try {
           setExportLabel(msg.label.replace(/^your export from\s*/i, ""));
@@ -158,16 +208,8 @@ export default function ImportGoodreadsScreen() {
           failConnect("Goodreads sent something we couldn't read. Try again, or upload the file instead.");
         }
         break;
-      case "stale":
-        setStale({ href: msg.href, label: msg.label.replace(/^your export from\s*/i, "") });
-        setPhase("stale");
-        break;
       case "error":
-        failConnect(
-          msg.reason === "download"
-            ? "Couldn't download your library from Goodreads. Check your connection and try again."
-            : "Goodreads' export page didn't look the way we expected. You can upload the file instead."
-        );
+        failConnect("Couldn't download your library from Goodreads. Check your connection and try again.");
         break;
     }
   };
@@ -175,18 +217,22 @@ export default function ImportGoodreadsScreen() {
   const useStale = () => {
     if (!stale) return;
     setPhase("fetching");
-    webRef.current?.injectJavaScript(downloadScript(stale.href, "Your export from " + stale.label));
+    webRef.current?.injectJavaScript(downloadScript(stale));
   };
 
   const runImport = async () => {
     if (!plan || !userId) return;
     setPhase("importing");
-    setProgress({ done: 0, total: plan.toAdd.length });
+    const total = plan.toAdd.length + plan.toUpdate.length;
+    setProgress({ done: 0, total });
     try {
-      const added = await importGoodreadsBooks(userId, plan.toAdd, (done, total) =>
-        setProgress({ done, total })
-      );
+      const added = plan.toAdd.length
+        ? await importGoodreadsBooks(userId, plan.toAdd, (done) => setProgress({ done, total }))
+        : [];
+      await applyGoodreadsUpdates(plan.toUpdate);
+      setProgress({ done: total, total });
       setAddedCount(added.length);
+      setUpdatedCount(plan.toUpdate.length);
       // Reload rather than splice in: the shelf order comes from the server.
       setBooks(await fetchUserBooks(userId));
       setPhase("done");
@@ -230,17 +276,24 @@ export default function ImportGoodreadsScreen() {
           <WebView
             ref={webRef}
             source={{ uri: GOODREADS_SIGN_IN_URL }}
-            userAgent={DESKTOP_USER_AGENT}
             // Nothing from the Goodreads session is kept after this screen.
             incognito
             injectedJavaScript={EXPORT_SCRIPT}
             onNavigationStateChange={onNavigate}
+            onLoadStart={() => setWebLoading(true)}
+            onLoadEnd={() => setWebLoading(false)}
             onMessage={onMessage}
             onError={() => failConnect("Couldn't reach Goodreads. Check your connection and try again.")}
             style={{ flex: 1 }}
           />
+          {phase === "connect" && webLoading && (
+            <View style={[StyleSheet.absoluteFill, styles.webLoading]} pointerEvents="none">
+              <ActivityIndicator color={colors.ink} />
+              <Text style={styles.webLoadingText}>Loading Goodreads…</Text>
+            </View>
+          )}
           {phase === "fetching" && (
-            <View style={[StyleSheet.absoluteFill, styles.fetching]}>
+            <View style={[StyleSheet.absoluteFill, styles.fetching, { paddingBottom: insets.top + 48 }]}>
               <ActivityIndicator color={colors.ink} />
               <Text style={[styles.title, styles.centerText]}>Bringing in your books…</Text>
               <Text style={[styles.lead, { textAlign: "center" }]}>
@@ -331,26 +384,31 @@ export default function ImportGoodreadsScreen() {
         )}
 
         {phase === "stale" && stale && (
-          <>
-            <Text style={styles.title}>Goodreads is taking a while</Text>
-            <Text style={styles.lead}>
-              A new export hasn't appeared yet. You have an older one from {stale.label}, which won't include
-              anything you've added on Goodreads since.
+          <View style={styles.centerFill}>
+            <Text style={[styles.title, styles.centerText]}>Use your latest export?</Text>
+            <Text style={[styles.lead, styles.centerText]}>
+              Goodreads didn't make a new export just now (it limits how often you can export). Your most
+              recent one is from {stale.label.replace(/^your export from\s*/i, "")}, and won't include
+              anything you've changed on Goodreads since.
             </Text>
-            <TouchableOpacity style={styles.primary} onPress={useStale} activeOpacity={0.85}>
-              <Text style={styles.primaryText}>Use the export from {stale.label}</Text>
+            <TouchableOpacity style={[styles.primary, styles.wide]} onPress={useStale} activeOpacity={0.85}>
+              <Text style={styles.primaryText}>Use that export</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghost} onPress={startConnect} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.ghost, styles.wide]} onPress={startConnect} activeOpacity={0.8}>
               <Text style={styles.ghostText}>Try again</Text>
             </TouchableOpacity>
-          </>
+          </View>
         )}
 
         {phase === "preview" && plan && (
           <>
             {!!exportLabel && <Text style={styles.small}>Your Goodreads export from {exportLabel}</Text>}
             <Text style={styles.title}>
-              {plan.toAdd.length === 0 ? "You're up to date" : `${plan.toAdd.length} books to add`}
+              {plan.toAdd.length > 0
+                ? `${plan.toAdd.length} ${plan.toAdd.length === 1 ? "book" : "books"} to add`
+                : plan.toUpdate.length > 0
+                  ? `${plan.toUpdate.length} ${plan.toUpdate.length === 1 ? "change" : "changes"} from Goodreads`
+                  : "You're up to date"}
             </Text>
             {plan.toAdd.length > 0 && (
               <View style={styles.summary}>
@@ -367,17 +425,39 @@ export default function ImportGoodreadsScreen() {
                 })()}
               </View>
             )}
+            {plan.toUpdate.length > 0 && (
+              <View style={styles.updates}>
+                {plan.toAdd.length > 0 && (
+                  <Text style={styles.updatesHead}>
+                    And {plan.toUpdate.length} {plan.toUpdate.length === 1 ? "change" : "changes"} from Goodreads
+                  </Text>
+                )}
+                {/* Every change, in full: nothing is applied that wasn't shown. */}
+                {plan.toUpdate.map((u) => (
+                  <View key={u.book.id} style={styles.updateRow}>
+                    <Text style={styles.rowLabel} numberOfLines={2}>{u.book.title}</Text>
+                    <Text style={styles.rowChange}>{u.describe.join(" · ")}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
             {plan.alreadyInLibrary.length > 0 && (
               <Text style={styles.lead}>
-                {plan.alreadyInLibrary.length} already in your library will be left as they are.
+                {plan.alreadyInLibrary.length} already in your library and unchanged.
               </Text>
             )}
 
             {!!error && <Text style={styles.error}>{error}</Text>}
 
-            {plan.toAdd.length > 0 ? (
+            {plan.toAdd.length + plan.toUpdate.length > 0 ? (
               <TouchableOpacity style={styles.primary} onPress={runImport} activeOpacity={0.85}>
-                <Text style={styles.primaryText}>Import {plan.toAdd.length} books</Text>
+                <Text style={styles.primaryText}>
+                  {plan.toAdd.length > 0 && plan.toUpdate.length > 0
+                    ? `Import ${plan.toAdd.length} and update ${plan.toUpdate.length}`
+                    : plan.toAdd.length > 0
+                      ? `Import ${plan.toAdd.length} ${plan.toAdd.length === 1 ? "book" : "books"}`
+                      : `Update ${plan.toUpdate.length} ${plan.toUpdate.length === 1 ? "book" : "books"}`}
+                </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.primary} onPress={leave} activeOpacity={0.85}>
@@ -416,7 +496,13 @@ export default function ImportGoodreadsScreen() {
             </View>
             <Text style={[styles.title, styles.centerText]}>Welcome home</Text>
             <Text style={[styles.lead, styles.centerText]}>
-              {addedCount} books are on your shelf. Covers will fill in over the next few minutes.
+              {[
+                addedCount > 0 && `${addedCount} ${addedCount === 1 ? "book is" : "books are"} on your shelf.`,
+                updatedCount > 0 && `${updatedCount} updated from Goodreads.`,
+                addedCount > 0 && "Covers will fill in over the next few minutes.",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             </Text>
             <TouchableOpacity
               style={[styles.primary, styles.wide]}
@@ -498,10 +584,18 @@ const styles = StyleSheet.create({
   },
   ghostText: { fontFamily: fonts.bodyMedium, fontSize: 14.5, color: colors.ink },
   notNow: { alignSelf: "center", paddingVertical: 10 },
+  updates: { borderTopWidth: 1, borderTopColor: colors.rule },
+  updatesHead: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, paddingTop: 14, paddingBottom: 4 },
+  updateRow: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.rule, gap: 3 },
+  rowChange: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.pencil },
   connectHint: {
     fontFamily: fonts.bodyMedium, fontSize: 13.5, color: colors.ink,
     paddingHorizontal: 24, paddingBottom: 10,
   },
+  webLoading: {
+    backgroundColor: "rgba(251,250,246,0.82)", alignItems: "center", justifyContent: "center", gap: 12,
+  },
+  webLoadingText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.ink },
   fetching: {
     backgroundColor: colors.paper, alignItems: "center", justifyContent: "center",
     gap: 14, paddingHorizontal: 32,

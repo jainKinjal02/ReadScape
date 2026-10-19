@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store";
 import { resolveCoverUrl, updateBookCover } from "../lib/books";
 
@@ -6,6 +6,8 @@ import { resolveCoverUrl, updateBookCover } from "../lib/books";
 // books per pass, one request at a time, with a pause between.
 const PER_PASS = 6;
 const GAP_MS = 700;
+const MAX_TRIES = 4;
+const RETRY_MS = 15000;
 
 /**
  * Finds books saved without a cover and fills one in.
@@ -23,8 +25,13 @@ export function useCoverBackfill() {
   const books = useAppStore((s) => s.books);
   const updateBook = useAppStore((s) => s.updateBook);
 
-  // Survives re-renders so a failed lookup is not retried in a loop.
+  // Books settled this session: a cover found, or Open Library answered and
+  // has none. Not retried. Books whose lookup failed (slow or unreachable,
+  // common right after a big import) go in `failures` and are retried on
+  // later passes, a few times, instead of waiting for the next launch.
   const attempted = useRef<Set<string>>(new Set());
+  const failures = useRef<Map<string, number>>(new Map());
+  const [retryTick, setRetryTick] = useState(0);
   const running = useRef(false);
 
   useEffect(() => {
@@ -39,26 +46,33 @@ export function useCoverBackfill() {
     let cancelled = false;
 
     (async () => {
+      let anyFailed = false;
       for (const book of missing) {
         if (cancelled) break;
-        attempted.current.add(book.id);
         try {
           const url = await resolveCoverUrl(book.title, book.author);
+          attempted.current.add(book.id);
+          failures.current.delete(book.id);
           if (url && !cancelled) {
             await updateBookCover(book.id, url);
             updateBook({ ...book, cover_url: url });
           }
         } catch {
-          // Leave the initials fallback in place; try again next launch.
+          const n = (failures.current.get(book.id) ?? 0) + 1;
+          failures.current.set(book.id, n);
+          if (n >= MAX_TRIES) attempted.current.add(book.id); // give up until next launch
+          else anyFailed = true;
         }
         if (!cancelled) await new Promise((r) => setTimeout(r, GAP_MS));
       }
       running.current = false;
+      // Come back for the ones that failed once Open Library has had a moment.
+      if (anyFailed && !cancelled) setTimeout(() => setRetryTick((t) => t + 1), RETRY_MS);
     })();
 
     return () => {
       cancelled = true;
       running.current = false;
     };
-  }, [userId, books, updateBook]);
+  }, [userId, books, updateBook, retryTick]);
 }
