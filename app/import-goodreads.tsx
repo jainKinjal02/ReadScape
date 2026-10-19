@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -6,6 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
 import Svg, { Path } from "react-native-svg";
+import { WebView, WebViewMessageEvent, WebViewNavigation } from "react-native-webview";
 import { colors, fonts } from "../src/design/tokens";
 import { toUserMessage } from "../src/lib/errors";
 import { useAppStore } from "../src/store";
@@ -19,8 +20,27 @@ import {
   parseGoodreadsExport,
   planImport,
 } from "../src/lib/goodreads";
+import {
+  ConnectMessage,
+  DESKTOP_USER_AGENT,
+  EXPORT_SCRIPT,
+  GOODREADS_EXPORT_PAGE,
+  GOODREADS_SIGN_IN_URL,
+  downloadScript,
+  isExportPage,
+  isSignInPage,
+} from "../src/lib/goodreadsConnect";
 
-type Phase = "intro" | "reading" | "preview" | "importing" | "done";
+type Phase =
+  | "intro" // choose: connect Goodreads, or upload a file
+  | "upload" // the by-hand instructions and file picker
+  | "connect" // signing in to Goodreads in the in-app browser
+  | "fetching" // signed in; Readscape is exporting and downloading
+  | "stale" // Goodreads didn't produce a new export; offer the older one
+  | "reading"
+  | "preview"
+  | "importing"
+  | "done";
 
 /**
  * Bring a Goodreads library into ReadScape from Goodreads' CSV export.
@@ -44,8 +64,18 @@ export default function ImportGoodreadsScreen() {
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [addedCount, setAddedCount] = useState(0);
+  const [exportLabel, setExportLabel] = useState("");
+  const [stale, setStale] = useState<{ href: string; label: string } | null>(null);
+  const webRef = useRef<WebView>(null);
+  const sentToExport = useRef(false);
 
   const leave = () => {
+    // Inside a step (signing in, uploading, the older-export choice), back
+    // returns to the start of the import rather than leaving it.
+    if (phase === "connect" || phase === "fetching" || phase === "stale" || phase === "upload") {
+      setPhase("intro");
+      return;
+    }
     if (fromOnboarding) router.replace("/(tabs)/home");
     else router.back();
   };
@@ -61,18 +91,91 @@ export default function ImportGoodreadsScreen() {
     setPhase("reading");
     try {
       const text = await FileSystem.readAsStringAsync(picked.assets[0].uri);
-      const books = parseGoodreadsExport(text);
-      if (books.length === 0) throw new NotAGoodreadsExportError();
-      setPlan(planImport(books, library));
-      setPhase("preview");
+      setExportLabel("");
+      planFrom(text);
     } catch (e) {
       setError(
         e instanceof NotAGoodreadsExportError
           ? "That file doesn't look like a Goodreads export. Choose the file named goodreads_library_export.csv."
           : toUserMessage(e, "Couldn't read that file. Please try again.")
       );
-      setPhase("intro");
+      setPhase("upload");
     }
+  };
+
+  /** Parse an export (uploaded or fetched) and show what it would add. */
+  const planFrom = (text: string) => {
+    const books = parseGoodreadsExport(text);
+    if (books.length === 0) throw new NotAGoodreadsExportError();
+    setPlan(planImport(books, library));
+    setPhase("preview");
+  };
+
+  // ── Connect Goodreads ─────────────────────────────────────────────────────
+  const startConnect = () => {
+    setError("");
+    setStale(null);
+    sentToExport.current = false;
+    setPhase("connect");
+  };
+
+  // Once the reader is past the sign-in pages, go to the export page; the
+  // script there does the rest.
+  const onNavigate = (nav: WebViewNavigation) => {
+    if (nav.loading) return;
+    if (isExportPage(nav.url)) {
+      setPhase((p) => (p === "connect" ? "fetching" : p));
+      return;
+    }
+    if (!isSignInPage(nav.url) && !sentToExport.current) {
+      sentToExport.current = true;
+      setPhase("fetching");
+      webRef.current?.injectJavaScript(`location.href = ${JSON.stringify(GOODREADS_EXPORT_PAGE)}; true;`);
+    }
+  };
+
+  const failConnect = (message: string) => {
+    setError(message);
+    setPhase("intro");
+  };
+
+  const onMessage = (event: WebViewMessageEvent) => {
+    let msg: ConnectMessage;
+    try {
+      msg = JSON.parse(event.nativeEvent.data);
+    } catch {
+      return;
+    }
+    switch (msg.type) {
+      case "exporting":
+        setPhase("fetching");
+        break;
+      case "csv":
+        try {
+          setExportLabel(msg.label.replace(/^your export from\s*/i, ""));
+          planFrom(msg.text);
+        } catch {
+          failConnect("Goodreads sent something we couldn't read. Try again, or upload the file instead.");
+        }
+        break;
+      case "stale":
+        setStale({ href: msg.href, label: msg.label.replace(/^your export from\s*/i, "") });
+        setPhase("stale");
+        break;
+      case "error":
+        failConnect(
+          msg.reason === "download"
+            ? "Couldn't download your library from Goodreads. Check your connection and try again."
+            : "Goodreads' export page didn't look the way we expected. You can upload the file instead."
+        );
+        break;
+    }
+  };
+
+  const useStale = () => {
+    if (!stale) return;
+    setPhase("fetching");
+    webRef.current?.injectJavaScript(downloadScript(stale.href, "Your export from " + stale.label));
   };
 
   const runImport = async () => {
@@ -114,12 +217,76 @@ export default function ImportGoodreadsScreen() {
         )}
       </View>
 
+      {/* The in-app browser: visible while signing in, then covered while
+          the export runs. It stays mounted throughout so the session lasts. */}
+      {(phase === "connect" || phase === "fetching" || phase === "stale") && (
+        <View
+          style={[StyleSheet.absoluteFill, { top: insets.top + 48 }, phase === "stale" && styles.hidden]}
+          pointerEvents={phase === "stale" ? "none" : "auto"}
+        >
+          {phase === "connect" && (
+            <Text style={styles.connectHint}>Sign in to Goodreads. We'll take it from there.</Text>
+          )}
+          <WebView
+            ref={webRef}
+            source={{ uri: GOODREADS_SIGN_IN_URL }}
+            userAgent={DESKTOP_USER_AGENT}
+            // Nothing from the Goodreads session is kept after this screen.
+            incognito
+            injectedJavaScript={EXPORT_SCRIPT}
+            onNavigationStateChange={onNavigate}
+            onMessage={onMessage}
+            onError={() => failConnect("Couldn't reach Goodreads. Check your connection and try again.")}
+            style={{ flex: 1 }}
+          />
+          {phase === "fetching" && (
+            <View style={[StyleSheet.absoluteFill, styles.fetching]}>
+              <ActivityIndicator color={colors.ink} />
+              <Text style={styles.title}>Bringing in your books…</Text>
+              <Text style={[styles.lead, { textAlign: "center" }]}>
+                Goodreads is preparing your library. Big libraries can take a minute; keep this screen open.
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {phase !== "connect" && phase !== "fetching" && (
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
-        {(phase === "intro" || phase === "reading") && (
+        {phase === "intro" && (
           <>
             <Text style={styles.title}>Bring your books from Goodreads</Text>
             <Text style={styles.lead}>
-              Your shelves, ratings, read dates and reviews come with you. It takes about a minute.
+              Sign in to Goodreads and we'll bring in your shelves, ratings, read dates and reviews.
+            </Text>
+
+            <TouchableOpacity style={styles.primary} onPress={startConnect} activeOpacity={0.85}>
+              <Text style={styles.primaryText}>Connect Goodreads</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghost} onPress={() => { setError(""); setPhase("upload"); }} activeOpacity={0.8}>
+              <Text style={styles.ghostText}>Upload a file instead</Text>
+            </TouchableOpacity>
+
+            {!!error && <Text style={styles.error}>{error}</Text>}
+
+            <Text style={styles.small}>
+              You sign in on Goodreads' own page; Readscape never sees your password. We only read your
+              library export, and you'll see what will be added before anything is saved.
+            </Text>
+
+            {fromOnboarding && (
+              <TouchableOpacity onPress={leave} style={styles.notNow}>
+                <Text style={styles.notNowText}>Not now</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {(phase === "upload" || phase === "reading") && (
+          <>
+            <Text style={styles.title}>Upload your export</Text>
+            <Text style={styles.lead}>
+              If you already have your Goodreads export file, or connecting didn't work.
             </Text>
 
             <View style={styles.steps}>
@@ -163,8 +330,25 @@ export default function ImportGoodreadsScreen() {
           </>
         )}
 
+        {phase === "stale" && stale && (
+          <>
+            <Text style={styles.title}>Goodreads is taking a while</Text>
+            <Text style={styles.lead}>
+              A new export hasn't appeared yet. You have an older one from {stale.label}, which won't include
+              anything you've added on Goodreads since.
+            </Text>
+            <TouchableOpacity style={styles.primary} onPress={useStale} activeOpacity={0.85}>
+              <Text style={styles.primaryText}>Use the export from {stale.label}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghost} onPress={startConnect} activeOpacity={0.8}>
+              <Text style={styles.ghostText}>Try again</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         {phase === "preview" && plan && (
           <>
+            {!!exportLabel && <Text style={styles.small}>Your Goodreads export from {exportLabel}</Text>}
             <Text style={styles.title}>
               {plan.toAdd.length === 0 ? "You're up to date" : `${plan.toAdd.length} books to add`}
             </Text>
@@ -231,6 +415,7 @@ export default function ImportGoodreadsScreen() {
           </>
         )}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -288,5 +473,14 @@ const styles = StyleSheet.create({
   },
   ghostText: { fontFamily: fonts.bodyMedium, fontSize: 14.5, color: colors.ink },
   notNow: { alignSelf: "center", paddingVertical: 10 },
+  connectHint: {
+    fontFamily: fonts.bodyMedium, fontSize: 13.5, color: colors.ink,
+    paddingHorizontal: 24, paddingBottom: 10,
+  },
+  fetching: {
+    backgroundColor: colors.paper, alignItems: "center", justifyContent: "center",
+    gap: 14, paddingHorizontal: 32,
+  },
+  hidden: { opacity: 0 },
   notNowText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.pencil },
 });
