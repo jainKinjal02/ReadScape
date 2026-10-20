@@ -28,7 +28,7 @@ import { fetchMoodLogs } from "../../src/lib/books";
 import { useReadingStreak } from "../../src/hooks/useReadingStreak";
 import { Book } from "../../src/types";
 import { supabase } from "../../src/lib/supabase";
-import { deleteAccount } from "../../src/lib/auth";
+import { deleteAccount, OAuthCancelledError } from "../../src/lib/auth";
 import { Avatar } from "../../src/components/Avatar";
 import { useTabBarSpace } from "../../src/components/FloatingTabBar";
 import { SOCIALS, SocialKind, socialUrl } from "../../src/lib/profile";
@@ -153,6 +153,8 @@ export default function HomeScreen() {
                 setUserName("");
                 router.replace("/");
               } catch (e) {
+                // Backing out of the Apple confirmation is a choice, not an error.
+                if (e instanceof OAuthCancelledError) return;
                 Alert.alert("Couldn't delete your account", toUserMessage(e));
               } finally {
                 setDeletingAccount(false);

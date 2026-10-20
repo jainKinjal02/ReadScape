@@ -229,12 +229,33 @@ export async function signInWithApple(): Promise<void> {
  * photos and voice recordings, then sign out on this device.
  */
 export async function deleteAccount(): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+
+  // App Store guideline 5.1.1(v): deleting an account made with Sign in with
+  // Apple must also revoke it, so it leaves the reader's Apple ID settings.
+  // Revoking needs a fresh authorization code, so the reader confirms with
+  // Apple once more (Face ID); the server trades the code and revokes.
+  // Cancelling that sheet cancels the deletion.
+  let appleAuthorizationCode: string | null = null;
+  const usesApple = (data.user?.identities ?? []).some((i) => i.provider === "apple");
+  if (usesApple && (await isAppleSignInAvailable())) {
+    try {
+      const credential = await AppleAuthentication.signInAsync({ requestedScopes: [] });
+      appleAuthorizationCode = credential.authorizationCode ?? null;
+    } catch (e: any) {
+      if (e?.code === "ERR_REQUEST_CANCELED") throw new OAuthCancelledError();
+      throw e;
+    }
+  }
+
   // The profile photo is found through the account's metadata, which the
   // delete-account function does not read; remove it while signed in.
-  const { data } = await supabase.auth.getUser();
   await deleteAvatarByUrl(data.user?.user_metadata?.avatar_url ?? null).catch(() => {});
 
-  const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
+  const { error } = await supabase.functions.invoke("delete-account", {
+    method: "POST",
+    body: { appleAuthorizationCode },
+  });
   if (error) {
     const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
     throw new Error(body?.error ?? error.message);
