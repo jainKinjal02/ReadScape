@@ -63,7 +63,7 @@ Competitor names (Goodreads, StoryGraph) are left out on purpose: Apple rejects 
 
 ## Screenshots
 
-6.9-inch (1320 × 2868), in this order, from `~/Desktop/Readscape-screenshots`:
+6.9-inch (1320 × 2868), in this order, from `~/Desktop/ReadScape-screenshots/App Store (October 2026)`:
 
 1. Home
 2. Library
