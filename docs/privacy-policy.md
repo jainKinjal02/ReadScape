@@ -4,7 +4,7 @@ title: Readscape Privacy Policy
 
 # Readscape Privacy Policy
 
-_Last updated: 12 October 2026_
+_Last updated: 20 October 2026_
 
 Readscape is a personal reading journal. This policy explains what the app stores, why, who helps us run it, and how you can delete everything.
 
@@ -34,6 +34,10 @@ Readscape is a personal reading journal. This policy explains what the app store
 - The recording is kept so you can play it back, until you delete the note or your account. If you discard a voice note before saving it, the recording is deleted straight away.
 - Readscape only uses the microphone while you are recording a voice note.
 
+**Goodreads import**
+- If you choose to import from Goodreads, you sign in on Goodreads' own page inside the app. Readscape never sees or stores your Goodreads password.
+- Readscape then downloads your Goodreads library export and adds those books, shelves, ratings, dates and reviews to your Readscape library. Nothing else from your Goodreads account is read, and the Goodreads sign-in isn't kept after the import.
+
 ## Who helps us run Readscape
 
 - **Supabase** hosts our database, file storage and sign-in. Everything listed above is stored with Supabase.
@@ -41,6 +45,7 @@ Readscape is a personal reading journal. This policy explains what the app store
 - **Anthropic** turns a voice note's text into a mood, a quote and a note.
 - **Open Library** (Internet Archive) provides book search and cover images. When you search, your search words are sent to Open Library. Nothing that identifies you is sent.
 - **Apple** and **Google** handle sign-in if you choose to use them.
+- **Goodreads** provides your library export, only if you choose to import it.
 
 OpenAI and Anthropic receive voice-note content only to process that one note. Under their API terms, they do not use it to train their models.
 
@@ -54,7 +59,7 @@ OpenAI and Anthropic receive voice-note content only to process that one note. U
 
 Your data is kept for as long as you have an account. You can delete individual notes, quotes, photos and books at any time in the app.
 
-To delete everything, open the profile panel on the Home screen and tap **Delete account**. This permanently deletes your account, your whole library, your notes, quotes and mood logs, your photos (including your profile photo) and your voice recordings. It can't be undone.
+To delete everything, open the profile panel on the Home screen and tap **Delete account**. This permanently deletes your account, your whole library, your notes, quotes and mood logs, your photos (including your profile photo) and your voice recordings. If you signed in with Apple, this also removes Readscape from your Apple ID's "Sign in with Apple" list. It can't be undone.
 
 ## Children
 
