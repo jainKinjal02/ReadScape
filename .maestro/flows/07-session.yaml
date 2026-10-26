@@ -1,4 +1,4 @@
-# TC24–TC25: logging a reading session.
+# TC24–TC25: logging a reading session (TC40 covers a session with only a note).
 appId: host.exp.Exponent
 name: 07 Reading session
 ---
@@ -19,18 +19,11 @@ name: 07 Reading session
 - tapOn: "\\+"
 - tapOn: "\\+"
 - assertVisible: "20"
-# TC24 — a mood is required
-- scrollUntilVisible:
-    element: "Save check-in"
-    direction: DOWN
-- tapOn: "Save check-in"
-- assertVisible: "Pick a mood"
-- tapOn: "OK"
 - tapOn: ".*Hooked.*"
 - tapOn: ".*Capture a quote.*"
 - tapOn: "Type a passage that moved you…"
 - inputText: "Everyone in that house was a little lost"
-- tapOn: "What's on your mind about this book…"
+- tapOn: "How it's feeling, if none of those fit…"
 - inputText: "Funny and sad at once"
 - scrollUntilVisible:
     element: "Save check-in"

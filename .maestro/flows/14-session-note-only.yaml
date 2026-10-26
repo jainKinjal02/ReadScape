@@ -1,0 +1,60 @@
+# TC40: a session can be saved with only a note, no feeling picked.
+appId: host.exp.Exponent
+name: 14 Session with only a note
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/dismiss-save-password.yaml
+- tapOn: "Library"
+- tapOn: ".*Lost Lambs.*"
+- extendedWaitUntil:
+    visible: "Log a session"
+    timeout: 10000
+- tapOn: "Log a session"
+- assertVisible: "How are you feeling right now\\? \\(optional\\)"
+# Nothing filled in: there's nothing to save
+- scrollUntilVisible:
+    element: "Save check-in"
+    direction: DOWN
+- tapOn: "Save check-in"
+- assertVisible: "Nothing to save yet"
+- tapOn: "OK"
+# Only a note, in the reader's own words
+- scrollUntilVisible:
+    element: "How it's feeling, if none of those fit…"
+    direction: UP
+- tapOn: "How it's feeling, if none of those fit…"
+- inputText: "Quietly unsettling, like a held breath"
+- scrollUntilVisible:
+    element: "Save check-in"
+    direction: DOWN
+- tapOn: "Save check-in"
+- extendedWaitUntil:
+    visible: "Session saved!"
+    timeout: 15000
+- tapOn: "OK"
+# Back on the book: the note is on the Notes tab
+- extendedWaitUntil:
+    visible: "Log a session"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Notes"
+    direction: DOWN
+- tapOn: "Notes"
+- scrollUntilVisible:
+    element: ".*Quietly unsettling, like a held breath.*"
+    direction: DOWN
+# Home and Insights still load with a session that has no feeling
+- runFlow: ../common/launch.yaml
+- tapOn: "Home"
+- extendedWaitUntil:
+    visible: "Waiting for you|Currently reading|.*Lost Lambs.*"
+    timeout: 10000
+- tapOn: "Insights"
+- extendedWaitUntil:
+    visible: "How they felt"
+    timeout: 10000
+# The note is in the Notes tab too
+- tapOn: "Notes"
+- extendedWaitUntil:
+    visible: ".*Quietly unsettling, like a held breath.*"
+    timeout: 10000

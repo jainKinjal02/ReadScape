@@ -65,7 +65,7 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC21 | Book | Genres can be edited | 05-book-lifecycle |
 | TC22 | Quotes | A quote with a page can be added and deleted | 06-quotes-notes |
 | TC23 | Notes | A note can be added and deleted | 06-quotes-notes |
-| TC24 | Session | A reading session needs a mood, then saves page, mood and quote | 07-session |
+| TC24 | Session | A reading session saves page, mood and quote | 07-session |
 | TC25 | Session | The session's mood appears under "How it felt" | 07-session |
 | TC26 | Voice | Recording a spoken note fills mood, quote and thought for review | 08-voice-note.sh |
 | TC27 | Voice | Saving keeps the recording, playable from the Notes tab | 08-voice-note.sh |
@@ -81,3 +81,4 @@ The last flow deletes that account, which is itself the Delete account test.
 | TC37 | Goodreads | Choosing the export shows what will be added (by shelf) before anything is saved | 13-goodreads-import |
 | TC38 | Goodreads | Importing puts the books on the shelf | 13-goodreads-import |
 | TC39 | Goodreads | Importing the same file again adds nothing | 13-goodreads-import |
+| TC40 | Session | A session with nothing in it isn't saved; one with only a note (no mood) is, and the note shows on the book and in Notes | 14-session-note-only |
