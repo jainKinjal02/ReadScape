@@ -7,7 +7,7 @@ Character limits are Apple's.
 
 | Field | Value |
 |---|---|
-| Name (30 max) | `Readscape: Reading Journal` (or `Readscape` if that name is free) |
+| Name (30 max) | `Readscape: Book Tracker` (`ReadScape` alone is taken; the home-screen name stays Readscape) |
 | Subtitle (30 max) | `Your reading life, kept here` |
 | Primary category | Books |
 | Secondary category | Lifestyle |
@@ -56,10 +56,10 @@ No ads and no tracking. Your voice notes are stored privately, and you can delet
 ## Keywords (100 max, commas, no spaces)
 
 ```
-book,tracker,journal,reading,log,quotes,notes,library,diary,mood,voice,shelf,habit,streak,reader
+journal,reading,log,quotes,notes,library,diary,mood,voice,shelf,habit,streak,reader,tbr,novels,reads
 ```
 
-Competitor names (Goodreads, StoryGraph) are left out on purpose: Apple rejects other companies' trademarks in keywords. Mentioning the Goodreads import in the description is fine.
+"book" and "tracker" are left out because they're already in the name, and Apple counts name words for search. Competitor names (Goodreads, StoryGraph) are left out on purpose: Apple rejects other companies' trademarks in keywords. Mentioning the Goodreads import in the description is fine.
 
 ## Screenshots
 
