@@ -31,7 +31,8 @@ export interface MoodLog {
   user_id: string;
   book_id: string;
   page: number | null;
-  mood: Mood;
+  /** null when the reader logged a session without picking a feeling. */
+  mood: Mood | null;
   note: string | null;
   session_duration_mins: number | null;
   created_at: string;

@@ -395,7 +395,7 @@ export default function InsightsScreen() {
         .then((logs) => {
           if (cancelled) return;
           const tally: Record<string, number> = {};
-          for (const l of logs) tally[l.mood] = (tally[l.mood] ?? 0) + 1;
+          for (const l of logs) if (l.mood) tally[l.mood] = (tally[l.mood] ?? 0) + 1;
           setMoodCounts(
             Object.entries(tally)
               .map(([mood, count]) => ({ mood, count }))

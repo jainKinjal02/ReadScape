@@ -180,7 +180,7 @@ export default function HomeScreen() {
         if (cancelled) return;
         const map: Record<string, string> = {};
         // Newest first, so the first entry seen for a book is its latest mood.
-        for (const l of logs) if (!map[l.book_id]) map[l.book_id] = l.mood;
+        for (const l of logs) if (l.mood && !map[l.book_id]) map[l.book_id] = l.mood;
         setLatestMoods(map);
       })
       .catch(() => {

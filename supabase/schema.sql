@@ -40,7 +40,8 @@ create table if not exists mood_logs (
   user_id uuid references auth.users on delete cascade not null,
   book_id uuid references books on delete cascade not null,
   page int,
-  mood text check (mood in ('loving_it', 'getting_into_it', 'struggling', 'taking_a_break', 'finished')) not null,
+  -- null: a session logged without picking a feeling (a note, quote or page only)
+  mood text check (mood in ('loving_it', 'getting_into_it', 'struggling', 'taking_a_break', 'finished')),
   note text,
   session_duration_mins int,
   created_at timestamptz default now()
@@ -264,3 +265,11 @@ alter table books add constraint books_rating_halves
   check (rating between 0.5 and 5 and rating * 2 = floor(rating * 2));
 
 notify pgrst, 'reload schema';
+
+-- ============================================================
+-- OPTIONAL SESSION MOOD
+-- A reading session can be logged without picking one of the preset
+-- feelings, e.g. with only a note in the reader's own words.
+-- ============================================================
+
+alter table mood_logs alter column mood drop not null;

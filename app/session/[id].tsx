@@ -20,7 +20,7 @@ import Svg, { Path } from "react-native-svg";
 import { colors, fonts, moodConfig } from "../../src/design/tokens";
 import { CoverImage } from "../../src/components/CoverImage";
 import { useAppStore } from "../../src/store";
-import { updateCurrentPage, logMood, addQuote } from "../../src/lib/books";
+import { updateCurrentPage, logMood, addQuote, addNote } from "../../src/lib/books";
 import type { Mood } from "../../src/types";
 
 const MOODS: Mood[] = ["loving_it", "getting_into_it", "struggling", "taking_a_break", "finished"];
@@ -66,8 +66,16 @@ export default function ReadingSessionScreen() {
   }
 
   const saveSession = async () => {
-    if (!selectedMood) {
-      Alert.alert("Pick a mood", "Let us know how you're feeling about this book.");
+    // A mood is optional: the presets won't always fit, and a note in the
+    // reader's own words is just as good. A session needs something, though.
+    const trimmedNote = note.trim();
+    const trimmedQuote = quoteText.trim();
+    const pageChanged = currentPage !== (book.current_page ?? 0);
+    if (!selectedMood && !trimmedNote && !trimmedQuote && !pageChanged) {
+      Alert.alert(
+        "Nothing to save yet",
+        "Pick a feeling, write a quick note, save a quote, or update your page."
+      );
       return;
     }
     if (!userId) {
@@ -76,12 +84,13 @@ export default function ReadingSessionScreen() {
     }
     setSaving(true);
     try {
-      const trimmedNote = note.trim();
-      const trimmedQuote = quoteText.trim();
       await Promise.all([
         updateCurrentPage(id, currentPage),
         logMood(userId, id, selectedMood, currentPage, trimmedNote || null),
         ...(trimmedQuote ? [addQuote(userId, id, trimmedQuote, currentPage)] : []),
+        // The session log keeps the note too, but nothing shows those; as a
+        // note it appears on the book and in the Notes tab.
+        ...(trimmedNote ? [addNote(userId, id, trimmedNote)] : []),
       ]);
       // Keep the store (and Home / Book Detail) in sync with the new progress
       updateBook({ ...book, current_page: currentPage });
@@ -173,7 +182,7 @@ export default function ReadingSessionScreen() {
 
           {/* Mood grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionLbl}>How are you feeling right now?</Text>
+            <Text style={styles.sectionLbl}>How are you feeling right now? (optional)</Text>
             <View style={styles.moodGrid}>
               {MOODS.map((mood) => {
                 const cfg = moodConfig[mood];
@@ -182,7 +191,8 @@ export default function ReadingSessionScreen() {
                   <TouchableOpacity
                     key={mood}
                     style={[styles.moodOpt, sel && styles.moodOptSel]}
-                    onPress={() => setSelectedMood(mood)}
+                    // Tapping the chosen feeling again clears it.
+                    onPress={() => setSelectedMood(sel ? null : mood)}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.moodEmoji}>{cfg.symbol}</Text>
@@ -195,13 +205,13 @@ export default function ReadingSessionScreen() {
 
           {/* Note */}
           <View style={styles.section}>
-            <Text style={styles.sectionLbl}>Quick note (optional)</Text>
+            <Text style={styles.sectionLbl}>In your own words (optional)</Text>
             <View style={styles.noteBox}>
               <TextInput
                 style={styles.noteInput}
                 value={note}
                 onChangeText={setNote}
-                placeholder="What's on your mind about this book…"
+                placeholder="How it's feeling, if none of those fit…"
                 placeholderTextColor={colors.cream3}
                 multiline
                 numberOfLines={3}

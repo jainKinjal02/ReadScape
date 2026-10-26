@@ -203,7 +203,7 @@ export async function fetchMoodLogs(userId: string): Promise<MoodLog[]> {
 export async function logMood(
   userId: string,
   bookId: string,
-  mood: Mood,
+  mood: Mood | null,
   page: number | null = null,
   note: string | null = null
 ): Promise<void> {

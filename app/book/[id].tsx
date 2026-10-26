@@ -144,7 +144,7 @@ export default function BookDetailScreen() {
           if (cancelled) return;
           const seen: string[] = [];
           for (const l of logs) {
-            if (l.book_id === bookId && !seen.includes(l.mood)) seen.push(l.mood);
+            if (l.book_id === bookId && l.mood && !seen.includes(l.mood)) seen.push(l.mood);
           }
           setMoods(seen);
         })

@@ -144,7 +144,7 @@ export default function LibraryScreen() {
         const map: Record<string, string[]> = {};
         for (const l of logs) {
           const list = map[l.book_id] ?? (map[l.book_id] = []);
-          if (list.length < 2 && !list.includes(l.mood)) list.push(l.mood);
+          if (l.mood && list.length < 2 && !list.includes(l.mood)) list.push(l.mood);
         }
         setBookMoods(map);
       })
