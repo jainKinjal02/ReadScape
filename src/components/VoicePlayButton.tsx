@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import Svg, { Path, Rect } from "react-native-svg";
 import { colors, fonts } from "../design/tokens";
 import { toUserMessage } from "../lib/errors";
 import { formatDuration, voiceNoteUrl } from "../lib/voice";
+
+// How long the first tap waits for the recording to load before giving up.
+const LOAD_TIMEOUT_MS = 15000;
 
 /**
  * Plays a voice note's recording. The bucket is private, so the signed URL is
@@ -15,6 +18,30 @@ export function VoicePlayButton({ audioPath, durationMs }: { audioPath: string; 
   const status = useAudioPlayerStatus(player);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Set on the first tap: play as soon as the recording has loaded. Calling
+  // play() straight after replace() does nothing on iOS, because the player
+  // has no audio yet, which made the first tap appear to do nothing.
+  const playWhenLoaded = useRef(false);
+
+  useEffect(() => {
+    if (!status.isLoaded || !playWhenLoaded.current) return;
+    playWhenLoaded.current = false;
+    setLoading(false);
+    player.play();
+  }, [status.isLoaded]);
+
+  // If it never loads (a dropped connection), say so rather than spin forever.
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      if (!playWhenLoaded.current) return;
+      playWhenLoaded.current = false;
+      setLoading(false);
+      setLoaded(false);
+      Alert.alert("Couldn't play this note", "The recording didn't load. Check your connection and try again.");
+    }, LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Back to the start once it has played through, so the next tap replays.
   useEffect(() => {
@@ -29,18 +56,21 @@ export function VoicePlayButton({ audioPath, durationMs }: { audioPath: string; 
       player.pause();
       return;
     }
+    if (loading) return;
     try {
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
-      if (!loaded) {
-        setLoading(true);
-        player.replace({ uri: await voiceNoteUrl(audioPath) });
-        setLoaded(true);
+      if (loaded) {
+        player.play();
+        return;
       }
-      player.play();
+      setLoading(true);
+      playWhenLoaded.current = true;
+      player.replace({ uri: await voiceNoteUrl(audioPath) });
+      setLoaded(true);
     } catch (e) {
-      Alert.alert("Couldn't play this note", toUserMessage(e));
-    } finally {
+      playWhenLoaded.current = false;
       setLoading(false);
+      Alert.alert("Couldn't play this note", toUserMessage(e));
     }
   };
 
