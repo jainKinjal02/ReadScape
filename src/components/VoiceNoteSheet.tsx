@@ -165,7 +165,7 @@ export function VoiceNoteSheet({
     try {
       path = await uploadVoiceRecording(userId, uri);
       setAudioPath(path);
-      const result = await processVoiceNote(path, book);
+      const result = await processVoiceNote(path, book, elapsed);
       if (!result.transcript) {
         await deleteVoiceRecording(path).catch(() => {});
         setAudioPath(null);

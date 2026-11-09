@@ -35,13 +35,17 @@ export async function uploadVoiceRecording(userId: string, localUri: string): Pr
   return storagePath;
 }
 
-/** Transcribe and sort an uploaded recording. Saves nothing. */
+/**
+ * Transcribe and sort an uploaded recording. Saves nothing. The length lets
+ * the function notice a transcript that dropped part of the recording.
+ */
 export async function processVoiceNote(
   audioPath: string,
-  book: Pick<Book, "title" | "author">
+  book: Pick<Book, "title" | "author">,
+  durationMs: number
 ): Promise<VoiceNoteResult> {
   const { data, error } = await supabase.functions.invoke("voice-note", {
-    body: { audioPath, book: { title: book.title, author: book.author } },
+    body: { audioPath, book: { title: book.title, author: book.author }, durationMs },
   });
   if (error) {
     // The function's own message ("today's limit…") is in the response body;

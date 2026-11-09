@@ -4,9 +4,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //
 //   1. The app uploads the recording to the private `voice-notes` bucket and
 //      sends us its path.
-//   2. Whisper transcribes it.
+//   2. OpenAI transcribes it.
 //   3. An OpenAI text model sorts the transcript into a mood, a quote read
-//      aloud, and the reader's own thought.
+//      aloud, and the reader's own thought, rewritten as clean English.
 //
 // Nothing is saved here. The app shows the result for review first, because
 // a transcription will sometimes mishear a quote and the reader should get
@@ -60,6 +60,46 @@ const RESULT_SCHEMA = {
 
 const SORTING_MODEL = "gpt-6-luna";
 
+// gpt-4o-transcribe hears accents, mixed languages and quiet stretches far
+// better than whisper-1, which skips whole passages it can't place. whisper-1
+// stays as the fallback if the newer model is unavailable on the account.
+const TRANSCRIBE_MODELS = ["gpt-4o-transcribe", "whisper-1"];
+
+// Natural speech runs 110 to 160 words a minute. Far fewer than this over a
+// long recording means the transcriber dropped part of it.
+const MIN_WORDS_PER_MINUTE = 45;
+
+const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+async function transcribe(
+  openaiKey: string,
+  audio: Blob,
+  model: string,
+  book: { title?: string; author?: string } | undefined
+): Promise<string | null> {
+  const form = new FormData();
+  form.append("file", new File([audio], "note.m4a", { type: "audio/mp4" }));
+  form.append("model", model);
+  // A spelling and context hint, not an instruction. Book titles and
+  // character names are exactly what transcription tends to mangle.
+  const about = book?.title ? ` about "${book.title}"${book.author ? ` by ${book.author}` : ""}` : "";
+  form.append(
+    "prompt",
+    `A reader's spoken note${about}. They may mix English with Hindi or another language, pause to think, or read a passage aloud.`
+  );
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    console.error(`Transcription error (${model}):`, res.status, await res.text());
+    return null;
+  }
+  return String((await res.json()).text ?? "").trim();
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = corsFor(req);
   const json = (body: unknown, status = 200) =>
@@ -96,7 +136,8 @@ Deno.serve(async (req) => {
       return json({ error: "Voice notes are not configured yet." }, 503);
     }
 
-    const { audioPath, book } = await req.json();
+    // durationMs is sent by app versions from 1.0.1 on; older ones omit it.
+    const { audioPath, book, durationMs } = await req.json();
 
     // The service role below can read any object, so the path must be proven
     // to belong to the caller before it is used.
@@ -126,25 +167,20 @@ Deno.serve(async (req) => {
       return json({ error: "Couldn't find that recording." }, 404);
     }
 
-    const form = new FormData();
-    form.append("file", new File([audio], "note.m4a", { type: "audio/mp4" }));
-    form.append("model", "whisper-1");
-    // Whisper's prompt is a spelling hint, not an instruction. Book titles and
-    // character names are exactly what it tends to mangle.
-    if (book?.title) {
-      form.append("prompt", `A reader's note about "${book.title}"${book.author ? ` by ${book.author}` : ""}.`);
+    // Try each model in turn until one gives a transcript long enough for the
+    // recording. If none does, keep the longest: some words beat none.
+    const minutes = typeof durationMs === "number" && durationMs > 0 ? durationMs / 60000 : null;
+    let transcript: string | null = null;
+    for (const model of TRANSCRIBE_MODELS) {
+      const heard = await transcribe(openaiKey, audio, model, book);
+      if (heard === null) continue;
+      if (transcript === null || wordCount(heard) > wordCount(transcript)) transcript = heard;
+      if (minutes === null || minutes < 0.75 || wordCount(heard) / minutes >= MIN_WORDS_PER_MINUTE) break;
+      console.warn(`${model} heard ${wordCount(heard)} words in ${minutes.toFixed(1)} min; trying the next model`);
     }
-
-    const whisper = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}` },
-      body: form,
-    });
-    if (!whisper.ok) {
-      console.error("Whisper error:", whisper.status, await whisper.text());
+    if (transcript === null) {
       return json({ error: "Couldn't transcribe that recording. Please try again." }, 502);
     }
-    const transcript = String((await whisper.json()).text ?? "").trim();
 
     if (!transcript) {
       return json({ transcript: "", mood: null, quote: null, page: null, thought: null });
@@ -155,18 +191,25 @@ Deno.serve(async (req) => {
       .map(([value, meaning]) => `- ${value}: ${meaning}`)
       .join("\n");
 
-    const system = `You file a reader's spoken note about a book into their reading journal.
+    const system = `You turn a reader's spoken note about a book into an entry in their reading journal, the way a good dictation app turns speech into clean writing.
 
-The note is a transcript of speech, so it may ramble, repeat itself, or contain filler words. From it, extract:
+The note is a transcript of speech. It may ramble, repeat itself, contain filler words and false starts, mishear words, and mix English with Hindi or another language, in any script. From it, write:
 
 mood: which of these best matches how the reader says the book is making them feel. Use null if they do not express a feeling about the book.
 ${moodList}
 
-quote: a passage the reader read aloud from the book, word for word as transcribed, without surrounding quotation marks. Readers often introduce one with "there's this line", "it says", or "quote". Use null if they did not read one. Never compose or recall a quote yourself.
+quote: a passage the reader read aloud from the book, without surrounding quotation marks. Readers often introduce one with "there's this line", "it says", or "quote". Keep the passage's own words and language; only fix punctuation and obvious mishearings. Use null if they did not read one. Never compose or recall a quote yourself.
 
 page: the page number of that quote if the reader said it, otherwise null.
 
-thought: the reader's own reflection, in their own voice and first person, with filler words and false starts removed. Keep their wording; do not summarise it into your own words, add interpretation, or include the quote. Use null if the note is only a quote.`;
+thought: everything else the reader said, written up as clear, natural, grammatical English in their own first-person voice.
+- Keep every point, detail, example and feeling they mention, in the order they said it. This is a rewrite for readability, never a summary: a two-minute note should still read as several full sentences or short paragraphs, not one line.
+- Translate anything said in Hindi or another language into English, and write it all in the Latin alphabet.
+- Remove filler words ("um", "like", "you know"), false starts, repetition, and spoken signposts such as "point one" or "okay so".
+- Fix grammar and obvious transcription mistakes, and spell names from the book correctly.
+- Do not add opinions, interpretation or anything they did not say, and do not include the quote.
+- Separate distinct points into paragraphs with a blank line between them when the note is long.
+Use null only if the note is nothing but a quote.`;
 
     const context = book?.title
       ? `Book: "${book.title}"${book.author ? ` by ${book.author}` : ""}.\n\n`
@@ -192,7 +235,8 @@ thought: the reader's own reflection, in their own voice and first person, with 
           text: {
             format: { type: "json_schema", name: "voice_note", strict: true, schema: RESULT_SCHEMA },
           },
-          max_output_tokens: 2000,
+          // A three-minute note rewritten in full, plus room for reasoning.
+          max_output_tokens: 6000,
         }),
       });
       if (!res.ok) {
