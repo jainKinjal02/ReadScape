@@ -252,7 +252,7 @@ export default function BookDetailScreen() {
       if (options.length === 0) {
         Alert.alert(
           "No covers found",
-          "Open Library has no artwork for this one. You can paste a link instead."
+          "Neither Open Library nor Apple Books has artwork for this one. You can paste a link instead."
         );
       }
     } finally {

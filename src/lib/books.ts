@@ -416,6 +416,50 @@ function isSameBook(doc: any, title: string, author: string | null | undefined):
   return wantTitle.size > 0 && (contains(wantTitle, gotTitle) || contains(gotTitle, wantTitle));
 }
 
+// ─── Apple Books (fallback covers) ──────────────────────────────────────────
+// Open Library takes weeks or months to list a new release, while Apple's
+// store has it on publication day ("Belonging" by Sonia Gandhi had no Open
+// Library record a week after it came out). Apple's public search needs no
+// key. Docs: https://performance-partners.apple.com/search-api
+
+const appleArtwork = (url: string) => url.replace(/\/\d+x\d+bb\.(jpg|png)$/, "/600x900bb.$1");
+
+/**
+ * Apple's search is loose: "Tuesdays with Morrie Mitch Albom" also returns a
+ * "Daily Book" summary of it and Albom's other novels. So the author must
+ * match and one main title must contain the other: "Becoming Belonging" still
+ * finds "Belonging", but "The Five People You Meet in Heaven" is not
+ * "Tuesdays with Morrie". An author known only in another script (村上春樹)
+ * can't be compared, so then the main titles must be identical instead.
+ */
+function isSameAppleBook(result: any, title: string, author: string | null | undefined): boolean {
+  const mainTitle = (v: string) => tokens(v.split(":")[0]);
+  const want = mainTitle(title);
+  const got = mainTitle(result?.trackName ?? "");
+  if (want.size === 0 || got.size === 0) return false;
+  const contains = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+  const titlesOverlap = contains(want, got) || contains(got, want);
+
+  const wantAuthor = tokens(author ?? "");
+  if (wantAuthor.size === 0) return titlesOverlap;
+  const gotAuthor = tokens(result?.artistName ?? "");
+  if ([...wantAuthor].some((t) => gotAuthor.has(t))) return titlesOverlap;
+  return NON_LATIN.test(author ?? "") && contains(want, got) && contains(got, want);
+}
+
+/** Covers from Apple Books for this book, best match first. */
+async function appleBooksCovers(title: string, author: string | null | undefined): Promise<string[]> {
+  const term = [title, author ?? ""].join(" ").trim();
+  const res = await fetchWithTimeout(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=ebook&entity=ebook&limit=10`
+  );
+  if (!res.ok) throw new CoverLookupUnavailableError();
+  const results: any[] = (await res.json())?.results ?? [];
+  return results
+    .filter((r) => r?.artworkUrl100 && isSameAppleBook(r, title, author))
+    .map((r) => appleArtwork(r.artworkUrl100));
+}
+
 /**
  * Find a cover for a book that has none.
  *
@@ -430,8 +474,11 @@ function isSameBook(doc: any, title: string, author: string | null | undefined):
  *   - if we know the author, the author must match
  *   - if we do not, the titles must contain one another
  *
+ * When Open Library has nothing, Apple Books is tried, which lists new
+ * releases long before Open Library does.
+ *
  * Returns null rather than guessing. Throws CoverLookupUnavailableError when
- * Open Library could not be reached, so callers can retry later.
+ * neither could be reached, so callers can retry later.
  */
 export async function resolveCoverUrl(
   title: string,
@@ -439,12 +486,24 @@ export async function resolveCoverUrl(
 ): Promise<string | null> {
   if (!title.trim()) return null;
 
-  const docs = await searchForCover(title, author, "title,author_name,cover_i");
-
-  for (const doc of docs) {
-    if (doc?.cover_i && isSameBook(doc, title, author)) return coverUrl(doc.cover_i, "L");
+  let openLibraryDown = false;
+  try {
+    const docs = await searchForCover(title, author, "title,author_name,cover_i");
+    for (const doc of docs) {
+      if (doc?.cover_i && isSameBook(doc, title, author)) return coverUrl(doc.cover_i, "L");
+    }
+  } catch (e) {
+    if (!(e instanceof CoverLookupUnavailableError)) throw e;
+    openLibraryDown = true;
   }
-  return null;
+
+  try {
+    return (await appleBooksCovers(title, author))[0] ?? null;
+  } catch {
+    // Apple unreachable too: nothing is known, so let the caller retry later.
+    if (openLibraryDown) throw new CoverLookupUnavailableError();
+    return null;
+  }
 }
 
 /**
@@ -467,9 +526,14 @@ export async function resolveCoverCandidates(
 ): Promise<string[]> {
   if (!title.trim()) return [];
 
-  const docs = await searchForCover(title, author, "title,author_name,cover_i,isbn").catch(() => []);
+  const [docs, apple] = await Promise.all([
+    searchForCover(title, author, "title,author_name,cover_i,isbn").catch(() => []),
+    appleBooksCovers(title, author).catch(() => [] as string[]),
+  ]);
 
-  const out: string[] = [];
+  // Apple's best match leads: it is the current English edition's artwork,
+  // where Open Library's representative cover is often a translation's.
+  const out: string[] = apple.slice(0, 2);
   const matches = (doc: any) => isSameBook(doc, title, author);
 
   for (const doc of docs) {
